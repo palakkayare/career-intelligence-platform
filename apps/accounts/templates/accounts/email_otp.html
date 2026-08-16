@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2>Verify your email</h2>
+    <p>Hi {{ user.email }},</p>
+    <p>Your verification code is:</p>
+    <h1 style="background: #f0f0f0; padding: 20px; text-align: center; letter-spacing: 4px;">
+        {{ code }}
+    </h1>
+    <p>This code will expire in {{ validity_minutes }} minutes.</p>
+    <p>If you didn't request this, please ignore this email.</p>
+</body>
+</html>

@@ -24,6 +24,10 @@ django-ratelimit==4.1.0
 django-debug-toolbar==4.4.2
 
 razorpay==1.4.2
+# razorpay 1.4.2 still imports pkg_resources, which setuptools 81+ removed.
+# Pinning setuptools keeps it importable until the SDK drops that import.
+setuptools<81
+
 
 celery==5.4.0 
 redis==5.0.4 

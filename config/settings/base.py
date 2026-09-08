@@ -122,6 +122,9 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
+# collectstatic needs somewhere to write. Only the admin and DRF's browsable
+# API serve static files here - the product frontend is a separate app.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # DRF configuration

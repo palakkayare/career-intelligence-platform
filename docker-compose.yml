@@ -1,0 +1,132 @@
+# Local and single-box production stack.
+#
+# One image runs the web server, the Celery worker and the beat scheduler -
+# they share the same code, so building three images would only mean three
+# chances for them to drift apart.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-career_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-career_password}
+      POSTGRES_DB: ${POSTGRES_DB:-career_intel_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # -d is required: pg_isready defaults the database name to the username,
+      # so without it this probes a database that does not exist.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-career_user} -d ${POSTGRES_DB:-career_intel_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Redis holds the Celery queue and the cache. appendonly keeps queued
+    # tasks across a restart; losing them would silently drop resume parses.
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_CACHE_URL: redis://redis:6379/3
+      # env_file loads .env, which sets this to development. Compose applies
+      # `environment` after `env_file`, so setting it here is what makes the
+      # container actually run production settings.
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  celery:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_CACHE_URL: redis://redis:6379/3
+      # The web container already ran these; doing it again would race it.
+      RUN_MIGRATIONS: "false"
+      COLLECT_STATIC: "false"
+      # env_file loads .env, which sets this to development. Compose applies
+      # `environment` after `env_file`, so setting it here is what makes the
+      # container actually run production settings.
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    command: celery -A config worker --loglevel=info --concurrency=2
+    volumes:
+      - media_files:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_CACHE_URL: redis://redis:6379/3
+      RUN_MIGRATIONS: "false"
+      COLLECT_STATIC: "false"
+      # env_file loads .env, which sets this to development. Compose applies
+      # `environment` after `env_file`, so setting it here is what makes the
+      # container actually run production settings.
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    # Exactly one beat process, ever. Two would fire every scheduled task
+    # twice - duplicate digest emails, duplicate match-score recomputation.
+    command: celery -A config beat --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_files:
+  media_files:

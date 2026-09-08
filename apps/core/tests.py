@@ -430,3 +430,53 @@ def test_client_errors_are_ignored():
 
     assert 'rest_framework.exceptions.ValidationError' in IGNORED_EXCEPTIONS
     assert 'rest_framework.exceptions.NotFound' in IGNORED_EXCEPTIONS
+
+
+# --------------------------------------------------------------------------
+# Health checks
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_health_is_public():
+    """
+    Regression: the container healthcheck needs an unauthenticated endpoint,
+    and there was none. Every route on the API required a login.
+    """
+    from rest_framework.test import APIClient
+
+    response = APIClient().get('/api/v1/health/')
+
+    assert response.status_code == 200
+    assert response.data['status'] == 'ok'
+
+
+def test_health_does_not_touch_the_database(django_assert_num_queries):
+    """Liveness must stay cheap - a database blip should not kill containers."""
+    from rest_framework.test import APIClient
+
+    with django_assert_num_queries(0):
+        APIClient().get('/api/v1/health/')
+
+
+def test_readiness_reports_dependencies():
+    from rest_framework.test import APIClient
+
+    response = APIClient().get('/api/v1/health/ready/')
+
+    assert response.status_code == 200
+    assert response.data['checks']['database'] == 'ok'
+    assert response.data['checks']['cache'] == 'ok'
+
+
+def test_readiness_returns_503_when_the_database_is_down():
+    """A load balancer should pull the container, not the orchestrator kill it."""
+    from unittest.mock import patch
+
+    from rest_framework.test import APIClient
+
+    with patch('django.db.connection.cursor', side_effect=RuntimeError('down')):
+        response = APIClient().get('/api/v1/health/ready/')
+
+    assert response.status_code == 503
+    assert response.data['status'] == 'degraded'
+    assert 'down' in response.data['checks']['database']

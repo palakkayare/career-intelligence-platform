@@ -15,6 +15,15 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = True
+# Nginx terminates TLS and forwards plain HTTP, so Django cannot tell a
+# secure request from an insecure one on its own. This header, set by the
+# proxy, is how it knows - without it SECURE_SSL_REDIRECT would bounce every
+# request in an endless loop.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# The container healthcheck talks to Gunicorn directly over HTTP, so the
+# redirect has to skip it or the container is never reported healthy.
+SECURE_REDIRECT_EXEMPT = [r'^api/v1/health/']
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
@@ -33,4 +42,3 @@ init_sentry(
     release=SENTRY_RELEASE or None,  # noqa: F405
     traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,  # noqa: F405
 )
-DJANGO_SETTINGS_MODULE=config.settings.production

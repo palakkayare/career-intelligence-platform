@@ -33,3 +33,4 @@ init_sentry(
     release=SENTRY_RELEASE or None,  # noqa: F405
     traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,  # noqa: F405
 )
+DJANGO_SETTINGS_MODULE=config.settings.production

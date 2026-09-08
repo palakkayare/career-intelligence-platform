@@ -33,7 +33,10 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-
+          # This project keeps its requirements under requirements/, so the
+          # cache has to be pointed at them explicitly - the default only
+          # looks for requirements.txt or pyproject.toml at the root.
+          cache-dependency-path: requirements/*.txt
       - name: Install dependencies
         # test.txt pulls in base.txt, so this covers both the app and its
         # test tooling. development.txt is deliberately not used: ipython and

@@ -33,7 +33,7 @@ from apps.recruiters.urls import (
 from apps.referrals.urls import referrals_patterns
 from apps.resumes.urls import resumes_patterns
 from apps.resumes.views import AtsBestPracticesView
-
+from apps.core.urls import admin_dashboard_patterns
 admin.site.site_header = 'Career Intelligence Platform — Admin'
 admin.site.index_title = 'Operations Dashboard'
 ats_patterns = [
@@ -87,6 +87,7 @@ urlpatterns = [
     path('api/v1/candidates/', include((candidates_patterns, 'candidates'))),
     
     path('api/v1/referrals/', include((referrals_patterns, 'referrals'))),
+    path('api/v1/admin/dashboard/', include((admin_dashboard_patterns, 'admin-dashboard'))),
     
 ]
 

@@ -48,10 +48,41 @@ class RegisterSerializer(serializers.ModelSerializer):
         """Use our custom manager to create the user (handles password hashing)."""
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
-        return User.objects.create_user(
+        user = User.objects.create_user(
             password=password,
             **validated_data,
         )
+
+        # Attach the referral if a `ref` code came with the request
+        request = self.context.get('request')
+        if request:
+            ref_code = request.data.get('ref') or request.query_params.get('ref')
+            if ref_code:
+                try:
+                    from apps.referrals.services import ReferralService
+
+                    ReferralService.attach_referral_on_signup(
+                        referee_user=user,
+                        code_str=ref_code,
+                        ip_address=self._get_client_ip(request),
+                    )
+                except Exception as exc:
+                    # A broken referral must never block a signup
+                    import logging
+
+                    logging.getLogger(__name__).error(
+                        f"Referral attach failed: {exc}"
+                    )
+
+        return user
+
+    @staticmethod
+    def _get_client_ip(request):
+        """Extract the real client IP, considering proxies."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -185,3 +216,21 @@ class GoogleAuthSerializer(serializers.Serializer):
         default='seeker',
         required=False,
     )
+
+
+class AccountDeactivationSerializer(serializers.Serializer):
+    """For POST /auth/me/deactivate/"""
+    # Optional here rather than in the field, because OAuth accounts have no
+    # password to confirm. The service decides whether one is required.
+    password = serializers.CharField(
+        required=False, allow_blank=True, write_only=True, style={'input_type': 'password'},
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    confirm = serializers.BooleanField()
+
+    def validate_confirm(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'You must confirm that you want to close your account.'
+            )
+        return value

@@ -66,12 +66,49 @@ class SeekerProfile(TimestampedModel, SoftDeleteModel):
         through='SeekerSkill',
         related_name='seekers',
     )
-
+    is_open_to_opportunities = models.BooleanField(
+        default=True,
+        help_text='Show this profile in recruiter search results?',
+    )
+    hide_current_company = models.BooleanField(
+        default=False,
+        help_text='Show "Stealth" instead of the real company name',
+    )
+    searchable_until_date = models.DateField(
+        null=True, blank=True,
+        help_text='Automatically hide from search after this date. '
+                  'Leave empty to stay searchable indefinitely.',
+    )
     class Meta:
         db_table = 'seeker_profiles'
 
     def __str__(self):
         return f"{self.full_name or self.user.email} (seeker)"
+       
+    @classmethod
+    def discoverable(cls):
+        """
+        Seekers a recruiter is allowed to find through candidate search.
+
+        Discovery needs both signals to agree: `is_open_to_opportunities`
+        (the search-listing toggle) and `visibility` (who may read the
+        profile at all). A PRIVATE profile is never discoverable, even
+        with the opt-in toggle left on — that toggle predates the
+        visibility field and does not override it.
+        """
+        from datetime import date
+
+        return cls.objects.filter(
+            is_open_to_opportunities=True,
+            is_deleted=False,
+            user__is_active=True,
+            user__is_email_verified=True,
+        ).exclude(
+            visibility=cls.Visibility.PRIVATE,
+        ).filter(
+            models.Q(searchable_until_date__isnull=True)
+            | models.Q(searchable_until_date__gte=date.today())
+        )
     
 class SeekerSkill(TimestampedModel):
     """

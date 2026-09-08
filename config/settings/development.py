@@ -7,15 +7,25 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 # Email - prints to console instead of sending real emails in dev
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Development — print emails to the console by default.
+# Set USE_SENDGRID_IN_DEV=True in .env to send real emails via SendGrid.
+if env.bool('USE_SENDGRID_IN_DEV', default=False):
+    INSTALLED_APPS += ['anymail']
+    EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
+    ANYMAIL = {'SENDGRID_API_KEY': env('SENDGRID_API_KEY')}
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # CORS - allow all origins in dev
 CORS_ALLOW_ALL_ORIGINS = True
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://localhost:6379/0',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
     }
 }
 

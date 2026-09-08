@@ -1,0 +1,25 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Your Daily Summary</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Here is what happened today on Career Intelligence:</p>
+
+  {% for kind, notifs in grouped_notifs.items %}
+    <h3>{{ kind }}</h3>
+    <ul>
+      {% for notif in notifs %}
+        <li>
+          <strong>{{ notif.title }}</strong><br>
+          {{ notif.message }}
+          {% if notif.link %}
+            <br><a href="{{ frontend_url }}{{ notif.link }}">View</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+
+  <p style="margin-top: 30px;">
+    <a href="{{ frontend_url }}/notifications/" class="btn">View All Notifications</a>
+  </p>
+{% endblock %}

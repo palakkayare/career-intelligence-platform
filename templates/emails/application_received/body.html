@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>New Application Received</h2>
+  <p>Hi {{ user_name }},</p>
+  <p><strong>{{ seeker_name }}</strong> has applied to your posting <strong>{{ job_title }}</strong>.</p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">Review Application</a>
+  </p>
+{% endblock %}

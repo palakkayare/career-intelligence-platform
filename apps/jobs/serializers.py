@@ -4,7 +4,7 @@ from apps.skills.models import Skill
 from apps.skills.serializers import SkillSerializer
 from apps.recruiters.serializers import CompanyListSerializer
 
-from .models import Job, JobCategory, Tag, SavedSearch, SearchHistory
+from .models import SavedJob, Job, JobCategory, Tag, SavedSearch, SearchHistory
 
 
 class JobCategorySerializer(serializers.ModelSerializer):
@@ -143,6 +143,18 @@ class JobCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "You must be part of a company to post jobs."
             )
+                # Plan-based job posting quota. Draft and pending jobs count too,
+        # so a Free recruiter cannot stockpile drafts past the limit.
+        from apps.payments.services import FeatureGateService
+        quota = FeatureGateService.can_post_job(recruiter)
+        if not quota['can']:
+            raise serializers.ValidationError({
+                'detail': (
+                    f"Job posting limit reached ({quota['active']}/{quota['limit']} "
+                    f"active jobs). Current plan: {quota['plan']}. "
+                    "Close existing jobs or upgrade for more."
+                )
+            })
 
         validated_data['company'] = recruiter.company
         validated_data['posted_by'] = recruiter
@@ -215,3 +227,18 @@ class SearchHistorySerializer(serializers.ModelSerializer):
         model = SearchHistory
         fields = ('id', 'query_text', 'filters', 'result_count', 'created_at')
         read_only_fields = fields
+
+
+class SavedJobSerializer(serializers.ModelSerializer):
+    """A bookmark, with the job embedded for listing."""
+    job = JobListSerializer(read_only=True)
+
+    class Meta:
+        model = SavedJob
+        fields = ('id', 'job', 'note', 'created_at')
+        read_only_fields = ('id', 'job', 'created_at')
+
+
+class SaveJobSerializer(serializers.Serializer):
+    """For POST /jobs/<uuid>/save/"""
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)

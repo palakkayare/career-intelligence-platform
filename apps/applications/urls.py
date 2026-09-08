@@ -12,6 +12,7 @@ from .views import (
     UpdateApplicationStatusView,
     UpdateRecruiterNotesView,
 )
+from apps.resumes.views import ApplicationJdMatchView
 
 # Apply endpoint goes under jobs
 apply_patterns = [
@@ -33,4 +34,5 @@ applications_patterns = [
     path('<int:pk>/status/', UpdateApplicationStatusView.as_view(), name='update-status'),
     path('<int:pk>/notes/', UpdateRecruiterNotesView.as_view(), name='update-notes'),
     path('<int:pk>/history/', ApplicationHistoryView.as_view(), name='recruiter-history'),
+    path('<int:pk>/jd-match/', ApplicationJdMatchView.as_view(),name='jd-match'),
 ]

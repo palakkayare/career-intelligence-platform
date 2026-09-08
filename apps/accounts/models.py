@@ -9,14 +9,19 @@ from django.utils import timezone
 import secrets
 from datetime import timedelta
 from django.conf import settings
-from apps.core.models import SoftDeleteModel
+from apps.core.models import SoftDeleteModel, SoftDeleteManager
 import hashlib
 
 class UserManager(BaseUserManager):
-    """
-    Custom manager since we use email instead of username for login.
-    """
+    """Custom manager since we use email instead of username for login.
 
+    Also enforces soft delete. User overrides `objects` with this manager,
+    which would otherwise shadow SoftDeleteModel's SoftDeleteManager and
+    leave soft-deleted users fully usable — able to log in, appear in
+    search, and authenticate. Use `User.all_objects` to reach deleted rows."""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+    
     def _create_user(self, email, password, **extra_fields):
         """Internal helper - actual user creation logic."""
         if not email:
@@ -110,7 +115,12 @@ class User(AbstractBaseUser, PermissionsMixin, SoftDeleteModel):
     # Verification flags
     is_email_verified = models.BooleanField(default=False)
     is_2fa_enabled = models.BooleanField(default=False)  # used in Phase 2
-
+    # Mobile-ready (populated in Phase 2)
+    deactivation_reason = models.TextField(
+        blank=True,
+        max_length=500,
+        help_text='Why the user closed their account. Optional, self-reported.',
+    )
     # Mobile-ready (populated in Phase 2)
     fcm_token = models.CharField(max_length=255, null=True, blank=True)
 

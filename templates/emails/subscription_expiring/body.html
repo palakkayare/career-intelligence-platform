@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Subscription Expiring Soon</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Your <strong>{{ plan_name }}</strong> subscription will end in <strong>{{ days_remaining }} days</strong>.</p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">Renew Subscription</a>
+  </p>
+{% endblock %}

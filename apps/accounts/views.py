@@ -15,7 +15,8 @@ from .serializers import (
         RegisterSerializer, UserSerializer, 
         CustomTokenObtainPairSerializer,VerifyOTPSerializer, 
         ResendOTPSerializer, PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer, LoginHistorySerializer, GoogleAuthSerializer,)
+    PasswordResetConfirmSerializer, LoginHistorySerializer, GoogleAuthSerializer,
+    AccountDeactivationSerializer,)
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
@@ -567,3 +568,53 @@ class GoogleAuthView(APIView):
         if x_forwarded_for:
             return x_forwarded_for.split(',')[0].strip()
         return request.META.get('REMOTE_ADDR')
+
+
+class DataExportView(APIView):
+    """
+    GET /api/v1/auth/me/export/
+
+    Everything the platform holds about the requesting user, as JSON.
+    Available at any time, not only when closing the account.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .privacy import DataExportService
+
+        data = DataExportService.build(request.user)
+
+        response = Response(data)
+        if request.query_params.get('download') == 'true':
+            filename = f'my-data-{request.user.public_id}.json'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class AccountDeactivationView(APIView):
+    """
+    POST /api/v1/auth/me/deactivate/
+
+    Closes the account: withdraws live applications, stops billing, revokes
+    every session and hides the profile. The record is soft-deleted rather
+    than removed, so payment and application history survives for the other
+    parties involved. Only an admin can restore it.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .privacy import AccountDeactivationService
+
+        serializer = AccountDeactivationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        summary = AccountDeactivationService.deactivate(
+            user=request.user,
+            password=serializer.validated_data.get('password'),
+            reason=serializer.validated_data.get('reason', ''),
+        )
+
+        return Response({
+            'detail': 'Your account has been closed.',
+            'summary': summary,
+        }, status=status.HTTP_200_OK)

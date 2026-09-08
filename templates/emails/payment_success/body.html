@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Payment Confirmed</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Thank you for your payment. Your <strong>{{ plan_name }}</strong> subscription is now active.</p>
+
+  <div class="callout">
+    <p style="margin: 0;"><strong>Amount paid: &#8377;{{ amount_inr }}</strong></p>
+  </div>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ frontend_url }}{{ invoice_url }}" class="btn">Download Invoice</a>
+  </p>
+{% endblock %}

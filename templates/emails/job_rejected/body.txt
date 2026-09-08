@@ -1,0 +1,10 @@
+Hi {{ user_name }},
+
+Your posting "{{ job_title }}" was not approved.
+
+Reason: {{ rejection_reason }}
+
+Edit and resubmit: {{ link }}
+
+--
+Career Intelligence Team

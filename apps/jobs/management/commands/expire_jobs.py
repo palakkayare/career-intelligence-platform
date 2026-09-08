@@ -14,22 +14,8 @@ class Command(BaseCommand):
     help = 'Auto-expire jobs whose deadline has passed'
 
     def handle(self, *args, **options):
-        now = timezone.now()
-        expired = 0
+        expired, failed = JobStatusService.expire_overdue()
 
-        candidates = Job.objects.filter(
-            status=Job.Status.ACTIVE,
-            application_deadline__lt=now,
-            is_deleted=False,
-        )
-
-        for job in candidates:
-            try:
-                JobStatusService.expire(job)
-                expired += 1
-            except Exception as e:
-                self.stderr.write(f"Failed to expire {job.id}: {e}")
-
-        self.stdout.write(self.style.SUCCESS(
-            f"Expired {expired} job(s)."
-        ))
+        if failed:
+            self.stderr.write(f'{failed} job(s) could not be expired.')
+        self.stdout.write(self.style.SUCCESS(f'Expired {expired} job(s).'))

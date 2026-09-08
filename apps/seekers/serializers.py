@@ -92,6 +92,10 @@ class SeekerProfileSerializer(serializers.ModelSerializer):
             'github_url', 'linkedin_url', 'behance_url', 'portfolio_url',
             'experiences', 'educations', 'skills_detail',
             'profile_strength',
+            # Feature 16 — recruiter search visibility controls
+            'is_open_to_opportunities',
+            'hide_current_company',
+            'searchable_until_date',
         )
         read_only_fields = ('profile_strength', 'profile_photo')
 

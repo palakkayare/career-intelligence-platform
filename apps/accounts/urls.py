@@ -2,6 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    AccountDeactivationView,
+    DataExportView,
     RegisterView,
     LoginView,
     LogoutView,
@@ -39,6 +41,10 @@ urlpatterns = [
     # Profile
     path('me/', MeView.as_view(), name='me'),
     path('login-history/', LoginHistoryView.as_view(), name='login-history'),
+
+    # Privacy: data portability and account closure
+    path('me/export/', DataExportView.as_view(), name='data-export'),
+    path('me/deactivate/', AccountDeactivationView.as_view(), name='deactivate'),
     
     # Google Auth
     path('google/', GoogleAuthView.as_view(), name='google-auth'),

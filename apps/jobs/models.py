@@ -216,6 +216,43 @@ class Job(TimestampedModel, SoftDeleteModel):
             return False
         return self.status in (self.Status.DRAFT, self.Status.REJECTED)
     
+class SavedJob(TimestampedModel):
+    """
+    A job a seeker bookmarked to come back to.
+
+    Kept separate from Application on purpose: saving is private and carries
+    no signal to the recruiter, and a seeker can save a job, apply later, and
+    still want the bookmark. Distinct from SavedSearch, which stores filters
+    rather than a specific posting.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_jobs',
+    )
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name='saved_by',
+    )
+    note = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Seeker's private note. Never visible to the recruiter.",
+    )
+
+    class Meta:
+        db_table = 'saved_jobs'
+        ordering = ['-created_at']
+        unique_together = ('user', 'job')
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} saved {self.job.title}"
+
+
 class SavedSearch(TimestampedModel):
     """User can save filter combinations for quick re-use."""
     user = models.ForeignKey(

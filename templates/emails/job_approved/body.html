@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Job Posting Approved</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Your posting <strong>{{ job_title }}</strong> has been approved and is now visible to job seekers.</p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">View Posting</a>
+  </p>
+{% endblock %}

@@ -2,6 +2,9 @@ from django.urls import path
 
 
 from .views import (
+    SaveJobView,
+    UnsaveJobView,
+    SavedJobListView,
     JobCategoryListView, TagListView,
     PublicJobListView, JobDetailView, IncrementJobViewView,
     MyJobListCreateView, JobUpdateDestroyView,
@@ -23,6 +26,9 @@ jobs_patterns = [
     # Search
     path('search/', JobSearchView.as_view(), name='search'),
 
+    # Saved jobs (bookmarks)
+    path('saved/', SavedJobListView.as_view(), name='saved-jobs'),
+
     # Saved searches
     path('saved-searches/', SavedSearchListCreateView.as_view(), name='saved-list'),
     path('saved-searches/<int:pk>/', SavedSearchDestroyView.as_view(), name='saved-delete'),
@@ -37,6 +43,8 @@ jobs_patterns = [
     path('<uuid:public_id>/', JobDetailView.as_view(), name='detail'),
     path('<uuid:public_id>/edit/', JobUpdateDestroyView.as_view(), name='edit'),
     path('<uuid:public_id>/view/', IncrementJobViewView.as_view(), name='view'),
+    path('<uuid:job_uuid>/save/', SaveJobView.as_view(), name='save'),
+    path('<uuid:job_uuid>/unsave/', UnsaveJobView.as_view(), name='unsave'),
     path('<uuid:public_id>/submit/', SubmitJobView.as_view(), name='submit'),
     path('<uuid:public_id>/close/', CloseJobView.as_view(), name='close'),
     path('<uuid:public_id>/duplicate/', DuplicateJobView.as_view(), name='duplicate'),

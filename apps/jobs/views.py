@@ -12,10 +12,13 @@ from .filters import JobFilterSet
 from .search import JobSearchService
 from django.utils import timezone
 from apps.recruiters.permissions import IsRecruiter
+from apps.seekers.permissions import IsSeeker
 
-from .models import Job, JobCategory, Tag, SavedSearch, SearchHistory
+from .models import SavedJob, Job, JobCategory, Tag, SavedSearch, SearchHistory
 from .permissions import IsJobOwnerOrReadOnly, IsAdminUser
 from .serializers import (
+    SaveJobSerializer,
+    SavedJobSerializer,
     JobListSerializer,
     JobDetailSerializer,
     JobCreateUpdateSerializer,
@@ -24,7 +27,7 @@ from .serializers import (
     SavedSearchSerializer, SearchHistorySerializer,
 )
 from .services import JobStatusService, JobDuplicationService
-
+from apps.core.throttles import SearchThrottle
 
 # ───── Categories & Tags (Public) ─────
 
@@ -61,6 +64,7 @@ class PublicJobListView(generics.ListAPIView):
     """
     serializer_class = JobListSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [SearchThrottle]
 
     def get_queryset(self):
         return (
@@ -267,6 +271,7 @@ class JobSearchView(generics.ListAPIView):
     """
     serializer_class = JobListSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [SearchThrottle]
     filter_backends = [DjangoFilterBackend]
     filterset_class = JobFilterSet
     pagination_class = FlexiblePagination
@@ -389,3 +394,68 @@ class SearchHistoryView(generics.ListAPIView):
     def delete(self, request, *args, **kwargs):
         SearchHistory.objects.filter(user=request.user).delete()
         return Response({'message': 'History cleared.'})
+
+
+# ─── Saved jobs (bookmarks) ───
+
+class SaveJobView(APIView):
+    """
+    POST /api/v1/jobs/<uuid:job_uuid>/save/
+
+    Idempotent: saving an already-saved job updates the note instead of
+    failing, which is what a "save" button pressed twice should do.
+    """
+    permission_classes = [IsSeeker]
+
+    def post(self, request, job_uuid):
+        job = get_object_or_404(Job, public_id=job_uuid, is_deleted=False)
+
+        serializer = SaveJobSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        saved, created = SavedJob.objects.update_or_create(
+            user=request.user,
+            job=job,
+            defaults={'note': serializer.validated_data.get('note', '')},
+        )
+
+        return Response(
+            SavedJobSerializer(saved).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class UnsaveJobView(APIView):
+    """DELETE /api/v1/jobs/<uuid:job_uuid>/save/"""
+    permission_classes = [IsSeeker]
+
+    def delete(self, request, job_uuid):
+        job = get_object_or_404(Job, public_id=job_uuid)
+        deleted, _ = SavedJob.objects.filter(user=request.user, job=job).delete()
+
+        if not deleted:
+            return Response(
+                {'detail': 'This job is not in your saved list.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SavedJobListView(generics.ListAPIView):
+    """
+    GET /api/v1/jobs/saved/
+
+    Deleted jobs are filtered out, but bookmarks on closed or expired
+    postings are kept: the seeker saved it, and seeing what happened to it is
+    more useful than having it silently vanish.
+    """
+    serializer_class = SavedJobSerializer
+    permission_classes = [IsSeeker]
+
+    def get_queryset(self):
+        return (
+            SavedJob.objects
+            .filter(user=self.request.user, job__is_deleted=False)
+            .select_related('job', 'job__company', 'job__category')
+            .prefetch_related('job__required_skills')
+        )

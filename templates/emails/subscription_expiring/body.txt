@@ -1,0 +1,8 @@
+Hi {{ user_name }},
+
+Your {{ plan_name }} subscription will end in {{ days_remaining }} days.
+
+Renew now to keep access: {{ link }}
+
+--
+Career Intelligence Team

@@ -11,6 +11,7 @@ from .views import (
     SkillListCreateView,
     SkillDetailView,
 )
+from apps.recruiters.candidate_views import WhoViewedMeView
 
 app_name = 'seekers'
 
@@ -31,4 +32,6 @@ urlpatterns = [
     # Skills (user's own with proficiency)
     path('me/skills/', SkillListCreateView.as_view(), name='skills'),
     path('me/skills/<int:pk>/', SkillDetailView.as_view(), name='skill-detail'),
+    
+    path('me/who-viewed/', WhoViewedMeView.as_view(), name='who-viewed-me'),
 ]

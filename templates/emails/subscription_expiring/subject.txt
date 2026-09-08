@@ -1,0 +1,1 @@
+Your {{ plan_name }} subscription expires in {{ days_remaining }} days

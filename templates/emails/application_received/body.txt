@@ -1,0 +1,8 @@
+Hi {{ user_name }},
+
+{{ seeker_name }} has applied to your posting "{{ job_title }}".
+
+Review the application: {{ link }}
+
+--
+Career Intelligence Team

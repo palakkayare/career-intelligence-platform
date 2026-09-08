@@ -1,0 +1,12 @@
+Hi {{ user_name }},
+
+Good news! Your application for "{{ job_title }}" at {{ company_name }} has been updated.
+
+Status: {{ new_status|title }}
+{% if recruiter_notes %}
+Recruiter's note: {{ recruiter_notes }}
+{% endif %}
+View your application: {{ link }}
+
+--
+Career Intelligence Team

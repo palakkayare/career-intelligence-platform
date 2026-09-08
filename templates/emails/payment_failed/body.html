@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Payment Failed</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Your payment of <strong>&#8377;{{ amount_inr }}</strong> for <strong>{{ plan_name }}</strong> could not be processed.</p>
+
+  <div class="callout callout-danger">
+    <p style="margin: 0;"><strong>Reason: {{ failure_reason|default:"Unknown" }}</strong></p>
+  </div>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">Retry Payment</a>
+  </p>
+{% endblock %}

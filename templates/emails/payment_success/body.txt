@@ -1,0 +1,10 @@
+Hi {{ user_name }},
+
+Thank you for your payment. Your {{ plan_name }} subscription is now active.
+
+Amount paid: Rs. {{ amount_inr }}
+
+Download your invoice: {{ frontend_url }}{{ invoice_url }}
+
+--
+Career Intelligence Team

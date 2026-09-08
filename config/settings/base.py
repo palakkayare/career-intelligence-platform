@@ -2,8 +2,10 @@
 Base settings - common to all environments.
 """
 from pathlib import Path
-import environ
+import sys
 from datetime import timedelta
+
+import environ
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -22,6 +24,10 @@ ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
+    # Required for the full-text search field and index on Job. Without it
+    # SearchVectorField happens to work, but Postgres-specific lookups
+    # (trigram, unaccent) fail the moment they are added.
+    'django.contrib.postgres',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -34,21 +40,30 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'django_filters',
+    'storages',
 ]
 
 LOCAL_APPS = [
-    'django_filters',
     'apps.core',
     'apps.accounts',
     'apps.skills',
     'apps.seekers',
-    'apps.industries',   
+    'apps.industries',
     'apps.recruiters',
     'apps.jobs',
     'apps.applications',
+    'apps.payments',
+    'apps.resumes',
+    'apps.match_scores',
+    'apps.notifications',
+    'apps.career_intel',
+    'apps.referrals',
+    'apps.audit',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+DEBUG_TOOLBAR_CONFIG = {'IS_RUNNING_TESTS': False}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS must be near the top
@@ -57,6 +72,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.audit.middleware.AuditContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -66,7 +82,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -126,6 +142,9 @@ REST_FRAMEWORK = {
         'password_reset': '3/hour',
         'otp_request': '3/hour',
         '2fa': '10/min',
+        'search': '60/min',
+        'apply': '20/hour',
+        'subscription': '10/hour',
     },
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'PAGE_SIZE': 20,
@@ -151,8 +170,18 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:5173',
 ])
 
-FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@careerintel.com')
+# ─── Frontend + email ───
+# FRONTEND_URL is the base for every link the backend hands to a user:
+# referral share links, password reset, email verification, unsubscribe.
+# The default below only applies when FRONTEND_URL is absent from .env —
+# an entry there always wins, so check .env first when a link points at the
+# wrong port. Vite serves on 5173.
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173')
+
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+SUPPORT_EMAIL = env('SUPPORT_EMAIL', default='support@example.com')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 
 TOTP_ISSUER_NAME = 'Career Intelligence Platform'
@@ -170,3 +199,112 @@ JOB_AUTO_APPROVE = env.bool('JOB_AUTO_APPROVE', default=False)
 
 # Free tier limits (Phase 2 mein subscription se override hogi)
 FREE_TIER_APPLICATION_LIMIT = env.int('FREE_TIER_APPLICATION_LIMIT', default=5)
+
+# Razorpay
+RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='')
+RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
+RAZORPAY_WEBHOOK_SECRET = env('RAZORPAY_WEBHOOK_SECRET', default='')
+
+# Subscription settings
+FREE_TRIAL_DAYS = env.int('FREE_TRIAL_DAYS', default=7)
+
+if not RAZORPAY_KEY_ID and 'test' not in ' '.join(sys.argv):
+    import warnings
+    warnings.warn("RAZORPAY_KEY_ID not configured")
+
+# Production mein test keys ka use prevent
+if 'rzp_test_' in RAZORPAY_KEY_ID and not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("Test Razorpay keys in production!")
+
+# ─── Celery Configuration ───
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/1')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/2')
+
+# Serialization
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# Timezone
+CELERY_TIMEZONE = 'Asia/Kolkata'
+CELERY_ENABLE_UTC = True
+
+# Task settings
+CELERY_TASK_TRACK_STARTED = True          # "started" status dikhega
+CELERY_TASK_TIME_LIMIT = 300              # 5 min hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 240         # 4 min soft warning
+CELERY_TASK_ACKS_LATE = True              # Success ke baad acknowledge (crash pe retry)
+CELERY_WORKER_PREFETCH_MULTIPLIER = 4     # Worker ek baar mein kitne tasks uthaye
+
+# Retry settings
+CELERY_TASK_AUTORETRY_FOR = (Exception,)  # Kisi bhi exception pe auto-retry
+CELERY_TASK_MAX_RETRIES = 3
+CELERY_TASK_DEFAULT_RETRY_DELAY = 60      # Retries ke beech 1 minute
+
+# ─── AWS S3 Configuration ───
+AWS_S3_USE_S3 = env.bool('AWS_S3_USE_S3', default=False)
+
+if AWS_S3_USE_S3:
+    AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = env('AWS_S3_REGION_NAME', default='ap-south-1')
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
+    AWS_DEFAULT_ACL = None            # No public ACL (private bucket)
+    AWS_S3_FILE_OVERWRITE = False     # Same-name files overwrite nahi honge
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
+
+    # S3 for media (user uploads), static stays local for now.
+    # DEFAULT_FILE_STORAGE was removed in Django 5.1 in favour of STORAGES.
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+else:
+    # Local storage (fallback for offline testing)
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+
+# ─── Cache Configuration (Redis) ───
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': env('REDIS_CACHE_URL', default='redis://localhost:6379/3'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+    }
+}
+
+# ─── Salary privacy ───
+SALARY_K_ANONYMITY = env.int('SALARY_K_ANONYMITY', default=5)
+SALARY_MIN_INR = 100_000        # ₹1L floor
+SALARY_MAX_INR = 100_000_000    # ₹10Cr ceiling
+
+# ─── Audit trail ───
+AUDITED_MODELS = [
+    'accounts.User',
+    'jobs.Job',
+    'applications.Application',
+    'payments.Subscription',
+    'payments.PaymentTransaction',
+    'recruiters.Company',
+    'skills.Skill',
+]

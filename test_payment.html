@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Razorpay Test</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <button id="pay">Pay ₹499 for Pro Monthly</button>
+  <pre id="result"></pre>
+
+  <script>
+    const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg3MDc2NzEyLCJpYXQiOjE3ODcwNzU4MTIsImp0aSI6IjdiMzAyOTRlY2Q1ZTQ0NmM5NTM0NmRlMDExMGI5YzM2IiwidXNlcl9pZCI6NDQsInJvbGUiOiJzZWVrZXIiLCJlbWFpbCI6InRyaWFsQHRlc3QuY29tIiwiaXNfZW1haWxfdmVyaWZpZWQiOnRydWV9.HssN9NNmGpC1Q6CszeERGJ2oTddiRYYQC8jII29ldtw';
+    document.getElementById('pay').addEventListener('click', async () => {
+      // Step 1: Create order
+      const orderRes = await fetch('http://localhost:8000/api/v1/subscriptions/create-order/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({plan_slug: 'pro_monthly'}),
+      });
+      const orderData = await orderRes.json();
+
+      // Step 2: Open Razorpay Checkout
+      const options = {
+        key: orderData.razorpay_key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Career Intelligence',
+        description: orderData.plan.name,
+        order_id: orderData.order_id,
+        handler: async function (response) {
+          // Step 3: Verify payment
+          const verifyRes = await fetch('http://localhost:8000/api/v1/subscriptions/verify/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${ACCESS_TOKEN}`,
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan_slug: 'pro_monthly',
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          document.getElementById('result').textContent = JSON.stringify(verifyData, null, 2);
+        },
+        prefill: {email: 'trial@test.com'},
+        theme: {color: '#3399cc'},
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+    });
+  </script>
+</body>
+</html>

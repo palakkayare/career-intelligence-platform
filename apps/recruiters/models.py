@@ -4,8 +4,7 @@ from django.utils.text import slugify
 
 from apps.core.models import TimestampedModel, SoftDeleteModel
 from apps.industries.models import Industry
-
-
+from datetime import date, timedelta
 class Company(TimestampedModel, SoftDeleteModel):
     """
     A company entity. Recruiters belong to a company.
@@ -148,3 +147,105 @@ class RecruiterProfile(TimestampedModel, SoftDeleteModel):
     def can_edit_company(self):
         """Only company admins can edit company info."""
         return self.is_company_admin and self.company_id is not None
+    
+class RecruiterCredits(TimestampedModel):
+    """
+    Monthly contact-reveal credits for a recruiter.
+    The cycle is reset by a daily Celery Beat task, with a lazy
+    fallback reset whenever the balance is read or spent.
+    """
+
+    recruiter = models.OneToOneField(
+        'recruiters.RecruiterProfile',
+        on_delete=models.CASCADE,
+        related_name='credits',
+    )
+
+    # Allocation — synced from the plan on subscription activation
+    monthly_reveal_limit = models.PositiveSmallIntegerField(default=0)
+    reveals_used_this_month = models.PositiveSmallIntegerField(default=0)
+
+    # Cycle tracking
+    cycle_starts_on = models.DateField(default=date.today)
+
+    class Meta:
+        db_table = 'recruiter_credits'
+        verbose_name_plural = 'Recruiter credits'
+
+    def __str__(self):
+        return (
+            f'{self.recruiter.full_name}: '
+            f'{self.reveals_used_this_month}/{self.monthly_reveal_limit}'
+        )
+
+    @property
+    def remaining(self):
+        """Credits left in the current cycle. Never negative."""
+        return max(0, self.monthly_reveal_limit - self.reveals_used_this_month)
+
+    @property
+    def cycle_ends_on(self):
+        return self.cycle_starts_on + timedelta(days=30)
+
+    def is_cycle_expired(self):
+        return date.today() >= self.cycle_ends_on
+
+    def reset_cycle(self):
+        """Start a fresh 30-day cycle with a zeroed counter."""
+        self.reveals_used_this_month = 0
+        self.cycle_starts_on = date.today()
+        self.save(update_fields=['reveals_used_this_month', 'cycle_starts_on'])
+
+
+class CandidateView(TimestampedModel):
+    """
+    Audit trail: every time a recruiter sees a seeker profile.
+    Used for seeker notifications, recruiter analytics and GDPR compliance.
+    """
+
+    class ViewKind(models.TextChoices):
+        SEARCH_RESULT = 'search_result', 'Search Result'
+        DETAIL = 'detail', 'Detail View'
+        SAVED_LIST = 'saved_list', 'Saved Candidates List'
+
+    recruiter = models.ForeignKey(
+        'recruiters.RecruiterProfile',
+        on_delete=models.CASCADE,
+        related_name='candidate_views',
+    )
+    seeker = models.ForeignKey(
+        'seekers.SeekerProfile',
+        on_delete=models.CASCADE,
+        related_name='profile_views',
+    )
+    view_kind = models.CharField(max_length=20, choices=ViewKind.choices)
+
+    # Contact reveal tracking
+    contact_revealed = models.BooleanField(default=False)
+    revealed_at = models.DateTimeField(null=True, blank=True)
+
+    # Optional context: which job the recruiter was hiring for
+    target_job = models.ForeignKey(
+        'jobs.Job',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='candidate_views',
+        help_text='Job the recruiter was searching for, if any',
+    )
+
+    class Meta:
+        db_table = 'candidate_views'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recruiter', '-created_at']),
+            models.Index(fields=['seeker', '-created_at']),
+            models.Index(fields=['contact_revealed', '-revealed_at']),
+            # Speeds up the "was this contact already revealed?" check
+            models.Index(fields=['recruiter', 'seeker', 'contact_revealed']),
+        ]
+
+    def __str__(self):
+        return (
+            f'{self.recruiter.full_name} viewed '
+            f'{self.seeker.user.email} ({self.view_kind})'
+        )

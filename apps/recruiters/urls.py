@@ -13,6 +13,13 @@ from .views import (
     PublicRecruiterProfileView,
 )
 
+from .candidate_views import (
+    CandidateDetailView,
+    CandidateSearchView,
+    MyCreditsView,
+    MyViewHistoryView,
+    RevealContactView,
+)
 app_name = 'recruiters'
 
 # Companies are conceptually shared; we put them under /companies/
@@ -33,4 +40,13 @@ companies_patterns = [
 recruiters_patterns = [
     path('me/', MyRecruiterProfileView.as_view(), name='my-profile'),
     path('<uuid:public_id>/', PublicRecruiterProfileView.as_view(), name='public-profile'),
+]
+
+candidates_patterns = [
+    path('search/', CandidateSearchView.as_view(), name='search'),
+    # Static routes first so 'credits' / 'views' are not swallowed by <uuid>
+    path('credits/me/', MyCreditsView.as_view(), name='credits'),
+    path('views/me/', MyViewHistoryView.as_view(), name='view-history'),
+    path('<uuid:public_id>/', CandidateDetailView.as_view(), name='detail'),
+    path('<uuid:public_id>/reveal/', RevealContactView.as_view(), name='reveal'),
 ]

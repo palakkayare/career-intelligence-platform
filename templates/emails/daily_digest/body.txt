@@ -1,0 +1,11 @@
+Hi {{ user_name }},
+
+You have {{ total_count }} updates today:
+{% for kind, notifs in grouped_notifs.items %}
+{{ kind|upper }}
+{% for notif in notifs %}  - {{ notif.title }}: {{ notif.message }}
+{% endfor %}{% endfor %}
+View all on the app: {{ frontend_url }}/notifications/
+
+--
+Career Intelligence Team

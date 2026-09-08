@@ -21,7 +21,7 @@ from .services import (
     ApplicationStatusService,
     QuotaService,
 )
-
+from apps.core.throttles import ApplyThrottle
 
 # ───────── SEEKER SIDE ──────────
 
@@ -30,17 +30,28 @@ class ApplyToJobView(APIView):
     POST /api/v1/jobs/<uuid:job_uuid>/apply/
     """
     permission_classes = [IsSeeker]
-
+    throttle_classes = [ApplyThrottle]
     def post(self, request, job_uuid):
         job = get_object_or_404(Job, public_id=job_uuid, is_deleted=False)
         serializer = ApplyJobSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Omitting resume_public_id is the one-click apply path: the service
+        # falls back to the seeker's primary resume.
+        resume = None
+        resume_public_id = serializer.validated_data.get('resume_public_id')
+        if resume_public_id:
+            from apps.resumes.models import Resume
+            resume = get_object_or_404(
+                Resume, public_id=resume_public_id, user=request.user,
+            )
 
         application = ApplicationCreationService.create(
             seeker_profile=request.user.seeker_profile,
             job=job,
             cover_letter=serializer.validated_data.get('cover_letter', ''),
             resume_url=serializer.validated_data.get('resume_url', ''),
+            resume=resume,
         )
 
         return Response(
@@ -148,14 +159,28 @@ class QuotaStatusView(APIView):
 
     def get(self, request):
         usage = QuotaService.get_usage(request.user)
+        unlimited = usage.get('limit') is None
+
+        # Careful: remaining is None on unlimited plans, so never
+        # compare it with numbers directly.
+        if unlimited:
+            message = f"Unlimited applications on your {usage.get('plan', 'current')} plan."
+        elif usage['remaining'] > 0:
+            message = (
+                f"You have {usage['remaining']} applications remaining "
+                "in the next 30 days."
+            )
+        else:
+            message = (
+                f"Application limit reached on the {usage.get('plan', 'Free')} plan. "
+                "Upgrade for more."
+            )
+
         return Response({
             **usage,
+            'unlimited': unlimited,
             'window_days': 30,
-            'message': (
-                f"You have {usage['remaining']} applications remaining "
-                f"in the next 30 days." if usage['remaining'] > 0
-                else "Free tier limit reached. Upgrade to Pro for unlimited."
-            ),
+            'message': message,
         })
         
 # ───────── RECRUITER SIDE ──────────
@@ -189,7 +214,20 @@ class JobApplicationsView(generics.ListAPIView):
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
-        return qs.order_by('-submitted_at')
+        qs = qs.order_by('-submitted_at')
+
+        # Plan-based visibility cap: Free recruiters see only the first N
+        # applicants per job (N from Plan.max_applicants_view_per_job).
+        # None means unlimited. The slice MUST be the last operation —
+        # a sliced queryset cannot be filtered further.
+        from apps.payments.services import FeatureGateService
+        limit = FeatureGateService.applicants_view_limit(
+            self.request.user.recruiter_profile,
+        )
+        if limit is not None:
+            qs = qs[:limit]
+
+        return qs
 
 
 class RecruiterApplicationDetailView(generics.RetrieveAPIView):

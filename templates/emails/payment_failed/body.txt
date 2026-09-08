@@ -1,0 +1,10 @@
+Hi {{ user_name }},
+
+Your payment of Rs. {{ amount_inr }} for {{ plan_name }} could not be processed.
+
+Reason: {{ failure_reason|default:"Unknown" }}
+
+You can retry the payment here: {{ link }}
+
+--
+Career Intelligence Team

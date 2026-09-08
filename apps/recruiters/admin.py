@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import Company, RecruiterProfile
+from .models import Company, RecruiterProfile, CandidateView, RecruiterCredits
 
 from apps.core.admin import SoftDeleteAdminMixin 
 @admin.register(Company)
@@ -39,3 +39,36 @@ class RecruiterProfileAdmin(admin.ModelAdmin):
     @admin.display(description='Email')
     def user_email(self, obj):
         return obj.user.email
+    
+@admin.register(RecruiterCredits)
+class RecruiterCreditsAdmin(admin.ModelAdmin):
+    list_display = (
+        'recruiter', 'monthly_reveal_limit',
+        'reveals_used_this_month', 'remaining',
+        'cycle_starts_on', 'cycle_ends_on',
+    )
+    search_fields = ('recruiter__user__email', 'recruiter__full_name')
+    raw_id_fields = ('recruiter',)
+    readonly_fields = ('cycle_starts_on',)
+    actions = ['reset_cycles']
+
+    @admin.action(description='Reset cycle for selected recruiters')
+    def reset_cycles(self, request, queryset):
+        count = queryset.count()
+        for credits in queryset:
+            credits.reset_cycle()
+        self.message_user(request, f'Reset {count} credit cycles.')
+
+
+@admin.register(CandidateView)
+class CandidateViewAdmin(admin.ModelAdmin):
+    list_display = (
+        'recruiter', 'seeker', 'view_kind',
+        'contact_revealed', 'revealed_at', 'created_at',
+    )
+    list_filter = ('view_kind', 'contact_revealed')
+    search_fields = ('recruiter__user__email', 'seeker__user__email')
+    raw_id_fields = ('recruiter', 'seeker', 'target_job')
+    readonly_fields = (
+        'view_kind', 'contact_revealed', 'revealed_at', 'created_at',
+    )

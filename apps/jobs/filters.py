@@ -55,8 +55,16 @@ class JobFilterSet(django_filters.FilterSet):
         fields = []  # All filters defined explicitly above
 
     def filter_salary_min(self, queryset, name, value):
-        """User wants salary at least X. Match jobs whose salary_max >= X."""
-        return queryset.filter(salary_max__gte=value) | queryset.filter(salary_min__gte=value)
+        """
+        User wants salary at least X. A job qualifies when the top of its band
+        reaches X.
+
+        The salary_min branch that used to be OR-ed in here was redundant
+        (salary_max is always >= salary_min, so it matched nothing extra) and
+        combining two querysets with | duplicates rows once the search
+        annotation and the skills .distinct() are in play.
+        """
+        return queryset.filter(salary_max__gte=value)
 
     def filter_salary_max(self, queryset, name, value):
         """User wants salary at most X. Match jobs whose salary_min <= X."""

@@ -1,0 +1,8 @@
+Hi {{ user_name }},
+
+Your posting "{{ job_title }}" has been approved and is now visible to job seekers.
+
+View the posting: {{ link }}
+
+--
+Career Intelligence Team

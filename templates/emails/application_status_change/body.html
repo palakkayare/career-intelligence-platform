@@ -1,0 +1,19 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Application Update</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>Good news! Your application for <strong>{{ job_title }}</strong> at <strong>{{ company_name }}</strong> has been updated.</p>
+
+  <div class="callout">
+    <p style="margin: 0;"><strong>Status: {{ new_status|title }}</strong></p>
+  </div>
+
+  {% if recruiter_notes %}
+    <p><strong>Recruiter's note:</strong></p>
+    <blockquote>{{ recruiter_notes }}</blockquote>
+  {% endif %}
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">View Application</a>
+  </p>
+{% endblock %}

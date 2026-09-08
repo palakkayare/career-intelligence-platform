@@ -31,12 +31,23 @@ class Application(TimestampedModel, SoftDeleteModel):
     )
 
     # Application content
+       # Application content
     cover_letter = models.TextField(blank=True, max_length=2000)
+    resume = models.ForeignKey(
+        'resumes.Resume',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='applications',
+        help_text="The uploaded resume sent with this application. Defaults "
+                  "to the seeker's primary resume at submission time.",
+    )
     resume_url = models.URLField(
         blank=True,
-        help_text='Link to online resume (Drive, GitHub, etc.). '
-                   'Phase 2 mein resume upload aayega.',
+        help_text='Optional external resume link (Drive, GitHub, personal '
+                  'site) for seekers who have not uploaded a file.',
     )
+    
 
     # Status workflow
     status = models.CharField(
@@ -56,10 +67,20 @@ class Application(TimestampedModel, SoftDeleteModel):
     class Meta:
         db_table = 'applications'
         ordering = ['-submitted_at']
-        unique_together = ('seeker', 'job')  # One application per user per job
         indexes = [
             models.Index(fields=['job', 'status', 'is_deleted']),
             models.Index(fields=['seeker', '-submitted_at']),
+        ]
+        constraints = [
+            # A seeker may hold only one *active* application per job.
+            # Withdrawn rows (is_deleted=True) fall outside the condition,
+            # so a seeker can re-apply after withdrawing. This mirrors the
+            # partial-constraint pattern used by Resume.one_primary_resume_per_user.
+            models.UniqueConstraint(
+                fields=['seeker', 'job'],
+                condition=models.Q(is_deleted=False),
+                name='one_active_application_per_seeker_job',
+            ),
         ]
 
     def __str__(self):

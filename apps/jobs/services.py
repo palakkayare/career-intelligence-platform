@@ -10,7 +10,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import Job
-
+import logging
+logger = logging.getLogger(__name__)
 
 class InvalidTransition(ValidationError):
     pass
@@ -64,6 +65,11 @@ class JobStatusService:
             'status', 'activated_at', 'approved_by',
             'approved_at', 'rejection_reason',
         ])
+        # Only notify on a real admin approval, not on dev auto-approve
+        if not _auto:
+            from apps.notifications.triggers import notify_job_approved
+            notify_job_approved(job)
+
         return job
     
     @classmethod
@@ -82,6 +88,9 @@ class JobStatusService:
         job.save(update_fields=[
             'status', 'rejection_reason', 'approved_by', 'approved_at',
         ])
+        # NEW: notify the recruiter that their job posting needs revision
+        from apps.notifications.triggers import notify_job_rejected
+        notify_job_rejected(job, reason)
         return job
 
     @classmethod
@@ -149,6 +158,36 @@ class JobStatusService:
 
         if errors:
             raise ValidationError(errors)
+        
+    @classmethod
+    def expire_overdue(cls):
+        """
+        Expire every ACTIVE job whose application deadline has passed.
+
+        Shared by the management command and the Celery Beat task so the two
+        entry points can never drift apart. Returns (expired, failed).
+        """
+        from django.utils import timezone
+
+        now = timezone.now()
+        expired = 0
+        failed = 0
+
+        candidates = Job.objects.filter(
+            status=Job.Status.ACTIVE,
+            application_deadline__lt=now,
+            is_deleted=False,
+        )
+
+        for job in candidates:
+            try:
+                cls.expire(job)
+                expired += 1
+            except Exception:
+                logger.exception('Failed to expire job %s', job.id)
+                failed += 1
+
+        return expired, failed
         
 class JobDuplicationService:
     """Clone an existing job as a new draft."""

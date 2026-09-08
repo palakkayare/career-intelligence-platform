@@ -94,33 +94,40 @@ class ApplicationStatusService:
             changed_by=actor,
             notes=notes,
         )
+        # NEW: notify the seeker that their application status changed
+        if old_status != new_status:
+            from apps.notifications.triggers import notify_application_status_change
+            notify_application_status_change(application, old_status, new_status)
+
 
         return application
 
 
 class QuotaService:
-    """Track and enforce free-tier application limit."""
+    """
+    Thin wrapper around FeatureGateService, kept for backward
+    compatibility with existing imports (views, serializers).
+
+    All quota logic now lives on the Plan model via FeatureGateService,
+    so Pro/Business users get their plan's limits (including unlimited)
+    instead of the old hardcoded free-tier number.
+    """
 
     @classmethod
     def get_usage(cls, user):
-        """Return usage dict for current 30-day window."""
-        cutoff = timezone.now() - timedelta(days=30)
-        used = Application.objects.filter(
-            seeker__user=user,
-            submitted_at__gte=cutoff,
-        ).count()  # Includes withdrawn — fair pricing
-
-        limit = settings.FREE_TIER_APPLICATION_LIMIT
-        return {'used': used, 'limit': limit, 'remaining': max(0, limit - used)}
+        """
+        Return the usage dict for the rolling 30-day window:
+        {can, used, limit, remaining, plan} — limit None means unlimited.
+        """
+        from apps.payments.services import FeatureGateService
+        return FeatureGateService.can_apply_to_job(user)
 
     @classmethod
     def can_apply(cls, user):
-        """Check if user has quota remaining. Phase 2 mein subscription check."""
-        # Phase 2 mein:
-        # if user.has_pro_subscription():
-        #     return True
-        usage = cls.get_usage(user)
-        return usage['remaining'] > 0
+        """True when the user may submit another application."""
+        from apps.payments.services import FeatureGateService
+        result = FeatureGateService.can_apply_to_job(user)
+        return result.get('can', False)
 
 
 class ApplicationCreationService:
@@ -128,9 +135,13 @@ class ApplicationCreationService:
 
     @classmethod
     @transaction.atomic
-    def create(cls, seeker_profile, job, cover_letter='', resume_url=''):
+    def create(cls, seeker_profile, job, cover_letter='', resume_url='',
+               resume=None):
         """
         Validate and create an application.
+
+        `resume` is optional: when omitted the seeker's primary resume is
+        attached automatically, which is what makes one-click apply work.
         """
         # 1. Job must be active
         if job.status != Job.Status.ACTIVE or job.is_deleted:
@@ -144,28 +155,35 @@ class ApplicationCreationService:
         if Application.objects.filter(seeker=seeker_profile, job=job).exists():
             raise ValidationError("You have already applied to this job.")
 
-        # 4. Quota check
-        if not QuotaService.can_apply(seeker_profile.user):
-            usage = QuotaService.get_usage(seeker_profile.user)
+        # 4. Quota check - plan-driven via FeatureGateService.
+        # Pro/Business plans have limit=None (unlimited) and pass through.
+        from apps.payments.services import FeatureGateService
+        usage = FeatureGateService.can_apply_to_job(seeker_profile.user)
+        if not usage['can']:
             raise ValidationError({
                 'detail': (
-                    f"Free tier limit reached ({usage['used']}/{usage['limit']} "
-                    "applications in last 30 days). Upgrade to Pro for unlimited."
+                    f"Application limit reached ({usage['used']}/{usage['limit']} "
+                    "applications in the last 30 days). "
+                    f"Current plan: {usage['plan']}. Upgrade for more."
                 )
             })
 
-        # 5. Create
+        # 5. Resolve which resume travels with this application
+        resume = cls._resolve_resume(seeker_profile, resume)
+
+        # 6. Create
         application = Application.objects.create(
             seeker=seeker_profile,
             job=job,
             cover_letter=cover_letter,
+            resume=resume,
             resume_url=resume_url,
             status=Application.Status.SUBMITTED,
             submitted_at=timezone.now(),
             last_status_change_at=timezone.now(),
         )
 
-        # 6. Initial history entry
+        # 7. Initial history entry
         ApplicationStatusHistory.objects.create(
             application=application,
             from_status='',
@@ -174,4 +192,28 @@ class ApplicationCreationService:
             notes='Initial application',
         )
 
+        # Notify the recruiter about the new application
+        from apps.notifications.triggers import notify_application_received
+        notify_application_received(application)
+
         return application
+
+    @staticmethod
+    def _resolve_resume(seeker_profile, resume):
+        """
+        Return the resume to attach.
+
+        An explicit choice is verified to belong to this seeker; otherwise the
+        primary resume is used. None is a valid outcome - seekers who have not
+        uploaded a file can still apply with a link or nothing at all.
+        """
+        from apps.resumes.models import Resume
+
+        if resume is not None:
+            if resume.user_id != seeker_profile.user_id:
+                raise ValidationError({'resume': 'That resume is not yours.'})
+            return resume
+
+        return Resume.objects.filter(
+            user=seeker_profile.user, is_primary=True,
+        ).first()

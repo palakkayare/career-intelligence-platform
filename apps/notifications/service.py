@@ -59,8 +59,52 @@ class NotificationService:
         # Digest notifications are picked up later by the daily Beat task
         if priority == DeliveryPriority.INSTANT:
             cls._maybe_send_email(notif)
+            cls.push_notification(notif)
 
         return notif
+
+    @classmethod
+    def push_notification(cls, notif):
+        """
+        Mobile push delivery. Stub until the app ships.
+
+        Everything around the send is real - the device token, the opt-in
+        preference, the decision about which notifications are push-worthy -
+        so the only thing left when Firebase is wired up is the call itself.
+        Keeping the decision logic here rather than deferring all of it means
+        the token and preference plumbing gets exercised now instead of being
+        discovered broken on launch day.
+
+        Returns True when a push would have been sent.
+        """
+        user = notif.user
+
+        token = getattr(user, 'fcm_token', None)
+        if not token:
+            return False
+
+        try:
+            prefs = user.notification_preferences
+        except NotificationPreferences.DoesNotExist:
+            return False
+
+        if not prefs.push_enabled:
+            return False
+
+        # TODO: replace with a Firebase Admin SDK send once the mobile app
+        # exists. Expected shape:
+        #     messaging.send(messaging.Message(
+        #         token=token,
+        #         notification=messaging.Notification(
+        #             title=notif.title, body=notif.message,
+        #         ),
+        #         data={'link': notif.link, 'kind': notif.kind},
+        #     ))
+        logger.info(
+            'Push notification queued (stub) for %s: %s',
+            user.email, notif.title,
+        )
+        return True
 
     @classmethod
     def _maybe_send_email(cls, notif):

@@ -105,6 +105,11 @@ class NotificationPreferences(TimestampedModel):
     email_marketing = models.BooleanField(default=False)
 
     # Digest delivery time (24-hour clock, user's local time)
+    # Mobile push. Off by default: a device token only exists once the user
+    # has installed the app and granted permission, and the switch should be
+    # theirs to flip rather than something opt-out.
+    push_enabled = models.BooleanField(default=False)
+
     digest_hour = models.PositiveSmallIntegerField(default=8)  # 8 AM
 
     # Token used in one-click unsubscribe links inside emails

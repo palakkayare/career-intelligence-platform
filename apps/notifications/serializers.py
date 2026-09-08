@@ -29,3 +29,11 @@ class NotificationPreferencesSerializer(serializers.ModelSerializer):
             'email_marketing',
             'digest_hour',
         )
+
+
+class DeviceTokenSerializer(serializers.Serializer):
+    """For POST /notifications/device-token/"""
+    fcm_token = serializers.CharField(max_length=255)
+    # Registering a device is the natural moment to switch push on, but the
+    # client can opt out and manage it through preferences instead.
+    enable_push = serializers.BooleanField(default=True)

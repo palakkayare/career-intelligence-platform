@@ -1,12 +1,16 @@
 import secrets
 
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Notification, NotificationPreferences
-from .serializers import NotificationSerializer, NotificationPreferencesSerializer
+from .serializers import (
+    DeviceTokenSerializer,
+    NotificationSerializer,
+    NotificationPreferencesSerializer,
+)
 from .service import NotificationService
 
 
@@ -98,3 +102,41 @@ class UnsubscribeView(APIView):
                 'You can re-enable specific categories in your account settings.'
             ),
         })
+
+
+class DeviceTokenView(APIView):
+    """
+    POST   /api/v1/notifications/device-token/  - register this device
+    DELETE /api/v1/notifications/device-token/  - forget it (logout, opt-out)
+
+    The User model has carried fcm_token since Phase 2, but nothing could
+    write to it, so mobile push had no way to reach anyone.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DeviceTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        user.fcm_token = serializer.validated_data['fcm_token']
+        user.save(update_fields=['fcm_token'])
+
+        if serializer.validated_data['enable_push']:
+            prefs, _ = NotificationPreferences.objects.get_or_create(user=user)
+            prefs.push_enabled = True
+            prefs.save(update_fields=['push_enabled'])
+
+        return Response({'detail': 'Device registered for push notifications.'})
+
+    def delete(self, request):
+        user = request.user
+        user.fcm_token = None
+        user.save(update_fields=['fcm_token'])
+
+        prefs = NotificationPreferences.objects.filter(user=user).first()
+        if prefs:
+            prefs.push_enabled = False
+            prefs.save(update_fields=['push_enabled'])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

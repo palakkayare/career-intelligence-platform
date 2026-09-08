@@ -334,3 +334,99 @@ def test_staff_can_read_the_dashboard(plans):
 
     assert response.status_code == 200
     assert 'revenue' in response.data
+
+
+# --------------------------------------------------------------------------
+# Sentry scrubbing
+# --------------------------------------------------------------------------
+
+from apps.core.observability import before_send, init_sentry
+
+
+@pytest.mark.regression
+def test_passwords_never_leave_the_process():
+    """
+    Regression: Phase 4 asks for Sentry, and nothing was configured. Once it
+    is, the risk shifts to what gets sent - this platform holds resumes,
+    salary data and payment records.
+    """
+    event = before_send({
+        'request': {'data': {'email': 'a@test.com', 'password': 'hunter2'}},
+    }, {})
+
+    assert event['request']['data']['password'] == '[Filtered]'
+    assert event['request']['data']['email'] == 'a@test.com'
+
+
+def test_tokens_and_signatures_are_scrubbed():
+    event = before_send({
+        'extra': {
+            'razorpay_signature': 'abc123',
+            'refresh_token': 'eyJ...',
+            'fcm_token': 'device-abc',
+            'order_id': 'order_TEST123',
+        },
+    }, {})
+
+    assert event['extra']['razorpay_signature'] == '[Filtered]'
+    assert event['extra']['refresh_token'] == '[Filtered]'
+    assert event['extra']['fcm_token'] == '[Filtered]'
+    assert event['extra']['order_id'] == 'order_TEST123', 'not sensitive'
+
+
+def test_salary_figures_are_scrubbed():
+    """Salary submissions are collected on a promise of anonymity."""
+    event = before_send({
+        'extra': {'salary_inr': '1200000', 'role_title': 'Backend Developer'},
+    }, {})
+
+    assert event['extra']['salary_inr'] == '[Filtered]'
+    assert event['extra']['role_title'] == 'Backend Developer'
+
+
+def test_cookies_are_dropped_entirely():
+    """There is no safe version of a session cookie."""
+    event = before_send({
+        'request': {'cookies': {'sessionid': 'abc'}, 'url': '/api/v1/jobs/'},
+    }, {})
+
+    assert 'cookies' not in event['request']
+    assert event['request']['url'] == '/api/v1/jobs/'
+
+
+def test_scrubbing_reaches_nested_values():
+    event = before_send({
+        'extra': {'payload': {'user': {'api_key': 'k-123', 'id': 7}}},
+    }, {})
+
+    assert event['extra']['payload']['user']['api_key'] == '[Filtered]'
+    assert event['extra']['payload']['user']['id'] == 7
+
+
+def test_scrubbing_handles_lists():
+    event = before_send({
+        'extra': {'items': [{'token': 't1'}, {'name': 'ok'}]},
+    }, {})
+
+    assert event['extra']['items'][0]['token'] == '[Filtered]'
+    assert event['extra']['items'][1]['name'] == 'ok'
+
+
+def test_an_event_with_nothing_sensitive_passes_through():
+    event = before_send({'request': {'url': '/api/v1/jobs/', 'method': 'GET'}}, {})
+
+    assert event['request']['url'] == '/api/v1/jobs/'
+    assert event['request']['method'] == 'GET'
+
+
+def test_blank_dsn_disables_sentry_quietly():
+    """Development and CI have no Sentry project, and should not need one."""
+    assert init_sentry(dsn='', environment='test') is False
+
+
+def test_client_errors_are_ignored():
+    """4xx are client mistakes; they would bury real defects."""
+    from apps.core.observability import IGNORED_EXCEPTIONS
+
+    assert 'rest_framework.exceptions.ValidationError' in IGNORED_EXCEPTIONS
+    assert 'rest_framework.exceptions.NotFound' in IGNORED_EXCEPTIONS

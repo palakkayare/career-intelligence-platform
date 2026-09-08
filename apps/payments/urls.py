@@ -9,6 +9,7 @@ from .views import (
     MyCapabilitiesView,
     CancelSubscriptionView,
     InvoiceView,
+    InvoicePdfView,
 )
 from .webhooks import razorpay_webhook
 
@@ -29,6 +30,7 @@ payments_patterns = [
     path('me/', MyPaymentHistoryView.as_view(), name='my-payments'),
     # Structured invoice data for one successful transaction
     path('me/<int:transaction_id>/invoice/', InvoiceView.as_view(), name='invoice'),
+    path('me/<int:transaction_id>/invoice/pdf/', InvoicePdfView.as_view(), name='invoice-pdf'),
 ]
 
 webhooks_patterns = [

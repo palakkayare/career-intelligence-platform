@@ -177,3 +177,32 @@ class InvoiceView(APIView):
             status=PaymentTransaction.Status.SUCCESS,
         )
         return Response(generate_invoice_data(txn))
+
+
+class InvoicePdfView(APIView):
+    """
+    GET /api/v1/payments/me/<transaction_id>/invoice/pdf/
+
+    The same invoice as a downloadable PDF, for anyone who needs to file it.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, transaction_id):
+        from django.http import HttpResponse
+        from django.shortcuts import get_object_or_404
+
+        from .invoice_pdf import invoice_filename, render_invoice_pdf
+
+        txn = get_object_or_404(
+            PaymentTransaction,
+            id=transaction_id,
+            user=request.user,
+            status=PaymentTransaction.Status.SUCCESS,
+        )
+
+        pdf = render_invoice_pdf(txn)
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="{invoice_filename(txn)}"'
+        )
+        return response

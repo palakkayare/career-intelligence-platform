@@ -67,6 +67,8 @@ def notify_payment_success(transaction):
             'plan_name': transaction.plan.name,
             'amount_inr': str(transaction.amount_inr),
             'invoice_url': f'/payments/me/{transaction.id}/invoice/',
+            # Lets the email task attach the invoice PDF
+            'transaction_id': transaction.id,
         },
     )
 

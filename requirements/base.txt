@@ -43,3 +43,4 @@ django-anymail==11.1
 networkx==3.3
 
 pyspellchecker==0.8.1
+reportlab==5.0.1

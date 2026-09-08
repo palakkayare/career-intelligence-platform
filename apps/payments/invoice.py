@@ -1,10 +1,19 @@
 """
 Invoice generation for successful payment transactions.
 
-Phase 2: returns structured data the frontend renders as HTML.
-A later phase can turn this into a PDF and email it.
+This module owns what an invoice *says*; invoice_pdf.py owns how it looks.
+Company identity and the GST rate come from settings so they can differ per
+environment and a placeholder GSTIN can never quietly ship to production.
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.conf import settings
+
+TWO_PLACES = Decimal('0.01')
+
+
+def _money(value):
+    return str(value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP))
 
 
 def generate_invoice_data(transaction):
@@ -17,33 +26,42 @@ def generate_invoice_data(transaction):
     if transaction.status != PaymentTransaction.Status.SUCCESS:
         raise ValueError('Cannot generate an invoice for a non-successful transaction')
 
-    # Indian GST is 18%; the paid amount is treated as GST-inclusive,
-    # so we back-calculate the base amount from the total.
-    base_amount = transaction.amount_inr / Decimal('1.18')
+    # The amount charged is GST-inclusive, so the base is back-calculated
+    # from the total. Deriving GST as (total - base) rather than rounding
+    # both separately keeps subtotal + GST exactly equal to what was paid.
+    rate = Decimal(str(settings.INVOICE_GST_RATE))
+    divisor = Decimal('1') + (rate / Decimal('100'))
+    base_amount = (transaction.amount_inr / divisor).quantize(
+        TWO_PLACES, rounding=ROUND_HALF_UP,
+    )
     gst = transaction.amount_inr - base_amount
+
+    user = transaction.user
+    customer_name = getattr(user, 'full_name', '') or user.email
 
     return {
         'invoice_number': f'INV-{transaction.id:08d}',
         'date': transaction.created_at.strftime('%d %B %Y'),
         'paid_at': transaction.updated_at.strftime('%d %B %Y'),
         'company': {
-            'name': 'Career Intelligence Platform Pvt Ltd',
-            'address': 'Bangalore, India',
-            'gstin': 'XXAAAAA1234A1Z5',  # TODO: replace with the real GSTIN
+            'name': settings.INVOICE_COMPANY_NAME,
+            'address': settings.INVOICE_COMPANY_ADDRESS,
+            'gstin': settings.INVOICE_GSTIN,
         },
         'customer': {
-            'email': transaction.user.email,
-            'name': getattr(transaction.user, 'full_name', '') or transaction.user.email,
+            'email': user.email,
+            'name': customer_name,
         },
         'items': [
             {
                 'description': f'{transaction.plan.name} Subscription',
                 'period': transaction.plan.billing_period,
-                'amount': str(base_amount.quantize(Decimal('0.01'))),
+                'amount': _money(base_amount),
             },
         ],
-        'subtotal': str(base_amount.quantize(Decimal('0.01'))),
-        'gst': str(gst.quantize(Decimal('0.01'))),
+        'subtotal': _money(base_amount),
+        'gst_rate': str(rate.normalize()),
+        'gst': _money(gst),
         'total': str(transaction.amount_inr),
         'currency': 'INR',
         'payment': {

@@ -60,6 +60,32 @@ def _build_context(notif):
     return context
 
 
+def _build_attachments(notif):
+    """
+    Files to attach for this notification kind, if any.
+
+    Only payment confirmations carry one today: the GST invoice, which people
+    need for their own books. The import is local so the notifications app
+    does not depend on payments at module level.
+    """
+    if notif.kind != 'payment_success':
+        return []
+
+    transaction_id = notif.context.get('transaction_id')
+    if not transaction_id:
+        return []
+
+    from apps.payments.invoice_pdf import build_invoice_attachment
+    from apps.payments.models import PaymentTransaction
+
+    txn = PaymentTransaction.objects.filter(pk=transaction_id).first()
+    if txn is None:
+        return []
+
+    attachment = build_invoice_attachment(txn)
+    return [attachment] if attachment else []
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
 def send_notification_email(self, notification_id):
     """
@@ -104,6 +130,10 @@ def send_notification_email(self, notification_id):
             to=[notif.user.email],
         )
         msg.attach_alternative(body_html, "text/html")
+
+        for filename, content, mimetype in _build_attachments(notif):
+            msg.attach(filename, content, mimetype)
+
         msg.send()
 
         notif.is_emailed = True

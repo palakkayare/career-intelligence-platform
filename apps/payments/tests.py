@@ -583,3 +583,172 @@ def test_refund_webhook_for_an_unknown_id_is_ignored(client):
 
     event = WebhookEvent.objects.get()
     assert event.processing_status == WebhookEvent.ProcessingStatus.PROCESSED
+
+
+# --------------------------------------------------------------------------
+# Invoices
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_invoice_renders_as_a_pdf(refundable):
+    """
+    Regression: invoice.py returned a dict and said a later phase could turn
+    it into a PDF and email it. Feature 08 asks for "auto invoice generation
+    with email delivery" - neither the PDF nor the attachment existed.
+    """
+    from apps.payments.invoice_pdf import render_invoice_pdf
+
+    pdf = render_invoice_pdf(refundable)
+
+    assert pdf.startswith(b'%PDF')
+    assert len(pdf) > 1000
+
+
+def test_invoice_filename_uses_the_invoice_number(refundable):
+    from apps.payments.invoice import generate_invoice_data
+    from apps.payments.invoice_pdf import invoice_filename
+
+    number = generate_invoice_data(refundable)['invoice_number']
+
+    assert invoice_filename(refundable) == f'invoice-{number}.pdf'
+
+
+def test_no_invoice_for_an_unpaid_transaction(free_seeker, fake_razorpay):
+    from apps.payments.invoice_pdf import render_invoice_pdf
+
+    PaymentService.create_order(free_seeker.user, 'pro_monthly')
+    pending = PaymentTransaction.objects.get(razorpay_order_id=ORDER_ID)
+
+    with pytest.raises(ValueError):
+        render_invoice_pdf(pending)
+
+
+def test_gst_is_backed_out_of_the_paid_amount(refundable):
+    """The paid amount is GST-inclusive, so subtotal + GST must equal it."""
+    from decimal import Decimal
+
+    from apps.payments.invoice import generate_invoice_data
+
+    data = generate_invoice_data(refundable)
+    total = Decimal(data['subtotal']) + Decimal(data['gst'])
+
+    assert total == Decimal(data['total'])
+
+
+def test_a_user_can_download_their_own_invoice(refundable, free_seeker):
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user=free_seeker.user)
+
+    response = client.get(f'/api/v1/payments/me/{refundable.id}/invoice/pdf/')
+
+    assert response.status_code == 200
+    assert response['Content-Type'] == 'application/pdf'
+    assert 'attachment;' in response['Content-Disposition']
+
+
+def test_a_user_cannot_download_someone_elses_invoice(refundable, plans):
+    from rest_framework.test import APIClient
+
+    from apps.accounts.models import User
+
+    stranger = User.objects.create_user(
+        email='nosy@test.com', password='TestPass123!',
+        role=User.Role.SEEKER, is_email_verified=True,
+    )
+    client = APIClient()
+    client.force_authenticate(user=stranger)
+
+    response = client.get(f'/api/v1/payments/me/{refundable.id}/invoice/pdf/')
+
+    assert response.status_code == 404
+
+
+def test_payment_email_carries_the_invoice(free_seeker, fake_razorpay,
+                                           django_capture_on_commit_callbacks):
+    """
+    The blueprint's "email delivery" half of the requirement.
+
+    The email is queued through transaction.on_commit, which never fires
+    inside a test's rolled-back transaction, so the callbacks have to be
+    captured and run explicitly.
+    """
+    from django.core import mail
+
+    mail.outbox = []
+    with django_capture_on_commit_callbacks(execute=True):
+        _pay(free_seeker.user)
+
+    assert len(mail.outbox) == 1
+    attachments = mail.outbox[0].attachments
+    assert len(attachments) == 1
+
+    filename, content, mimetype = attachments[0]
+    assert filename.endswith('.pdf')
+    assert mimetype == 'application/pdf'
+    assert content.startswith(b'%PDF')
+
+
+def test_a_broken_invoice_does_not_block_the_email(
+    free_seeker, fake_razorpay, django_capture_on_commit_callbacks,
+):
+    """
+    The money has already moved by this point. A PDF problem must never stop
+    the customer being told their payment went through.
+    """
+    from unittest.mock import patch
+
+    from django.core import mail
+
+    mail.outbox = []
+    with patch(
+        'apps.payments.invoice_pdf.render_invoice_pdf',
+        side_effect=RuntimeError('reportlab exploded'),
+    ):
+        with django_capture_on_commit_callbacks(execute=True):
+            _pay(free_seeker.user)
+
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].attachments == []
+
+
+def test_customer_email_is_not_repeated_when_no_name_is_set(refundable):
+    """
+    The name falls back to the email, so the PDF used to print the same
+    address twice under BILLED TO.
+    """
+    from apps.payments.invoice import generate_invoice_data
+
+    refundable.user.full_name = ''
+    refundable.user.save(update_fields=['full_name'])
+
+    data = generate_invoice_data(refundable)
+
+    assert data['customer']['name'] == data['customer']['email']
+
+
+def test_invoice_identity_comes_from_settings(refundable, settings):
+    """A placeholder GSTIN must never be baked into the code."""
+    from apps.payments.invoice import generate_invoice_data
+
+    settings.INVOICE_COMPANY_NAME = 'Test Co'
+    settings.INVOICE_GSTIN = '29ABCDE1234F1Z5'
+
+    company = generate_invoice_data(refundable)['company']
+
+    assert company['name'] == 'Test Co'
+    assert company['gstin'] == '29ABCDE1234F1Z5'
+
+
+def test_gst_rate_is_configurable(refundable, settings):
+    from decimal import Decimal
+
+    from apps.payments.invoice import generate_invoice_data
+
+    settings.INVOICE_GST_RATE = 5.0
+    data = generate_invoice_data(refundable)
+
+    assert data['gst_rate'] == '5.0'
+    # Still adds up: a different rate must not break the arithmetic
+    assert Decimal(data['subtotal']) + Decimal(data['gst']) == Decimal(data['total'])

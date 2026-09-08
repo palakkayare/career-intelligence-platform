@@ -308,3 +308,15 @@ AUDITED_MODELS = [
     'recruiters.Company',
     'skills.Skill',
 ]
+# ─── Invoicing ───
+# Kept in settings rather than hard-coded in invoice.py so the GSTIN and
+# address can differ per environment and a placeholder can never reach
+# production by accident.
+INVOICE_COMPANY_NAME = env(
+    'INVOICE_COMPANY_NAME', default='Career Intelligence Platform Pvt Ltd',
+)
+INVOICE_COMPANY_ADDRESS = env(
+    'INVOICE_COMPANY_ADDRESS', default='Bangalore, India',
+)
+INVOICE_GSTIN = env('INVOICE_GSTIN', default='')
+INVOICE_GST_RATE = env.float('INVOICE_GST_RATE', default=18.0)

@@ -308,6 +308,16 @@ AUDITED_MODELS = [
     'recruiters.Company',
     'skills.Skill',
 ]
+
+# ─── Observability ───
+# A blank DSN disables Sentry, so development and CI need no Sentry project.
+SENTRY_DSN = env('SENTRY_DSN', default='')
+SENTRY_ENVIRONMENT = env('SENTRY_ENVIRONMENT', default='development')
+# Set from the deploy (a git SHA or tag) so an error can be traced to code.
+SENTRY_RELEASE = env('SENTRY_RELEASE', default='')
+# Performance tracing is sampled, not full: 10% is enough to spot slow
+# endpoints without multiplying the event bill.
+SENTRY_TRACES_SAMPLE_RATE = env.float('SENTRY_TRACES_SAMPLE_RATE', default=0.1)
 # ─── Invoicing ───
 # Kept in settings rather than hard-coded in invoice.py so the GSTIN and
 # address can differ per environment and a placeholder can never reach

@@ -44,3 +44,4 @@ networkx==3.3
 
 pyspellchecker==0.8.1
 reportlab==5.0.1
+django-filter==25.1

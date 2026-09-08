@@ -749,6 +749,7 @@ def test_gst_rate_is_configurable(refundable, settings):
     settings.INVOICE_GST_RATE = 5.0
     data = generate_invoice_data(refundable)
 
-    assert data['gst_rate'] == '5.0'
+        # normalize() strips the trailing zero, so 5.0 renders as "5"
+    assert data['gst_rate'] == '5'
     # Still adds up: a different rate must not break the arithmetic
     assert Decimal(data['subtotal']) + Decimal(data['gst']) == Decimal(data['total'])

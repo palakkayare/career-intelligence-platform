@@ -125,6 +125,12 @@ class CompanyJoinView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Plan model has carried max_team_members since Phase 2 (FREE=1,
+        # BUSINESS=5) but nothing ever read it, so a free company could
+        # collect unlimited recruiters.
+        from .services import CompanyTeamService
+        CompanyTeamService.check_can_add(company)
+
         recruiter.company = company
         recruiter.is_company_admin = False  # Joining → not admin
         recruiter.save(update_fields=['company', 'is_company_admin'])

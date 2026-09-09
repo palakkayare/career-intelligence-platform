@@ -42,6 +42,7 @@ def plans(db):
         max_applications_per_month=5,
         max_resumes=1,
         max_active_jobs=1,
+        max_team_members=1,
         max_applicants_view_per_job=10,
         has_resume_ai_analysis=False,
         has_match_score=False,
@@ -55,6 +56,9 @@ def plans(db):
         price_inr=Decimal('499'),
         max_applications_per_month=None,   # unlimited
         max_resumes=5,
+        # Pro is a seeker plan, so it carries no team seats. Business is the
+        # only tier with a team allowance, same as seed_plans.
+        max_team_members=1,
         has_resume_ai_analysis=True,
         has_match_score=True,
         sort_order=2,

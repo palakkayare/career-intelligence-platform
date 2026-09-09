@@ -3,6 +3,7 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.throttles import SearchThrottle
 from apps.jobs.models import Job
 from apps.payments.permissions import HasFeature
 from apps.seekers.models import SeekerProfile
@@ -14,14 +15,14 @@ from .candidate_serializers import (
     CandidateViewHistorySerializer,
     RecruiterCreditsSerializer,
     WhoViewedMeSerializer,
+    TalentPoolSerializer,
 )
 from .candidate_services import CandidateProfileService, CandidateSearchService
-from .models import CandidateView, RecruiterCredits
+from .models import CandidateView, RecruiterCredits, TalentPool
 from .permissions import IsRecruiter
-from apps.core.throttles import SearchThrottle
+
 # Only plans that include this feature key may search candidates
 HasCandidateSearch = HasFeature.create('candidate_search')
-
 
 def _searchable_seeker_or_404(public_id):
     """Fetch a seeker who is currently discoverable, else 404."""
@@ -196,3 +197,63 @@ class WhoViewedMeView(generics.ListAPIView):
             .select_related('recruiter__user', 'recruiter__company')
             .order_by('-created_at')[:50]
         )
+
+class TalentPoolListCreateView(generics.ListCreateAPIView):
+    """
+    GET/POST /api/v1/candidates/pools/
+
+    Saved candidate searches that stay current. Blueprint Feature 15.
+    """
+    serializer_class = TalentPoolSerializer
+    permission_classes = [IsRecruiter, HasCandidateSearch]
+
+    def get_queryset(self):
+        return TalentPool.objects.filter(
+            recruiter=self.request.user.recruiter_profile,
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(recruiter=self.request.user.recruiter_profile)
+
+
+class TalentPoolDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET/PATCH/DELETE /api/v1/candidates/pools/<int:pk>/"""
+    serializer_class = TalentPoolSerializer
+    permission_classes = [IsRecruiter, HasCandidateSearch]
+
+    def get_queryset(self):
+        return TalentPool.objects.filter(
+            recruiter=self.request.user.recruiter_profile,
+        )
+
+
+class TalentPoolMembersView(APIView):
+    """
+    GET /api/v1/candidates/pools/<int:pk>/members/
+
+    Runs the saved filters now. Nothing is cached, so a seeker who has gone
+    private since the pool was created will not appear.
+    """
+    permission_classes = [IsRecruiter, HasCandidateSearch]
+
+    def get(self, request, pk):
+        from .services import TalentPoolService
+
+        pool = get_object_or_404(
+            TalentPool, pk=pk, recruiter=request.user.recruiter_profile,
+        )
+
+        page = int(request.query_params.get('page', 1))
+        page_size = min(int(request.query_params.get('page_size', 20)), 50)
+
+        result = TalentPoolService.members(pool, page=page, page_size=page_size)
+
+        return Response({
+            'pool': TalentPoolSerializer(pool).data,
+            'total': result['total'],
+            'page': result['page'],
+            'has_next': result['has_next'],
+            'candidates': CandidatePreviewSerializer(
+                result['seekers'], many=True,
+            ).data,
+        })

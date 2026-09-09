@@ -53,4 +53,8 @@ app.conf.beat_schedule = {
         'task': 'apps.match_scores.tasks.send_new_job_alerts',
         'schedule': crontab(minute=0, hour=9, day_of_week=1),  # Monday 9 AM
     },
+    'sweep-talent-pools-daily': {
+        'task': 'apps.recruiters.tasks.sweep_talent_pools',
+        'schedule': crontab(minute=30, hour=8),  # 8:30 AM daily
+    },
 }

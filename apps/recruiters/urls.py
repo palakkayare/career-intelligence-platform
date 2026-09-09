@@ -19,6 +19,9 @@ from .candidate_views import (
     MyCreditsView,
     MyViewHistoryView,
     RevealContactView,
+    TalentPoolDetailView,
+    TalentPoolListCreateView,
+    TalentPoolMembersView,
 )
 app_name = 'recruiters'
 
@@ -46,6 +49,9 @@ candidates_patterns = [
     path('search/', CandidateSearchView.as_view(), name='search'),
     # Static routes first so 'credits' / 'views' are not swallowed by <uuid>
     path('credits/me/', MyCreditsView.as_view(), name='credits'),
+    path('pools/', TalentPoolListCreateView.as_view(), name='pools'),
+    path('pools/<int:pk>/', TalentPoolDetailView.as_view(), name='pool-detail'),
+    path('pools/<int:pk>/members/', TalentPoolMembersView.as_view(), name='pool-members'),
     path('views/me/', MyViewHistoryView.as_view(), name='view-history'),
     path('<uuid:public_id>/', CandidateDetailView.as_view(), name='detail'),
     path('<uuid:public_id>/reveal/', RevealContactView.as_view(), name='reveal'),

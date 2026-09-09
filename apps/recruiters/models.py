@@ -249,3 +249,48 @@ class CandidateView(TimestampedModel):
             f'{self.recruiter.full_name} viewed '
             f'{self.seeker.user.email} ({self.view_kind})'
         )
+
+
+class TalentPool(TimestampedModel):
+    """
+    A saved candidate search that stays current.
+
+    The distinction from SavedCandidate matters: that is a manual list of
+    people a recruiter picked, this is a set of criteria. A pool for "Python,
+    Bangalore, 5+ years" gains members as seekers sign up, without anyone
+    revisiting it - which is the "auto-update" the blueprint asks for
+    (Feature 15).
+
+    Only the filters are stored. Results are computed on read, so a pool can
+    never go stale or hold on to a seeker who has since gone private.
+    """
+    recruiter = models.ForeignKey(
+        'RecruiterProfile',
+        on_delete=models.CASCADE,
+        related_name='talent_pools',
+    )
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=300, blank=True)
+
+    # Same shape CandidateSearchService already accepts, so a recruiter can
+    # save the search they just ran without translating anything.
+    filters = models.JSONField(default=dict, blank=True)
+
+    notify_on_new = models.BooleanField(
+        default=True,
+        help_text='Email the recruiter when new candidates enter this pool.',
+    )
+    # Everything newer than this is "new" on the next sweep. Not a cache of
+    # results - just a marker of how far the last notification got.
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'talent_pools'
+        ordering = ['-created_at']
+        unique_together = ('recruiter', 'name')
+        indexes = [
+            models.Index(fields=['recruiter', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.recruiter.full_name})'

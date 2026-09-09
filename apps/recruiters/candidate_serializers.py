@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.seekers.models import SeekerProfile
 from apps.skills.serializers import SkillSerializer
 
-from .models import CandidateView, RecruiterCredits
+from .models import CandidateView, RecruiterCredits, TalentPool
 
 
 def _current_company(obj):
@@ -42,9 +42,6 @@ class CandidateSearchInputSerializer(serializers.Serializer):
     page = serializers.IntegerField(required=False, default=1, min_value=1)
     page_size = serializers.IntegerField(
         required=False, default=20, min_value=5, max_value=50,
-    )
-    min_profile_strength = serializers.IntegerField(
-        required=False, min_value=0, max_value=100,
     )
 
     def validate(self, attrs):
@@ -222,3 +219,41 @@ class WhoViewedMeSerializer(serializers.ModelSerializer):
         if obj.recruiter.company_id:
             return obj.recruiter.company.name
         return None
+
+
+class TalentPoolSerializer(serializers.ModelSerializer):
+    """A saved candidate search."""
+    member_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TalentPool
+        fields = (
+            'id', 'name', 'description', 'filters', 'notify_on_new',
+            'last_checked_at', 'member_count', 'created_at',
+        )
+        read_only_fields = ('id', 'last_checked_at', 'member_count', 'created_at')
+
+    def get_member_count(self, obj):
+        from .services import TalentPoolService
+
+        # Counted live rather than stored: a pool is a set of criteria, and
+        # a saved number would start lying the moment anyone signed up.
+        return TalentPoolService.members(obj, page_size=1)['total']
+    
+    def validate_name(self, value):
+        """The unique_together on (recruiter, name) is enforced by the database,
+        but recruiter is not a serializer field - it is set in perform_create -
+        so DRF's UniqueTogetherValidator never runs. Without this check the
+        user gets a 500 instead of a 400. """
+        recruiter = self.context['request'].user.recruiter_profile
+
+        clashes = TalentPool.objects.filter(recruiter=recruiter, name=value)
+        if self.instance is not None:
+            clashes = clashes.exclude(pk=self.instance.pk)
+
+        if clashes.exists():
+            raise serializers.ValidationError(
+                'You already have a pool with this name.',
+            )
+
+        return value

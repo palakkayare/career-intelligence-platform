@@ -53,6 +53,11 @@ def parse_resume_task(self, resume_id):
             f"ATS={resume.ats_score}, Skills={resume.extracted_skills.count()}"
         )
 
+        # Parsing is asynchronous and slow enough that the user has usually
+        # navigated away by now, so the result has to find them.
+        from apps.notifications.triggers import notify_resume_analysis_complete
+        notify_resume_analysis_complete(resume)
+
     except Exception as e:
         logger.exception(f"Resume {resume_id} parsing failed: {e}")
         resume.failure_reason = str(e)[:1000]

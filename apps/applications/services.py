@@ -94,11 +94,20 @@ class ApplicationStatusService:
             changed_by=actor,
             notes=notes,
         )
-        # NEW: notify the seeker that their application status changed
+        # Notify the seeker that their application status changed
         if old_status != new_status:
-            from apps.notifications.triggers import notify_application_status_change
+            from apps.notifications.triggers import (
+                notify_application_status_change,
+                notify_application_withdrawn,
+            )
             notify_application_status_change(application, old_status, new_status)
 
+            # A withdrawal is the one transition the recruiter does not
+            # initiate, so it is the one they would otherwise never hear
+            # about - a candidate they were interviewing simply vanishes
+            # from the list.
+            if new_status == Application.Status.WITHDRAWN:
+                notify_application_withdrawn(application)
 
         return application
 

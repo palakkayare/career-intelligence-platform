@@ -49,4 +49,8 @@ app.conf.beat_schedule = {
         'task': 'apps.recruiters.tasks.reset_expired_credit_cycles',
         'schedule': crontab(minute=30, hour=0),  # 00:30 every day
     },
+    'send-job-alerts-weekly': {
+        'task': 'apps.match_scores.tasks.send_new_job_alerts',
+        'schedule': crontab(minute=0, hour=9, day_of_week=1),  # Monday 9 AM
+    },
 }

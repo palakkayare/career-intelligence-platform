@@ -25,6 +25,8 @@ KIND_TEMPLATES = {
     'sub_expired': 'subscription_expired',
     'job_approved': 'job_approved',
     'job_rejected': 'job_rejected',
+    'app_withdrawn': 'application_withdrawn',
+    'resume_analysed': 'resume_analysis_complete',
     # These two are only ever sent as part of the daily digest
     'new_matching_job': 'new_matching_jobs_digest',
     'new_matching_candidate': 'new_matching_candidates_digest',

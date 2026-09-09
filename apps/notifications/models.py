@@ -21,6 +21,7 @@ class NotificationKind(models.TextChoices):
     SUBSCRIPTION_EXPIRED = 'sub_expired', 'Subscription Expired'
 
     # System
+    RESUME_ANALYSIS_COMPLETE = 'resume_analysed', 'Resume Analysis Complete (Seeker)'
     PROFILE_VIEWED = 'profile_viewed', 'Profile Viewed (Seeker)'
     JOB_APPROVED = 'job_approved', 'Job Approved (Recruiter)'
     JOB_REJECTED = 'job_rejected', 'Job Rejected (Recruiter)'
@@ -133,6 +134,7 @@ class NotificationPreferences(TimestampedModel):
             NotificationKind.PAYMENT_FAILED: 'email_payment_events',
             NotificationKind.SUBSCRIPTION_EXPIRING: 'email_subscription_alerts',
             NotificationKind.SUBSCRIPTION_EXPIRED: 'email_subscription_alerts',
+            NotificationKind.RESUME_ANALYSIS_COMPLETE: 'email_application_updates',
             NotificationKind.PROFILE_VIEWED: 'email_profile_views',
             NotificationKind.JOB_APPROVED: 'email_application_updates',
             NotificationKind.JOB_REJECTED: 'email_application_updates',

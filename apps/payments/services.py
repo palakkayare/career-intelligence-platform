@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -180,20 +180,45 @@ class SubscriptionService:
         """
         now = timezone.now()
 
-        # Trials whose trial window ended without a payment
-        trial_expired = Subscription.objects.filter(
-            status=Subscription.Status.TRIALING,
-            trial_ends_at__lt=now,
+        # Collect before updating: a bulk update returns a count, not the
+        # rows, and each affected user needs telling why their Pro features
+        # stopped working.
+        expiring = list(
+            Subscription.objects
+            .filter(
+                Q(
+                    status=Subscription.Status.TRIALING,
+                    trial_ends_at__lt=now,
+                )
+                | Q(
+                    status=Subscription.Status.ACTIVE,
+                    current_period_end__lt=now,
+                    auto_renew=False,
+                )
+            )
+            .select_related('user', 'plan')
+        )
+
+        if not expiring:
+            return 0
+
+        Subscription.objects.filter(
+            pk__in=[s.pk for s in expiring],
         ).update(status=Subscription.Status.EXPIRED)
 
-        # Active subs (including cancelled-not-renewing) past period end
-        active_expired = Subscription.objects.filter(
-            status=Subscription.Status.ACTIVE,
-            current_period_end__lt=now,
-            auto_renew=False,
-        ).update(status=Subscription.Status.EXPIRED)
+        from apps.notifications.triggers import notify_subscription_expired
 
-        return trial_expired + active_expired
+        for subscription in expiring:
+            try:
+                notify_subscription_expired(subscription)
+            except Exception:
+                # One failed notification must not stop the sweep, and the
+                # subscription is already correctly marked expired.
+                logger.exception(
+                    'Could not notify %s about expiry', subscription.user_id,
+                )
+
+        return len(expiring)
 
     @classmethod
     def sync_recruiter_credits(cls, subscription):

@@ -27,6 +27,9 @@ KIND_PRIORITIES = {
     NotificationKind.PAYMENT_FAILED: DeliveryPriority.INSTANT,
     NotificationKind.SUBSCRIPTION_EXPIRING: DeliveryPriority.INSTANT,
     NotificationKind.SUBSCRIPTION_EXPIRED: DeliveryPriority.INSTANT,
+    # The user uploaded a file and is waiting on the result, so this one
+    # is worth an email rather than sitting in a digest.
+    NotificationKind.RESUME_ANALYSIS_COMPLETE: DeliveryPriority.INSTANT,
     NotificationKind.PROFILE_VIEWED: DeliveryPriority.NONE,  # In-app only
     NotificationKind.JOB_APPROVED: DeliveryPriority.INSTANT,
     NotificationKind.JOB_REJECTED: DeliveryPriority.INSTANT,

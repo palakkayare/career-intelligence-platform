@@ -2,6 +2,7 @@
 Profile strength score calculation.
 Out of 100, weighted by section importance.
 """
+from rest_framework.exceptions import ValidationError
 
 
 class ProfileStrengthService:
@@ -31,7 +32,7 @@ class ProfileStrengthService:
             'breakdown': breakdown,
             'next_step': cls._suggest_next_step(breakdown),
         }
-    
+        
     @classmethod
     def refresh(cls, profile) -> int:
         """
@@ -135,3 +136,63 @@ class ProfileStrengthService:
 
         biggest_gap_section = max(gaps, key=gaps.get)
         return suggestions[biggest_gap_section]
+
+
+class SkillEndorsementService:
+    """
+    Endorsing another person's skill.
+
+    The rules exist because an endorsement is only worth anything if it is
+    hard to manufacture. Self-endorsement and repeat clicks are the two ways
+    to manufacture one cheaply.
+    """
+
+    @classmethod
+    def endorse(cls, seeker_skill, endorsed_by):
+        """
+        Record an endorsement. Idempotent - clicking twice is not an error,
+        it just does not count twice.
+        """
+        from .models import SkillEndorsement
+
+        if seeker_skill.seeker.user_id == endorsed_by.id:
+            raise ValidationError({
+                'detail': 'You cannot endorse your own skills.',
+            })
+
+        endorsement, created = SkillEndorsement.objects.get_or_create(
+            seeker_skill=seeker_skill,
+            endorsed_by=endorsed_by,
+        )
+        return endorsement, created
+
+    @classmethod
+    def withdraw(cls, seeker_skill, endorsed_by):
+        """Take an endorsement back. Returns True if there was one."""
+        from .models import SkillEndorsement
+
+        deleted, _ = SkillEndorsement.objects.filter(
+            seeker_skill=seeker_skill,
+            endorsed_by=endorsed_by,
+        ).delete()
+        return bool(deleted)
+
+    @staticmethod
+    def refresh_count(seeker_skill):
+        """
+        Recompute the denormalised counter.
+
+        Written through a queryset update so the SeekerSkill post_save does
+        not fire again and recurse into the profile-strength signal.
+        """
+        from .models import SeekerSkill
+
+        count = seeker_skill.endorsements.count()
+
+        if seeker_skill.endorsement_count != count:
+            SeekerSkill.objects.filter(pk=seeker_skill.pk).update(
+                endorsement_count=count,
+            )
+            seeker_skill.endorsement_count = count
+
+        return count

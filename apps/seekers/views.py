@@ -1,4 +1,5 @@
-from rest_framework import generics, permissions
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -143,3 +144,57 @@ class SkillDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return self.request.user.seeker_profile.seeker_skills.all()
+
+class SkillEndorsementView(APIView):
+    """
+    POST   /api/v1/seekers/skills/<int:pk>/endorse/   - vouch for a skill
+    DELETE /api/v1/seekers/skills/<int:pk>/endorse/   - take it back
+
+    Any authenticated user can endorse any discoverable seeker's skill,
+    except their own. Blueprint Feature 12.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_skill(self, pk):
+        from .models import SeekerSkill
+
+        return get_object_or_404(
+            SeekerSkill.objects.select_related('seeker', 'seeker__user', 'skill'),
+            pk=pk,
+            seeker__is_deleted=False,
+        )
+
+    def post(self, request, pk):
+        from .services import SkillEndorsementService
+
+        seeker_skill = self._get_skill(pk)
+        _, created = SkillEndorsementService.endorse(seeker_skill, request.user)
+        seeker_skill.refresh_from_db()
+
+        return Response(
+            {
+                'skill': seeker_skill.skill.name,
+                'endorsement_count': seeker_skill.endorsement_count,
+                'endorsed': True,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request, pk):
+        from .services import SkillEndorsementService
+
+        seeker_skill = self._get_skill(pk)
+        removed = SkillEndorsementService.withdraw(seeker_skill, request.user)
+
+        if not removed:
+            return Response(
+                {'detail': 'You have not endorsed this skill.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        seeker_skill.refresh_from_db()
+        return Response({
+            'skill': seeker_skill.skill.name,
+            'endorsement_count': seeker_skill.endorsement_count,
+            'endorsed': False,
+        })

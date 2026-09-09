@@ -7,10 +7,10 @@ with the rows that feed it.
 from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-
-from .models import Education, SeekerProfile, SeekerSkill, WorkExperience
-from .services import ProfileStrengthService
-
+from .models import (
+    Education, SeekerProfile, SeekerSkill, SkillEndorsement, WorkExperience,
+)
+from .services import ProfileStrengthService, SkillEndorsementService
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_seeker_profile(sender, instance, created, **kwargs):
@@ -51,3 +51,10 @@ def refresh_strength_on_experience_change(sender, instance, **kwargs):
 @receiver(post_delete, sender=Education)
 def refresh_strength_on_education_change(sender, instance, **kwargs):
     _refresh_strength(instance.seeker)
+    
+@receiver(post_save, sender=SkillEndorsement)
+@receiver(post_delete, sender=SkillEndorsement)
+def refresh_endorsement_count(sender, instance, **kwargs):
+    """Keep the denormalised counter on SeekerSkill in step."""
+    SkillEndorsementService.refresh_count(instance.seeker_skill)
+ 

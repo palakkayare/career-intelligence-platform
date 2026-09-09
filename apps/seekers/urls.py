@@ -10,6 +10,7 @@ from .views import (
     EducationDetailView,
     SkillListCreateView,
     SkillDetailView,
+    SkillEndorsementView,
 )
 from apps.recruiters.candidate_views import WhoViewedMeView
 
@@ -32,6 +33,9 @@ urlpatterns = [
     # Skills (user's own with proficiency)
     path('me/skills/', SkillListCreateView.as_view(), name='skills'),
     path('me/skills/<int:pk>/', SkillDetailView.as_view(), name='skill-detail'),
+
+    # Endorsements — not under me/, since you endorse someone else's skill
+    path('skills/<int:pk>/endorse/', SkillEndorsementView.as_view(), name='endorse-skill'),
     
     path('me/who-viewed/', WhoViewedMeView.as_view(), name='who-viewed-me'),
 ]

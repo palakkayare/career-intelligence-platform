@@ -41,6 +41,7 @@ class SeekerProfile(TimestampedModel, SoftDeleteModel):
     current_title = models.CharField(max_length=200, blank=True)
     target_role = models.CharField(max_length=200, blank=True)
     years_of_experience = models.PositiveSmallIntegerField(default=0)
+   
 
     # Status & visibility
     availability_status = models.CharField(
@@ -146,6 +147,9 @@ class SeekerSkill(TimestampedModel):
         default=Proficiency.INTERMEDIATE,
     )
     years_of_experience = models.PositiveSmallIntegerField(default=0)
+    # Denormalised so a profile with twenty skills does not need twenty
+    # counting queries to render. Kept in step by signals.
+    endorsement_count = models.PositiveIntegerField(default=0, db_index=True)
 
     class Meta:
         db_table = 'seeker_skills'
@@ -155,6 +159,44 @@ class SeekerSkill(TimestampedModel):
     def __str__(self):
         return f"{self.seeker.user.email} - {self.skill.name} ({self.proficiency})"
     
+    
+class SkillEndorsement(TimestampedModel):
+    """
+    One person vouching for another's skill.
+
+    Deliberately thin: an endorsement is a signal, not a review, so there is
+    no rating and no free text. Anything richer invites the reciprocal
+    back-scratching that made this feature meaningless elsewhere.
+    """
+    seeker_skill = models.ForeignKey(
+        SeekerSkill,
+        on_delete=models.CASCADE,
+        related_name='endorsements',
+    )
+    endorsed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='endorsements_given',
+    )
+
+    class Meta:
+        db_table = 'skill_endorsements'
+        ordering = ['-created_at']
+        constraints = [
+            # One endorsement per person per skill. Without this, one
+            # supporter clicking repeatedly would look like a crowd.
+            models.UniqueConstraint(
+                fields=['seeker_skill', 'endorsed_by'],
+                name='one_endorsement_per_person_per_skill',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['seeker_skill', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.endorsed_by.email} endorsed {self.seeker_skill}'
+
 class WorkExperience(TimestampedModel, SoftDeleteModel):
     """One work experience entry per row."""
 

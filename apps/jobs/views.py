@@ -279,11 +279,16 @@ class JobSearchView(generics.ListAPIView):
     def get_queryset(self):
         query_text = self.request.query_params.get('q', '').strip()
         sort = self.request.query_params.get('sort', 'relevance')
+
+        # Match-score sorting only means something for a seeker; a recruiter
+        # browsing jobs has no scores of their own.
+        seeker = getattr(self.request.user, 'seeker_profile', None)
+
         return JobSearchService.build_queryset(
             query_text=query_text,
             sort=sort,
+            seeker=seeker,
         )
-
     def list(self, request, *args, **kwargs):
         # Get filtered, paginated results
         response = super().list(request, *args, **kwargs)

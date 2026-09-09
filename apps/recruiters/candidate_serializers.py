@@ -43,6 +43,9 @@ class CandidateSearchInputSerializer(serializers.Serializer):
     page_size = serializers.IntegerField(
         required=False, default=20, min_value=5, max_value=50,
     )
+    min_profile_strength = serializers.IntegerField(
+        required=False, min_value=0, max_value=100,
+    )
 
     def validate(self, attrs):
         low = attrs.get('experience_years_min')

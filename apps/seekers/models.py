@@ -70,6 +70,14 @@ class SeekerProfile(TimestampedModel, SoftDeleteModel):
         default=True,
         help_text='Show this profile in recruiter search results?',
     )
+        # Stored rather than computed on read: recruiter search needs to filter
+    # and sort on it, which a SerializerMethodField cannot do. Kept fresh by
+    # signals on the profile and its related rows.
+    profile_strength = models.PositiveSmallIntegerField(
+        default=0,
+        db_index=True,
+        help_text='Completeness score 0-100, recalculated automatically.',
+    )
     hide_current_company = models.BooleanField(
         default=False,
         help_text='Show "Stealth" instead of the real company name',

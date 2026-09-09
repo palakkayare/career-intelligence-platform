@@ -31,6 +31,26 @@ class ProfileStrengthService:
             'breakdown': breakdown,
             'next_step': cls._suggest_next_step(breakdown),
         }
+    
+    @classmethod
+    def refresh(cls, profile) -> int:
+        """
+        Recompute and store the score.
+
+        Writes through a queryset update so the profile's own post_save does
+        not fire again and recurse.
+        """
+        from .models import SeekerProfile
+
+        score = cls.calculate(profile)['score']
+
+        if profile.profile_strength != score:
+            SeekerProfile.objects.filter(pk=profile.pk).update(
+                profile_strength=score,
+            )
+            profile.profile_strength = score
+
+        return score
 
     @staticmethod
     def _score_basic_info(profile):

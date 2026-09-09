@@ -38,6 +38,7 @@ class CandidateSearchService:
             experience_years_min    int
             experience_years_max    int
             location_city           str
+            min_profile_strength    int  (0-100)
             q                       str  (free-text)
         """
         qs = cls._base_queryset()
@@ -59,7 +60,10 @@ class CandidateSearchService:
         elif filters.get('skill_ids'):
             qs = qs.order_by('-matched_skills_count', '-updated_at')
         else:
-            qs = qs.order_by('-updated_at')
+            # Nothing to rank by, so lead with the profiles a recruiter can
+            # actually assess. A half-filled profile at the top of the list
+            # wastes the one screen they look at.
+            qs = qs.order_by('-profile_strength', '-updated_at')
 
         # ---- Pagination ----
         total = qs.count()
@@ -118,6 +122,13 @@ class CandidateSearchService:
         if filters.get('experience_years_max') is not None:
             qs = qs.filter(
                 years_of_experience__lte=filters['experience_years_max']
+            )
+
+        # Feature 15. Only filterable now that the score is a stored column
+        # rather than something computed on read.
+        if filters.get('min_profile_strength') is not None:
+            qs = qs.filter(
+                profile_strength__gte=filters['min_profile_strength'],
             )
 
         if filters.get('q'):

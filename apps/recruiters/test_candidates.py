@@ -321,4 +321,79 @@ def test_opening_a_profile_is_logged(recruiter, credits, plans):
         recruiter=recruiter, seeker=seeker,
         view_kind=CandidateView.ViewKind.DETAIL,
     ).exists()
-    
+
+
+# --------------------------------------------------------------------------
+# Profile strength filter and ordering
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_filtering_by_profile_strength(recruiter, plans):
+    """
+    Regression: Feature 15 asks recruiters to filter by profile strength.
+    It was impossible while the score was computed on read.
+    """
+    weak = make_seeker('weak@test.com')
+    strong = make_seeker('strong@test.com', full_name='Complete Person',
+                         location='Bangalore', current_title='Engineer',
+                         target_role='Senior Engineer')
+
+    weak.refresh_from_db()
+    strong.refresh_from_db()
+    assert strong.profile_strength > weak.profile_strength
+
+    result = search(recruiter, min_profile_strength=strong.profile_strength)
+
+    assert result['total'] == 1
+    assert result['seekers'][0].id == strong.id
+
+
+def test_a_zero_threshold_excludes_nobody(recruiter, plans):
+    make_seeker('anyone@test.com')
+
+    assert search(recruiter, min_profile_strength=0)['total'] == 1
+
+
+def test_an_impossible_threshold_returns_nothing(recruiter, plans):
+    make_seeker('anyone@test.com')
+
+    assert search(recruiter, min_profile_strength=100)['total'] == 0
+
+
+@pytest.mark.regression
+def test_stronger_profiles_are_listed_first(recruiter, plans):
+    """
+    A half-filled profile at the top of the list wastes the one screen a
+    recruiter actually looks at.
+    """
+    make_seeker('bare@test.com')
+    make_seeker('filled@test.com', full_name='Complete Person',
+                location='Bangalore', current_title='Engineer',
+                target_role='Senior Engineer')
+
+    result = search(recruiter)
+    scores = [s.profile_strength for s in result['seekers']]
+
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_skill_relevance_still_wins_over_strength(recruiter, plans):
+    """
+    When a recruiter searches by skill, matching that skill is the point -
+    completeness is only the fallback ordering.
+    """
+    from apps.seekers.models import SeekerSkill
+    from apps.skills.models import Skill
+
+    python = Skill.objects.create(name='Python')
+    bare_with_skill = make_seeker('has-skill@test.com')
+    SeekerSkill.objects.create(seeker=bare_with_skill, skill=python)
+
+    make_seeker('complete-no-skill@test.com', full_name='Complete Person',
+                location='Bangalore', current_title='Engineer',
+                target_role='Senior Engineer')
+
+    result = search(recruiter, skill_ids=[python.id])
+
+    assert result['total'] == 1
+    assert result['seekers'][0].id == bare_with_skill.id

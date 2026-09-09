@@ -80,7 +80,9 @@ class SeekerProfileSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True,
     )
-    profile_strength = serializers.SerializerMethodField()
+        # The stored column is the score; the breakdown is derived on read
+    # because only the number needs to be filterable.
+    profile_strength_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = SeekerProfile
@@ -99,7 +101,7 @@ class SeekerProfileSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('profile_strength', 'profile_photo')
 
-    def get_profile_strength(self, obj):
+    def get_profile_strength_detail(self, obj):
         from .services import ProfileStrengthService
         return ProfileStrengthService.calculate(obj)
 

@@ -231,3 +231,78 @@ def test_a_finished_profile_is_congratulated(seeker, make_skill):
 
     assert result['score'] == 100
     assert 'complete' in result['next_step'].lower()
+
+
+# --------------------------------------------------------------------------
+# Stored score
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_the_score_is_stored_not_just_computed(seeker, make_skill):
+    """
+    Regression: the score used to be a SerializerMethodField, which meant
+    recruiter search could not filter or sort on it - Feature 15 asks for
+    exactly that.
+    """
+    assert seeker.profile_strength == 0
+
+    add_skills(seeker, 3, make_skill)
+    seeker.refresh_from_db()
+
+    assert seeker.profile_strength == 15
+
+
+def test_editing_the_profile_refreshes_the_score(seeker):
+    seeker.full_name = 'Palak K'
+    seeker.save()
+
+    seeker.refresh_from_db()
+    assert seeker.profile_strength == 5
+
+
+def test_adding_experience_refreshes_the_score(seeker):
+    add_experience(seeker, 1)
+
+    seeker.refresh_from_db()
+    assert seeker.profile_strength == 10
+
+
+def test_adding_education_refreshes_the_score(seeker):
+    add_education(seeker)
+
+    seeker.refresh_from_db()
+    assert seeker.profile_strength == 10
+
+
+@pytest.mark.regression
+def test_removing_a_skill_lowers_the_score(seeker, make_skill):
+    """
+    A score that only ever climbs would reward deleting nothing and quietly
+    drift away from the truth.
+    """
+    add_skills(seeker, 3, make_skill)
+    seeker.refresh_from_db()
+    before = seeker.profile_strength
+
+    SeekerSkill.objects.filter(seeker=seeker).first().delete()
+    seeker.refresh_from_db()
+
+    assert seeker.profile_strength < before
+
+
+def test_the_stored_score_matches_the_computed_one(seeker, make_skill):
+    fill_everything_except_photo(seeker, make_skill)
+    seeker.refresh_from_db()
+
+    assert seeker.profile_strength == score(seeker)['score']
+
+
+def test_refreshing_an_unchanged_profile_is_a_no_op(seeker, make_skill):
+    add_skills(seeker, 2, make_skill)
+    seeker.refresh_from_db()
+    before = seeker.profile_strength
+
+    ProfileStrengthService.refresh(seeker)
+    seeker.refresh_from_db()
+
+    assert seeker.profile_strength == before

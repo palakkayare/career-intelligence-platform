@@ -422,9 +422,12 @@ class SubmitSalaryView(APIView):
         serializer = SalarySubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        from apps.career_intel.salary_services import client_ip
+
         submission = SalaryService.submit(
             user=request.user,
             data=serializer.validated_data,
+            ip_address=client_ip(request),
         )
 
         return Response(

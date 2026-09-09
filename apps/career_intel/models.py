@@ -543,6 +543,12 @@ class SalarySubmission(TimestampedModel):
     effective_year = models.PositiveSmallIntegerField(
         help_text='The year this salary was effective',
     )
+    # Keyed hash of the submitting IP, never the address itself. Used only
+    # to rate-limit one device and to spot a single machine filling in a
+    # whole city - it cannot be turned back into an address.
+    submitter_ip_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+    )
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

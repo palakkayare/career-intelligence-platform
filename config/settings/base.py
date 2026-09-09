@@ -311,7 +311,23 @@ AUDITED_MODELS = [
     'recruiters.Company',
     'skills.Skill',
 ]
+# ─── Salary submission privacy ───
+# IPs are stored as a keyed hash, never in the clear. A plain SHA-256 of an
+# IPv4 address is not anonymisation - there are only about four billion of
+# them, so a rainbow table takes minutes to build. The pepper is what makes
+# the hash irreversible without it.
+#
+# Deliberately not SECRET_KEY: rotating one should not silently invalidate
+# every stored hash, and a leaked SECRET_KEY should not also de-anonymise
+# salary data.
+SALARY_IP_PEPPER = env('SALARY_IP_PEPPER', default='')
 
+# Per-device submission limit. One person filling in twenty salaries from
+# one machine is either testing or skewing the data.
+SALARY_MAX_SUBMISSIONS_PER_IP = env.int(
+    'SALARY_MAX_SUBMISSIONS_PER_IP', default=3,
+)
+SALARY_IP_WINDOW_HOURS = env.int('SALARY_IP_WINDOW_HOURS', default=24)
 # ─── Observability ───
 # A blank DSN disables Sentry, so development and CI need no Sentry project.
 SENTRY_DSN = env('SENTRY_DSN', default='')

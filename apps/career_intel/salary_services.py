@@ -21,6 +21,46 @@ from .models import SalarySubmission, TargetRole
 logger = logging.getLogger(__name__)
 
 
+def hash_ip(ip_address):
+    """
+    One-way, keyed hash of an IP address.
+
+    HMAC rather than a bare digest. There are only about four billion IPv4
+    addresses, so sha256(ip) is reversible by anyone willing to spend an
+    afternoon building a table - the pepper is the whole protection.
+
+    Returns '' for a missing address or an unconfigured pepper, so a
+    misconfiguration degrades to "no rate limiting" rather than to "a
+    reversible hash of everyone's IP sitting in the database".
+    """
+    import hashlib
+    import hmac
+
+    from django.conf import settings
+
+    pepper = getattr(settings, 'SALARY_IP_PEPPER', '')
+    if not ip_address or not pepper:
+        return ''
+
+    return hmac.new(
+        pepper.encode(), str(ip_address).encode(), hashlib.sha256,
+    ).hexdigest()
+
+
+def client_ip(request):
+    """
+    Left-most X-Forwarded-For entry, which is the original client when the
+    app sits behind Nginx.
+    """
+    if request is None:
+        return None
+
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
 class SalaryService:
     """Salary submission and privacy-preserving aggregation."""
 
@@ -29,13 +69,17 @@ class SalaryService:
     # ------------------------------------------------------------------
     @classmethod
     @transaction.atomic
-    def submit(cls, user, data: dict) -> SalarySubmission:
+    def submit(cls, user, data: dict, ip_address=None) -> SalarySubmission:
         """
         Create a salary submission.
 
         Validates that:
           - the salary falls inside a sane range
           - the same user has not already submitted for this role + year
+          - the submitting device is inside its rate limit
+
+        `ip_address` is hashed before it is stored; the raw address never
+        reaches the database.
         """
         # --- Validate the salary range ---
         salary = data.get('salary_inr') or 0
@@ -72,6 +116,11 @@ class SalaryService:
                     ),
                 })
 
+        # --- Per-device rate limit ---
+        ip_hash = hash_ip(ip_address)
+        if ip_hash:
+            cls._check_device_limit(ip_hash)
+
         # --- Auto-link to a TargetRole when the title matches the taxonomy ---
         if not data.get('target_role') and data.get('role_title'):
             target_role = TargetRole.objects.filter(
@@ -80,7 +129,9 @@ class SalaryService:
             if target_role:
                 data['target_role'] = target_role
 
-        submission = SalarySubmission.objects.create(user=user, **data)
+        submission = SalarySubmission.objects.create(
+            user=user, submitter_ip_hash=ip_hash, **data,
+        )
 
         logger.info(
             "Salary submission created: id=%s role=%s city=%s year=%s",
@@ -90,6 +141,37 @@ class SalaryService:
             submission.effective_year,
         )
         return submission
+
+    @staticmethod
+    def _check_device_limit(ip_hash):
+        """
+        Refuse a device that has already submitted its share.
+
+        Separate from the per-user check: one person with several accounts
+        still only has one machine, and the blueprint asks for the limit to
+        be per device rather than per login.
+        """
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        window = timezone.now() - timedelta(
+            hours=settings.SALARY_IP_WINDOW_HOURS,
+        )
+        recent = SalarySubmission.objects.filter(
+            submitter_ip_hash=ip_hash,
+            submitted_at__gte=window,
+        ).count()
+
+        if recent >= settings.SALARY_MAX_SUBMISSIONS_PER_IP:
+            raise ValidationError({
+                'detail': (
+                    f'This device has submitted '
+                    f'{settings.SALARY_MAX_SUBMISSIONS_PER_IP} salaries in the '
+                    f'last {settings.SALARY_IP_WINDOW_HOURS} hours. '
+                    f'Try again later.'
+                ),
+            })
 
     # ------------------------------------------------------------------
     # Aggregated insights

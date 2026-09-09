@@ -341,3 +341,205 @@ def test_old_submissions_are_excluded_by_default():
     result = SalaryService.get_insights({'role_title': 'Backend Developer'})
 
     assert result['has_data'] is False
+
+
+# --------------------------------------------------------------------------
+# IP hashing
+# --------------------------------------------------------------------------
+
+from django.test import override_settings
+
+from apps.career_intel.salary_services import client_ip, hash_ip
+
+PEPPER = 'test-pepper-value'
+
+
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_the_same_address_always_hashes_the_same():
+    """Rate limiting depends on it being deterministic."""
+    assert hash_ip('203.0.113.7') == hash_ip('203.0.113.7')
+
+
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_different_addresses_hash_differently():
+    assert hash_ip('203.0.113.7') != hash_ip('203.0.113.8')
+
+
+@pytest.mark.regression
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_the_hash_does_not_contain_the_address():
+    """
+    Regression: the blueprint asks for IP hashing on salary submissions and
+    the raw address was simply not stored at all - meaning no rate limiting
+    either. Storing it in the clear would have been worse.
+    """
+    hashed = hash_ip('203.0.113.7')
+
+    assert '203.0.113.7' not in hashed
+    assert len(hashed) == 64
+
+
+@pytest.mark.regression
+def test_a_different_pepper_gives_a_different_hash():
+    """
+    The point of the pepper. sha256 of an IPv4 address is reversible with a
+    table anyone can build in an afternoon; without a secret in the mix,
+    hashing the address would not be anonymising it.
+    """
+    with override_settings(SALARY_IP_PEPPER='pepper-one'):
+        first = hash_ip('203.0.113.7')
+    with override_settings(SALARY_IP_PEPPER='pepper-two'):
+        second = hash_ip('203.0.113.7')
+
+    assert first != second
+
+
+@override_settings(SALARY_IP_PEPPER='')
+def test_no_pepper_means_no_hash_rather_than_a_weak_one():
+    """
+    A misconfigured deployment should lose rate limiting, not gain a
+    reversible hash of every submitter's address.
+    """
+    assert hash_ip('203.0.113.7') == ''
+
+
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_a_missing_address_hashes_to_nothing():
+    assert hash_ip(None) == ''
+    assert hash_ip('') == ''
+
+
+# --------------------------------------------------------------------------
+# Reading the client address
+# --------------------------------------------------------------------------
+
+class FakeRequest:
+    def __init__(self, **meta):
+        self.META = meta
+
+
+@pytest.mark.regression
+def test_the_forwarded_address_wins_over_the_socket():
+    """Behind Nginx, REMOTE_ADDR is the proxy - every submission would
+    otherwise share one hash and hit the device limit immediately."""
+    request = FakeRequest(
+        HTTP_X_FORWARDED_FOR='203.0.113.7, 10.0.0.1',
+        REMOTE_ADDR='10.0.0.1',
+    )
+
+    assert client_ip(request) == '203.0.113.7'
+
+
+def test_the_socket_address_is_used_without_a_proxy():
+    assert client_ip(FakeRequest(REMOTE_ADDR='203.0.113.7')) == '203.0.113.7'
+
+
+def test_a_missing_request_is_handled():
+    assert client_ip(None) is None
+
+
+# --------------------------------------------------------------------------
+# Per-device limit
+# --------------------------------------------------------------------------
+
+@pytest.mark.django_db
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_the_address_is_stored_hashed_not_raw(seeker_user):
+    submission = SalaryService.submit(
+        seeker_user, submission_data(), ip_address='203.0.113.7',
+    )
+
+    assert submission.submitter_ip_hash == hash_ip('203.0.113.7')
+    assert '203.0.113.7' not in submission.submitter_ip_hash
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+@override_settings(SALARY_IP_PEPPER=PEPPER, SALARY_MAX_SUBMISSIONS_PER_IP=2)
+def test_one_device_cannot_submit_without_limit(seeker_user, plans):
+    """
+    Blueprint: "submission-rate limiting per device". Without it, one person
+    could move the median for a whole role and city on their own.
+    """
+    from apps.accounts.models import User
+
+    for index in range(2):
+        user = User.objects.create_user(
+            email=f'submitter{index}@test.com', password='TestPass123!',
+        )
+        SalaryService.submit(
+            user, submission_data(), ip_address='203.0.113.7',
+        )
+
+    third = User.objects.create_user(
+        email='third@test.com', password='TestPass123!',
+    )
+
+    with pytest.raises(ValidationError):
+        SalaryService.submit(third, submission_data(), ip_address='203.0.113.7')
+
+
+@pytest.mark.django_db
+@override_settings(SALARY_IP_PEPPER=PEPPER, SALARY_MAX_SUBMISSIONS_PER_IP=1)
+def test_a_different_device_is_unaffected(seeker_user, plans):
+    from apps.accounts.models import User
+
+    SalaryService.submit(seeker_user, submission_data(),
+                         ip_address='203.0.113.7')
+
+    other = User.objects.create_user(
+        email='elsewhere@test.com', password='TestPass123!',
+    )
+    submission = SalaryService.submit(
+        other, submission_data(), ip_address='198.51.100.4',
+    )
+
+    assert submission.pk
+
+
+@pytest.mark.django_db
+@override_settings(SALARY_IP_PEPPER=PEPPER, SALARY_MAX_SUBMISSIONS_PER_IP=1,
+                   SALARY_IP_WINDOW_HOURS=24)
+def test_the_limit_is_a_rolling_window(seeker_user, plans):
+    """Yesterday's submission should not block today's."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.accounts.models import User
+
+    old = SalaryService.submit(seeker_user, submission_data(),
+                               ip_address='203.0.113.7')
+    SalarySubmission.objects.filter(pk=old.pk).update(
+        submitted_at=timezone.now() - timedelta(hours=25),
+    )
+
+    other = User.objects.create_user(
+        email='today@test.com', password='TestPass123!',
+    )
+    submission = SalaryService.submit(
+        other, submission_data(), ip_address='203.0.113.7',
+    )
+
+    assert submission.pk
+
+
+@pytest.mark.django_db
+@override_settings(SALARY_IP_PEPPER='')
+def test_without_a_pepper_submissions_still_work(seeker_user):
+    """Losing rate limiting is bad; refusing every submission is worse."""
+    submission = SalaryService.submit(
+        seeker_user, submission_data(), ip_address='203.0.113.7',
+    )
+
+    assert submission.pk
+    assert submission.submitter_ip_hash == ''
+
+
+@pytest.mark.django_db
+@override_settings(SALARY_IP_PEPPER=PEPPER)
+def test_a_submission_without_an_address_is_allowed(seeker_user):
+    """Management commands and imports have no request behind them."""
+    submission = SalaryService.submit(seeker_user, submission_data())
+
+    assert submission.submitter_ip_hash == ''

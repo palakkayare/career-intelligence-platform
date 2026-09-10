@@ -11,8 +11,9 @@ People submit their salary on the understanding that no published figure can
 be traced back to them. This assessment asks whether that holds, and it found
 that it did not.
 
-Two defects were found and fixed. A third is unresolved and needs a decision
-before launch. The rest of the document is the reasoning.
+Three defects were found and fixed. The fix for the third is not the one this
+assessment first proposed - the first two attempts failed against a realistic
+distribution. The rest of the document is the reasoning.
 
 ---
 
@@ -100,40 +101,43 @@ asserts the published median stays within half a band of the true one.
 
 ---
 
-## Finding 3 — the band thins out on wide distributions
+## Finding 3 — banding alone could not fix sparse distributions
 
-**Severity: medium. Not fixed. Needs a decision.**
+**Severity: medium. Fixed, but not the way this assessment first proposed.**
 
-Rounding does not stop a published figure coinciding with somebody's actual
-salary. Real salaries cluster on round numbers — ₹15,00,000, ₹20,00,000 — so a
-banded median will sometimes land exactly on one.
+The first fix for Finding 2 was a flat ₹50,000 rounding band. Testing it
+against a realistic senior distribution showed it did not work:
 
-That is tolerable when several submissions fall inside the band, because the
-figure then identifies a group. It stops being tolerable when a group's
-salaries are spread much wider than ₹50,000, which is exactly what happens at
-senior levels: five senior engineers might be spread across ₹30L to ₹80L, and
-a ₹50,000 band around the median contains only one of them.
+```
+₹30L  ₹45L  ₹55L  ₹70L  ₹80L      median = ₹55L exactly
+```
 
-**So the protection is weakest precisely where the population is thinnest and
-the salaries are most identifying.**
+The nearest neighbour is ₹10L away. No band narrow enough to leave the number
+useful comes anywhere near creating ambiguity — making that median ambiguous
+would need ±₹10L, which destroys it.
 
-`test_a_published_figure_never_points_at_one_submission` encodes the property
-and would fail on such a distribution.
+Making the band proportional to the median (5%, so ₹2.75L here) did not fix it
+either. The band is the wrong tool: it moves the published number a little,
+and the neighbours are nowhere near.
 
-**Three options:**
+**The actual cause** is that rank interpolation returns a member whenever the
+index is whole. Rounding was addressing the symptom.
 
-1. **Scale the band with the spread** — round to a percentage of the median
-   rather than a flat amount. Self-adjusting, and it keeps the figure useful
-   at both ends. Most work.
-2. **Raise K for senior buckets** — 5 is thin for `10+ years`. A higher
-   threshold there costs coverage but is a one-line change.
-3. **Accept and document it** — state in the privacy notice that figures are
-   approximate and derived from small samples.
+**Fix:** `publication_percentile` takes the midpoint of the value and its
+neighbour when the index is whole. The published median for the distribution
+above is ₹62.5L — between two people, belonging to neither.
 
-**Recommendation: option 1.** A proportional band tracks the problem
-automatically instead of needing per-bucket tuning that will go stale.
+The band is retained, because it does something different: it stops a
+published figure being an exact number that can be matched against outside
+knowledge. The two defences work on different attacks.
 
----
+`calculate_percentile` is unchanged and still used for the server-side
+comparison, where the output is a category rather than a number.
+
+**Worth recording:** the first two proposed fixes were both wrong, and only
+testing against a realistic distribution showed it. An assessment that had
+stopped at "round the figures" would have shipped a defence that fails
+precisely where the population is thinnest and the salary most identifying.
 
 ## Finding 4 — free-text filters are unbounded
 
@@ -214,11 +218,10 @@ role/city/experience combinations rather than an assumption.
 
 | # | Action | Blocking |
 |---|---|---|
-| 1 | Decide on Finding 3 — proportional band recommended | Yes |
-| 2 | Decide on Finding 5 — the "anonymous" wording | Yes |
+| 1 | Decide on Finding 5 — the "anonymous" wording | Yes |
+| 2 | Update `DATA_PROTECTION.md` with these findings | Yes |
 | 3 | Decide on Finding 4 — free-text filters | No |
 | 4 | Revisit K against real data once ~500 submissions exist | No |
-| 5 | Update `DATA_PROTECTION.md` with these findings | Yes |
 
 ---
 
@@ -234,7 +237,9 @@ The defences described here are covered by:
 |---|---|
 | min/max not published | `test_the_exact_minimum_and_maximum_are_not_published` |
 | Figures banded | `test_published_figures_are_rounded_to_a_band` |
-| No figure points at one person | `test_a_published_figure_never_points_at_one_submission` |
+| No figure is anybody's salary | `test_no_published_figure_is_anybodys_salary` |
+| Whole indices blended | `test_a_whole_index_never_returns_a_member` |
+| Sparse groups protected | `test_a_widely_spread_group_still_hides_its_members` |
 | Differencing blocked | `test_a_differencing_attack_does_not_isolate_one_person` |
 | K after trimming | `test_trimming_can_push_a_sample_back_below_the_threshold` |
 | IP hashing | `test_a_different_pepper_gives_a_different_hash` |
@@ -242,5 +247,5 @@ The defences described here are covered by:
 
 ---
 
-*Two high-severity defects found and fixed. One medium finding open.*
+*Three defects found and fixed. Two product decisions open.*
 *This is an engineering assessment, not a legal opinion.*

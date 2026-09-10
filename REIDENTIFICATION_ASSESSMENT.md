@@ -161,17 +161,32 @@ see insights at all — so it is a product decision rather than a clear win.
 
 ## Finding 5 — the author link
 
-**Severity: low as implemented. Stated for accuracy.**
+**Severity: low as implemented. Resolved by wording, not by code.**
 
 `SalarySubmission.user` is a foreign key to the submitter. It is needed for
 deduplication and is never exposed through any aggregation endpoint.
 
-Under DPDP this makes the collection **pseudonymous, not anonymous**. Any
-user-facing copy describing it as anonymous overstates what the system does.
+Under DPDP this makes the collection **pseudonymous, not anonymous**.
 
-Two options, unchanged from `DATA_PROTECTION.md`: keep the FK and describe it
-accurately, or replace it with a keyed hash of the user id — deduplication
-still works, the link does not.
+This assessment originally proposed replacing the foreign key with a keyed
+hash of the user id. That was wrong, and the reasoning is worth keeping:
+
+The hash has to be deterministic or deduplication breaks — "one submission per
+user per role per year" needs to recognise a returning submitter. Deterministic
+means anyone with the pepper can recompute it. Data export needs the same
+capability, because a person asking what is held about them has to be answered.
+
+So the hash is pseudonymisation in disguise, treated identically under DPDP,
+and arguably worse than the foreign key because the schema looks anonymous to
+anyone reading it.
+
+**The constraint underneath: deduplication requires linkability.** "One
+submission per person" and "truly anonymous" cannot both hold, and
+deduplication is not optional — without it one person can move a published
+median on their own.
+
+**Resolution: the link stays; the product copy changes.** Accurate wording is
+recorded in `DATA_PROTECTION.md` gap 4.
 
 ---
 
@@ -218,10 +233,13 @@ role/city/experience combinations rather than an assumption.
 
 | # | Action | Blocking |
 |---|---|---|
-| 1 | Decide on Finding 5 — the "anonymous" wording | Yes |
-| 2 | Update `DATA_PROTECTION.md` with these findings | Yes |
-| 3 | Decide on Finding 4 — free-text filters | No |
-| 4 | Revisit K against real data once ~500 submissions exist | No |
+| 1 | Apply the wording from `DATA_PROTECTION.md` gap 4 to user-facing copy | Yes |
+| 2 | Decide on Finding 4 — free-text filters | No |
+| 3 | Revisit K against real data once ~500 submissions exist | No |
+
+Findings 1, 2 and 3 are fixed in code. Finding 5 is resolved by wording.
+Finding 4 is a coverage-versus-privacy trade-off that only matters once there
+is enough data for the absence of a result to mean something.
 
 ---
 
@@ -247,5 +265,5 @@ The defences described here are covered by:
 
 ---
 
-*Three defects found and fixed. Two product decisions open.*
+*Three defects found and fixed. One wording change outstanding.*
 *This is an engineering assessment, not a legal opinion.*

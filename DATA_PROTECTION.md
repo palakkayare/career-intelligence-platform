@@ -179,13 +179,8 @@ endpoint. But it exists. Under DPDP this makes the data **pseudonymous, not
 anonymous**, and any user-facing copy calling it "anonymous" overstates what
 the system does.
 
-Two options for review:
-
-1. Keep the FK and describe the collection accurately as pseudonymous.
-2. Replace it with a keyed hash of the user id — deduplication still works, the
-   link no longer does.
-
-This is a product and legal decision, not a technical blocker.
+**Decided: the link stays and the wording changes.** The keyed-hash
+alternative does not survive the requirement to deduplicate - see gap 4.
 
 ---
 
@@ -205,7 +200,8 @@ one person can post fifty reviews of a company that rejected them and nobody
 can tell.
 
 **Same caveat as salary.** This makes reviews **pseudonymous, not anonymous**.
-Any user-facing copy calling them anonymous overstates what the system does.
+Any user-facing copy calling them anonymous overstates what the system does -
+see gap 4 for the wording that is accurate.
 
 **Verification:** `is_verified_employee` is set when the author has an
 application to that company on file. It proves interest, not employment, and
@@ -333,13 +329,41 @@ purge.
 
 Covered in §2. Needs a legal answer.
 
-### 4. The "anonymous" claim on salary submissions and reviews
+### 4. The "anonymous" claim — decided
 
-Covered in §3 and §3a. Both store an author link; both are pseudonymous.
+Both salary submissions and reviews store an author link. Both are
+pseudonymous, not anonymous.
 
-One decision covers both: either describe them accurately, or replace the
-foreign key with a keyed hash of the user id - deduplication and abuse
-handling still work, the link does not.
+**Decision: keep the link, change the wording.**
+
+The alternative this document originally proposed - replacing the foreign key
+with a keyed hash of the user id - does not work, and it is worth recording
+why rather than leaving it as an open option.
+
+The hash would have to be deterministic, or deduplication breaks: "one
+submission per user per role per year" and "one review per person per company"
+both need to recognise a returning author. Deterministic means anyone holding
+the pepper can recompute it and re-link. Data export needs the same
+capability, because a person asking what is held about them has to be answered.
+
+So the hash is pseudonymisation wearing a disguise. Under DPDP it is treated
+identically, and it is arguably worse than the foreign key because it looks
+anonymous to anyone reading the schema.
+
+**The underlying constraint:** deduplication requires linkability. "One
+submission per person" and "truly anonymous" cannot both hold. Deduplication
+is not optional here - without it one person can move a published median alone,
+or post fifty reviews of a company that rejected them.
+
+**What changes instead** - user-facing copy must not say "anonymous". Accurate
+wording:
+
+- *"Your name is never shown."* True.
+- *"Only aggregate figures are published."* True, and covered by tests.
+- *"We keep a private record of who submitted, to prevent duplicates and
+  abuse."* True, and worth saying rather than hiding.
+
+What must not be said: "anonymous", "we do not know who you are", "untraceable".
 
 ### 5. Recruiter notes in the export
 

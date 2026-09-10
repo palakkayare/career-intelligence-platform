@@ -34,6 +34,7 @@ from apps.referrals.urls import referrals_patterns
 from apps.resumes.urls import resumes_patterns
 from apps.resumes.views import AtsBestPracticesView
 from apps.core.urls import admin_dashboard_patterns
+from apps.interview_prep.urls import interview_prep_patterns
 from apps.core.urls import admin_dashboard_patterns, health_patterns
 admin.site.site_header = 'Career Intelligence Platform — Admin'
 admin.site.index_title = 'Operations Dashboard'
@@ -90,6 +91,8 @@ urlpatterns = [
     path('api/v1/referrals/', include((referrals_patterns, 'referrals'))),
     path('api/v1/admin/dashboard/', include((admin_dashboard_patterns, 'admin-dashboard'))),
     path('api/v1/health/', include((health_patterns, 'health'))),
+    
+    path('api/v1/interview-prep/', include((interview_prep_patterns, 'interview-prep'))),
     
 ]
 

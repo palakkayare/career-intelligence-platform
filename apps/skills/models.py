@@ -47,7 +47,45 @@ class Skill(TimestampedModel):
     def __str__(self):
         return self.name
 
+    # slugify() strips symbols, so "C", "C#" and "C++" all reduce to "c".
+    # With a unique slug that means the second one cannot be saved at all.
+    # These are spelled out rather than handled generically because the
+    # replacement has to read well in a URL, and there are only a handful.
+    SYMBOL_WORDS = (
+        ('++', 'plusplus'),
+        ('#', 'sharp'),
+        ('.', 'dot'),
+    )
+
+    def _build_slug(self):
+        """
+        A slug that survives symbols.
+
+        Falls back to appending a counter if two genuinely different names
+        still collide - better a slug with a 2 on the end than a skill that
+        cannot be created.
+        """
+        source = self.name
+        for symbol, word in self.SYMBOL_WORDS:
+            if symbol in source:
+                source = source.replace(symbol, f' {word} ')
+
+        base = slugify(source) or 'skill'
+        slug = base
+
+        counter = 2
+        while (
+            Skill.objects
+            .filter(slug=slug)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            slug = f'{base}-{counter}'
+            counter += 1
+
+        return slug
+
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            self.slug = self._build_slug()
         super().save(*args, **kwargs)

@@ -35,6 +35,10 @@ The gaps at the end are as much a part of it as the measures.
 | Salary submissions | Aggregate insights | `career_intel.SalarySubmission` |
 | Login history: IP, user agent | Security, account review | `accounts.LoginHistory` |
 | FCM device token | Mobile push, when the app ships | `accounts.User.fcm_token` |
+| Company reviews | Employer transparency | `reviews.CompanyReview` |
+| Interview experiences | Helping the next candidate | `reviews.InterviewExperience` |
+| Badges, points, streaks | Retention | `gamification.*` |
+| Interview checklist progress | Preparation tracking | `interview_prep.ChecklistProgress` |
 
 ### Recruiters
 
@@ -123,6 +127,22 @@ individual submission.
 submissions (default 5). Four submissions and a median is enough for someone
 who knows three of the four to derive the fourth.
 
+**Individual figures are not published.** `min` and `max` were removed: each
+is one person's exact salary, and two queries differing by a single filter
+recovered it directly.
+
+**Published percentiles sit between submissions.** Rank interpolation returns
+a member whenever the index is whole - at five submissions that was p25, the
+median and p75 all at once. `publication_percentile` blends with a neighbour
+instead, so no published figure is anybody's salary.
+
+**Figures are banded**, proportionally to the median. A separate defence from
+the one above: it stops a published number being an exact figure that can be
+matched against outside knowledge.
+
+The reasoning behind all three, including two proposed fixes that failed
+testing, is in `REIDENTIFICATION_ASSESSMENT.md`.
+
 The check runs **again after outlier trimming**. Five submissions where two are
 junk leaves three real ones; checking only before trimming would make the
 guarantee skin deep. (`salary_services.py`, tested.)
@@ -166,6 +186,58 @@ Two options for review:
    link no longer does.
 
 This is a product and legal decision, not a technical blocker.
+
+---
+
+## 3a. Company reviews
+
+The same tension as salary submissions, and the same resolution.
+
+**The promise:** a review is published without the author's name attached.
+
+**How it is kept:** `CompanyReview.author` is a foreign key to the reviewer.
+It appears in no serializer, no field list, no ordering and no filter. The API
+exposes an `is_mine` boolean so the frontend can show edit controls, which
+reveals nothing about anyone else's review.
+
+The link is stored because the alternative is worse: with no author on file,
+one person can post fifty reviews of a company that rejected them and nobody
+can tell.
+
+**Same caveat as salary.** This makes reviews **pseudonymous, not anonymous**.
+Any user-facing copy calling them anonymous overstates what the system does.
+
+**Verification:** `is_verified_employee` is set when the author has an
+application to that company on file. It proves interest, not employment, and
+is labelled as what it is - claiming stronger verification than the platform
+has would be worse than claiming none. It is computed server-side and cannot
+be set by the submitter.
+
+**Moderation:** reviews publish immediately and are hidden once three people
+report them. Pre-moderation was considered and rejected - review sections that
+queue for admin approval sit empty, because nobody writes into a void for a
+week.
+
+The threshold is three rather than one so a company cannot bury a fair review
+with a handful of coordinated reports. The response to a report does not say
+whether the review was hidden; telling a reporter how close they are to the
+threshold is an invitation to organise the rest.
+
+---
+
+## 3b. Gamification data
+
+Points, badges and streaks are behavioural records: they show when someone was
+job hunting and how actively.
+
+`PointsLedger` is append-only and every entry is retained, because a balance
+that cannot be explained is worse than no balance. `ApplicationStreak` records
+which weeks a person applied in.
+
+Both are included in the data export and go with the account on closure.
+
+Worth flagging for the retention schedule: this is the one category where the
+data has no use at all once the person stops job hunting.
 
 ---
 
@@ -237,17 +309,19 @@ schedule with defined periods per category is one of the gaps below.
 These are known and unresolved. They are listed because a compliance record
 that only lists what was done is not a compliance record.
 
-### 1. Re-identification risk assessment (blueprint requirement)
+### 1. Re-identification risk assessment — done, one item open
 
-Blueprint Feature 14 asks for one explicitly. It has not been done.
+`REIDENTIFICATION_ASSESSMENT.md`. Three defects found and fixed.
 
-The concern is real: role + city + experience bucket can identify a person in a
-small sample even without a name. "Engineering Manager, Indore, 12-15 years"
-may be one person.
+What remains open from it: `role_title` and `location_city` are free-text
+filters, so a caller can probe arbitrary values. The K threshold applies to
+every slice, so nothing comes back below five - but a query returning nothing
+discloses that a known individual did not submit. Weak, and still a
+disclosure.
 
-K-anonymity of 5 helps but was not derived from an analysis of this dataset.
-The assessment should test whether 5 is enough for the least populated
-role/city combinations, or whether the threshold needs to scale with city size.
+K=5 was not derived from this dataset. It should be revisited against the real
+distribution of role and city combinations once there are enough submissions
+to look at.
 
 ### 2. Retention schedule
 
@@ -259,9 +333,13 @@ purge.
 
 Covered in §2. Needs a legal answer.
 
-### 4. The "anonymous" claim on salary submissions
+### 4. The "anonymous" claim on salary submissions and reviews
 
-Covered in §3. Needs a decision.
+Covered in §3 and §3a. Both store an author link; both are pseudonymous.
+
+One decision covers both: either describe them accurately, or replace the
+foreign key with a keyed hash of the user id - deduplication and abuse
+handling still work, the link does not.
 
 ### 5. Recruiter notes in the export
 
@@ -297,10 +375,13 @@ Sentry gives detection; the procedure itself does not exist.
 | Audit trail | `audit/signals.py` | `audit/tests.py` |
 | Auth security | `accounts/services.py` | `accounts/test_services.py` |
 | Rate limits | `core/throttles.py`, `settings/base.py` | `core/tests.py` |
+| Review anonymity | `reviews/serializers.py` | `reviews/tests.py` |
+| Review moderation | `reviews/services.py` | `reviews/tests.py` |
+| Published percentiles | `career_intel/salary_algorithm.py` | `career_intel/test_salary.py` |
 
 Run `pytest -m regression` to exercise the behaviours these measures depend on.
 
 ---
 
-*Prepared: 09 September 2026 | Backend at 624 tests, ~81% coverage*
+*Prepared 09 September 2026, revised 10 September | Backend at 882 tests*
 *Requires legal review before launch.*

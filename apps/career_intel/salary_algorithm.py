@@ -50,6 +50,32 @@ def calculate_median(values: Sequence[float]) -> Optional[float]:
     return calculate_percentile(values, 50)
 
 
+# Published figures are rounded to this band.
+#
+# The reason is not presentation. With five submissions a percentile lands
+# exactly on a person: at n=5, p25 is values[1], the median is values[2] and
+# p75 is values[3] - so the "aggregate" is one individual's exact salary.
+# Rounding to a band means a published figure identifies a range rather than
+# a person, which is what the anonymity promise actually requires.
+#
+# ₹50,000 is about 3% of a mid-level Indian salary: wide enough to hide an
+# individual, narrow enough that the number still guides a negotiation.
+PUBLISH_ROUNDING_INR = 50_000
+
+
+def round_for_publication(value, band=PUBLISH_ROUNDING_INR):
+    """
+    Round a salary figure to the nearest band before it is published.
+
+    Returns None unchanged so callers do not have to special-case an absent
+    figure.
+    """
+    if value is None:
+        return None
+
+    return int(round(float(value) / band) * band)
+
+
 def calculate_aggregates(salaries: Sequence[Decimal]) -> Optional[Dict]:
     """
     Compute aggregate statistics from a list of salaries.

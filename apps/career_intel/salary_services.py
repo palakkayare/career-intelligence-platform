@@ -21,6 +21,11 @@ from .models import SalarySubmission, TargetRole
 logger = logging.getLogger(__name__)
 
 
+def _publish(value):
+    """Round a figure to its publication band. See salary_algorithm."""
+    return salary_algorithm.round_for_publication(value)
+
+
 def hash_ip(ip_address):
     """
     One-way, keyed hash of an IP address.
@@ -177,6 +182,48 @@ class SalaryService:
     # Aggregated insights
     # ------------------------------------------------------------------
     @classmethod
+    def _apply_filters(cls, filters):
+        """
+        The filtered submission set.
+
+        Extracted so the published aggregate and the server-side comparison
+        cannot drift apart - two copies of a privacy filter is one copy too
+        many.
+        """
+        # Flagged submissions never take part in any aggregate.
+        qs = SalarySubmission.objects.filter(is_flagged=False)
+
+        if filters.get('role_title'):
+            qs = qs.filter(role_title__iexact=filters['role_title'])
+
+        if filters.get('target_role_id'):
+            qs = qs.filter(target_role_id=filters['target_role_id'])
+
+        if filters.get('location_city'):
+            qs = qs.filter(location_city__iexact=filters['location_city'])
+
+        if filters.get('company_size_bucket'):
+            qs = qs.filter(company_size_bucket=filters['company_size_bucket'])
+
+        if filters.get('experience_years_bucket'):
+            qs = qs.filter(
+                experience_years_bucket=filters['experience_years_bucket'],
+            )
+
+        if filters.get('industry_id'):
+            qs = qs.filter(industry_id=filters['industry_id'])
+
+        # Default to the last 2 years so inflation and market shifts do not
+        # distort the picture.
+        if filters.get('effective_year'):
+            qs = qs.filter(effective_year=filters['effective_year'])
+        else:
+            current_year = datetime.now().year
+            qs = qs.filter(effective_year__gte=current_year - 2)
+
+        return qs
+
+    @classmethod
     def get_insights(cls, filters: dict) -> dict:
         """
         Return aggregated salary insights, guarded by K-anonymity.
@@ -195,34 +242,7 @@ class SalaryService:
         individuals (see the privacy notes in the feature doc).
         """
         # Flagged submissions never take part in any aggregate.
-        qs = SalarySubmission.objects.filter(is_flagged=False)
-
-        # --- Apply only the filters that are safe for privacy ---
-        if filters.get('role_title'):
-            qs = qs.filter(role_title__iexact=filters['role_title'])
-
-        if filters.get('target_role_id'):
-            qs = qs.filter(target_role_id=filters['target_role_id'])
-
-        if filters.get('location_city'):
-            qs = qs.filter(location_city__iexact=filters['location_city'])
-
-        if filters.get('company_size_bucket'):
-            qs = qs.filter(company_size_bucket=filters['company_size_bucket'])
-
-        if filters.get('experience_years_bucket'):
-            qs = qs.filter(experience_years_bucket=filters['experience_years_bucket'])
-
-        if filters.get('industry_id'):
-            qs = qs.filter(industry_id=filters['industry_id'])
-
-        # Default to the last 2 years so inflation and market shifts do not
-        # distort the picture.
-        if filters.get('effective_year'):
-            qs = qs.filter(effective_year=filters['effective_year'])
-        else:
-            current_year = datetime.now().year
-            qs = qs.filter(effective_year__gte=current_year - 2)
+        qs = cls._apply_filters(filters)
 
         # --- K-anonymity check ---
         k = settings.SALARY_K_ANONYMITY
@@ -266,29 +286,48 @@ class SalaryService:
             'filters_applied': {key: value for key, value in filters.items() if value},
             'sample_size': aggregates['count'],
             'k_threshold': k,
+            # min and max are gone, and the rest are rounded.
+            #
+            # A published min or max is one person's exact salary - not an
+            # aggregate in any protective sense. Two queries differing by a
+            # single filter recover that person's figure directly.
+            #
+            # The percentiles that remain are rounded because at these
+            # sample sizes they also land on individuals: with five
+            # submissions, p25 is values[1] and the median is values[2].
+            # See round_for_publication.
             'salary_range_inr': {
-                'min': aggregates['min'],
-                'p10': aggregates['p10'],
-                'p25': aggregates['p25'],
-                'median': aggregates['median'],
-                'p75': aggregates['p75'],
-                'p90': aggregates['p90'],
-                'max': aggregates['max'],
-                'mean': aggregates['mean'],
+                'p25': _publish(aggregates['p25']),
+                'median': _publish(aggregates['median']),
+                'p75': _publish(aggregates['p75']),
+                'mean': _publish(aggregates['mean']),
             },
             'salary_range_lpa': {
-                'min': salary_algorithm.format_inr_lpa(aggregates['min']),
-                'p25': salary_algorithm.format_inr_lpa(aggregates['p25']),
-                'median': salary_algorithm.format_inr_lpa(aggregates['median']),
-                'p75': salary_algorithm.format_inr_lpa(aggregates['p75']),
-                'max': salary_algorithm.format_inr_lpa(aggregates['max']),
+                'p25': salary_algorithm.format_inr_lpa(_publish(aggregates['p25'])),
+                'median': salary_algorithm.format_inr_lpa(_publish(aggregates['median'])),
+                'p75': salary_algorithm.format_inr_lpa(_publish(aggregates['p75'])),
             },
             'verified_share': cls._compute_verified_share(qs),
             'message': (
                 f"Based on {aggregates['count']} submissions. "
-                f"Median: ₹{aggregates['median'] / 100000:.1f} LPA."
+                f"Median: ₹{_publish(aggregates['median']) / 100000:.1f} LPA."
             ),
         }
+
+    @classmethod
+    def _raw_percentiles(cls, filters):
+        """
+        Unrounded percentiles, for server-side comparison only.
+
+        Never returned to a client. The published figures are rounded and
+        drop min and max; these are the full set, used where the output is
+        a category rather than a number.
+        """
+        qs = cls._apply_filters(filters)
+        salaries = list(qs.values_list('salary_inr', flat=True))
+        trimmed = salary_algorithm.trim_outliers_simple(salaries)
+
+        return salary_algorithm.calculate_aggregates(trimmed) or {}
 
     # ------------------------------------------------------------------
     # Personal comparison
@@ -341,14 +380,19 @@ class SalaryService:
             }
 
         # --- Work out where this salary sits in the market ---
+        #
+        # Computed against the unrounded percentiles rather than the
+        # published ones. The comparison happens here and only a category
+        # comes back, so it can use the full distribution without any of it
+        # reaching the response - and a band-rounded p75 would misplace
+        # anyone sitting close to it.
+        raw = cls._raw_percentiles(filters)
+
         position = salary_algorithm.determine_market_position(
-            submission.salary_inr,
-            insights['salary_range_inr'],
+            submission.salary_inr, raw,
         )
         message = salary_algorithm.market_position_message(
-            position,
-            submission.salary_inr,
-            insights['salary_range_inr'],
+            position, submission.salary_inr, raw,
         )
 
         return {

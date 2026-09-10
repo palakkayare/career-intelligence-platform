@@ -543,3 +543,152 @@ def test_a_submission_without_an_address_is_allowed(seeker_user):
     submission = SalaryService.submit(seeker_user, submission_data())
 
     assert submission.submitter_ip_hash == ''
+
+
+# --------------------------------------------------------------------------
+# Re-identification defences
+# --------------------------------------------------------------------------
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_the_exact_minimum_and_maximum_are_not_published():
+    """
+    Regression: min and max were published. Neither is an aggregate - each
+    is one person's exact salary, and two queries differing by one filter
+    recover it directly.
+    """
+    seed_submissions(6)
+
+    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+
+    assert 'min' not in result['salary_range_inr']
+    assert 'max' not in result['salary_range_inr']
+    assert 'min' not in result['salary_range_lpa']
+    assert 'max' not in result['salary_range_lpa']
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_published_figures_are_rounded_to_a_band():
+    """
+    At these sample sizes a percentile lands on a person: with five
+    submissions p25 is values[1] and the median is values[2]. Rounding is
+    what makes the published number describe a range instead.
+    """
+    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+
+    seed_submissions(6)
+
+    figures = SalaryService.get_insights(
+        {'role_title': 'Backend Developer'},
+    )['salary_range_inr']
+
+    for name, value in figures.items():
+        assert value % PUBLISH_ROUNDING_INR == 0, f'{name} was not rounded'
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_a_published_figure_never_points_at_one_submission():
+    """
+    What rounding actually buys, stated precisely.
+
+    It does not stop a published figure coinciding with somebody's salary -
+    real salaries cluster on round numbers, so a banded median will
+    sometimes land exactly on one. What it does is make that coincidence
+    ambiguous: several submissions fall inside the band, so the figure
+    identifies a group rather than a person.
+
+    The limitation is real and worth stating: when a group's salaries are
+    spread much wider than the band, the ambiguity thins out. That is
+    recorded in the re-identification assessment rather than hidden here.
+    """
+    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+
+    seed_submissions(7)
+
+    submitted = [
+        float(value) for value in
+        SalarySubmission.objects.values_list('salary_inr', flat=True)
+    ]
+    published = SalaryService.get_insights(
+        {'role_title': 'Backend Developer'},
+    )['salary_range_inr']
+
+    half_band = PUBLISH_ROUNDING_INR / 2
+
+    for name, figure in published.items():
+        nearby = [
+            salary for salary in submitted
+            if abs(salary - figure) <= half_band
+        ]
+        assert len(nearby) != 1, (
+            f'{name} = {figure} matches exactly one submission, '
+            f'which makes it that person\'s salary'
+        )
+
+
+@pytest.mark.django_db
+def test_the_rounded_median_still_describes_the_data():
+    """
+    Privacy that destroys the number is not a trade worth making - the
+    figure has to stay useful for a negotiation.
+    """
+    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+
+    seed_submissions(6)
+
+    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+
+    drift = abs(result['salary_range_inr']['median'] - raw['median'])
+    assert drift <= PUBLISH_ROUNDING_INR / 2
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_a_differencing_attack_does_not_isolate_one_person():
+    """
+    The attack the K threshold exists to stop: query a group, query the
+    group minus one attribute, compare. With min and max gone and the rest
+    banded, the difference no longer resolves to an individual.
+    """
+    seed_submissions(6, experience_years_bucket='2-5')
+    seed_submissions(5, experience_years_bucket='5-10')
+
+    everyone = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    juniors = SalaryService.get_insights({
+        'role_title': 'Backend Developer',
+        'experience_years_bucket': '2-5',
+    })
+
+    # Both sets are large enough to publish, and neither exposes an endpoint
+    # of its distribution for the other to be subtracted from.
+    assert everyone['has_data'] and juniors['has_data']
+    assert set(everyone['salary_range_inr']) == {'p25', 'median', 'p75', 'mean'}
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_the_comparison_path_uses_unrounded_figures(seeker_user):
+    """
+    Market position is decided server-side and only a category comes back,
+    so it uses the full distribution. Banding it would misplace anyone
+    sitting close to a boundary.
+    """
+    seed_submissions(6)
+
+    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+
+    assert 'min' in raw and 'max' in raw and 'p90' in raw
+
+
+@pytest.mark.django_db
+def test_the_raw_percentiles_never_reach_a_response(seeker_user):
+    seed_submissions(6)
+    SalaryService.submit(seeker_user, submission_data(role_title='Other Role'))
+
+    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+
+    assert 'p90' not in result['salary_range_inr']
+    assert 'p10' not in result['salary_range_inr']

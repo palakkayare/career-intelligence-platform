@@ -37,6 +37,7 @@ from apps.core.urls import admin_dashboard_patterns
 from apps.interview_prep.urls import interview_prep_patterns
 from apps.core.urls import admin_dashboard_patterns, health_patterns
 from apps.gamification.urls import gamification_patterns
+from apps.reviews.urls import reviews_patterns
 admin.site.site_header = 'Career Intelligence Platform — Admin'
 admin.site.index_title = 'Operations Dashboard'
 ats_patterns = [
@@ -95,6 +96,7 @@ urlpatterns = [
     
     path('api/v1/interview-prep/', include((interview_prep_patterns, 'interview-prep'))),
     path('api/v1/gamification/', include((gamification_patterns, 'gamification'))),
+    path('api/v1/reviews/', include((reviews_patterns, 'reviews'))),
     
 ]
 

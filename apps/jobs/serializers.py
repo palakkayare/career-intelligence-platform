@@ -70,6 +70,24 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'activated_at', 'created_at',
         )
         
+class PublicJobDetailSerializer(JobDetailSerializer):
+    """
+    Job detail for anonymous readers.
+
+    Two fields come out. `posted_by_name` puts a recruiter's name in front
+    of every scraper on the internet, and `rejection_reason` is internal
+    moderation notes - a rejected job is not publicly visible today, but a
+    field that leaks the moment a status check changes is worth removing
+    rather than relying on.
+    """
+
+    class Meta(JobDetailSerializer.Meta):
+        fields = tuple(
+            field for field in JobDetailSerializer.Meta.fields
+            if field not in ('posted_by_name', 'rejection_reason')
+        )
+
+
 class JobCreateUpdateSerializer(serializers.ModelSerializer):
     """For POST + PATCH from recruiter side."""
 

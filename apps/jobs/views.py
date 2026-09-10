@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.core.pagination import FlexiblePagination
+from apps.core.throttles import SearchThrottle
 
 from .filters import JobFilterSet
 from .search import JobSearchService
@@ -21,13 +22,14 @@ from .serializers import (
     SavedJobSerializer,
     JobListSerializer,
     JobDetailSerializer,
+    PublicJobDetailSerializer,
     JobCreateUpdateSerializer,
     JobCategorySerializer,
     TagSerializer,
     SavedSearchSerializer, SearchHistorySerializer,
 )
 from .services import JobStatusService, JobDuplicationService
-from apps.core.throttles import SearchThrottle
+
 
 # ───── Categories & Tags (Public) ─────
 
@@ -60,10 +62,16 @@ class TagListView(generics.ListAPIView):
 class PublicJobListView(generics.ListAPIView):
     """
     GET /api/v1/jobs/ ← ACTIVE jobs only.
-    Search/filter properly in Step 10 (next feature).
+
+    Open to anyone. A job board behind a login has no organic traffic and no
+    shareable links, which removes most of the point of posting on it -
+    Feature 20 counts SEO as a revenue channel and it cannot work otherwise.
+
+    Only listings are public. Applying, saving, match scores and everything
+    else still needs a login.
     """
     serializer_class = JobListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [SearchThrottle]
 
     def get_queryset(self):
@@ -75,10 +83,19 @@ class PublicJobListView(generics.ListAPIView):
         )
         
 class JobDetailView(generics.RetrieveAPIView):
-    """GET /api/v1/jobs/<uuid>/"""
-    serializer_class = JobDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    """
+    GET /api/v1/jobs/<uuid>/
+
+    Public, so a shared link opens for someone who is not signed in.
+    Anonymous readers get a narrower serializer - see get_serializer_class.
+    """
+    permission_classes = [permissions.AllowAny]
     lookup_field = 'public_id'
+
+    def get_serializer_class(self):
+        if self.request.user.is_authenticated:
+            return JobDetailSerializer
+        return PublicJobDetailSerializer
 
     def get_queryset(self):
         # Recruiters can see their own (any status). Others only ACTIVE.
@@ -270,7 +287,7 @@ class JobSearchView(generics.ListAPIView):
     - page, page_size
     """
     serializer_class = JobListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [SearchThrottle]
     filter_backends = [DjangoFilterBackend]
     filterset_class = JobFilterSet
@@ -281,7 +298,7 @@ class JobSearchView(generics.ListAPIView):
         sort = self.request.query_params.get('sort', 'relevance')
 
         # Match-score sorting only means something for a seeker; a recruiter
-        # browsing jobs has no scores of their own.
+        # or an anonymous visitor has no scores of their own.
         seeker = getattr(self.request.user, 'seeker_profile', None)
 
         return JobSearchService.build_queryset(
@@ -289,6 +306,7 @@ class JobSearchView(generics.ListAPIView):
             sort=sort,
             seeker=seeker,
         )
+
     def list(self, request, *args, **kwargs):
         # Get filtered, paginated results
         response = super().list(request, *args, **kwargs)
@@ -298,6 +316,11 @@ class JobSearchView(generics.ListAPIView):
 
     def _record_history(self, request, result_count):
         """Save search to user's history (auto-prune to last 10)."""
+        # Search is open to anyone now, and there is nobody to attribute an
+        # anonymous search to.
+        if not request.user.is_authenticated:
+            return
+
         query_text = request.query_params.get('q', '').strip()
 
         # Capture filters (exclude pagination params)

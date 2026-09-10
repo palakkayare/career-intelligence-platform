@@ -180,6 +180,7 @@ def score_job(seeker, job, value):
         breakdown={},
     )
 
+
 @pytest.mark.regression
 def test_jobs_can_be_sorted_by_match_score(seeker, make_job):
     """
@@ -278,3 +279,131 @@ def test_an_unknown_sort_falls_back_to_recency(make_job):
     results = list(JobSearchService.build_queryset(sort='nonsense'))
 
     assert len(results) == 1
+
+
+# --------------------------------------------------------------------------
+# Public browsing
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_anyone_can_list_jobs(job):
+    """
+    Regression: every job endpoint required a login, so nothing was ever
+    indexed and no job link opened for someone who was not signed in.
+    Feature 20 counts SEO as a revenue channel; it cannot work behind auth.
+    """
+    from rest_framework.test import APIClient
+
+    response = APIClient().get('/api/v1/jobs/')
+
+    assert response.status_code == 200
+    assert response.data['count'] >= 1
+
+
+def test_anyone_can_open_a_job_link(job):
+    """A shared job link has to work for the person it was shared with."""
+    from rest_framework.test import APIClient
+
+    response = APIClient().get(f'/api/v1/jobs/{job.public_id}/')
+
+    assert response.status_code == 200
+    assert response.data['title'] == job.title
+
+
+def test_anyone_can_search(job):
+    from rest_framework.test import APIClient
+
+    response = APIClient().get('/api/v1/jobs/search/')
+
+    assert response.status_code == 200
+
+
+@pytest.mark.regression
+def test_an_anonymous_reader_does_not_see_the_recruiter(job):
+    """
+    posted_by_name would put a recruiter's name in front of every scraper
+    on the internet.
+    """
+    from rest_framework.test import APIClient
+
+    response = APIClient().get(f'/api/v1/jobs/{job.public_id}/')
+
+    assert 'posted_by_name' not in response.data
+    assert 'rejection_reason' not in response.data
+
+
+def test_a_signed_in_reader_still_sees_the_full_detail(seeker_user, job):
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user=seeker_user)
+
+    response = client.get(f'/api/v1/jobs/{job.public_id}/')
+
+    assert 'posted_by_name' in response.data
+
+
+@pytest.mark.regression
+def test_only_active_jobs_are_public(make_job):
+    """A draft or a rejected job must not be reachable by URL."""
+    from rest_framework.test import APIClient
+
+    draft = make_job(title='Not Live Yet')
+    Job.objects.filter(pk=draft.pk).update(status=Job.Status.DRAFT)
+
+    response = APIClient().get(f'/api/v1/jobs/{draft.public_id}/')
+
+    assert response.status_code == 404
+
+
+def test_an_anonymous_search_records_no_history(job):
+    """There is nobody to attribute it to."""
+    from apps.jobs.models import SearchHistory
+    from rest_framework.test import APIClient
+
+    APIClient().get('/api/v1/jobs/search/?q=engineer')
+
+    assert SearchHistory.objects.count() == 0
+
+
+def test_a_signed_in_search_still_records_history(seeker_user, job):
+    from apps.jobs.models import SearchHistory
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user=seeker_user)
+    client.get('/api/v1/jobs/search/?q=engineer')
+
+    assert SearchHistory.objects.filter(user=seeker_user).count() == 1
+
+
+@pytest.mark.regression
+def test_applying_still_needs_a_login(job):
+    """
+    Browsing opened up; acting did not. This is the line that matters.
+    """
+    from rest_framework.test import APIClient
+
+    response = APIClient().post(f'/api/v1/jobs/{job.public_id}/apply/', {})
+
+    assert response.status_code in (401, 403)
+
+
+@pytest.mark.parametrize('path', [
+    '/api/v1/jobs/saved/',
+    '/api/v1/jobs/saved-searches/',
+    '/api/v1/jobs/search-history/',
+])
+def test_personal_job_endpoints_still_need_a_login(path):
+    from rest_framework.test import APIClient
+
+    assert APIClient().get(path).status_code in (401, 403)
+
+
+def test_match_sorting_anonymously_falls_back(job):
+    """No seeker, no scores - the request must not fail."""
+    from rest_framework.test import APIClient
+
+    response = APIClient().get('/api/v1/jobs/search/?sort=match_score')
+
+    assert response.status_code == 200

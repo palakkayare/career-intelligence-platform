@@ -2,6 +2,7 @@
 Production settings - strict security.
 """
 
+from apps.core.log_format import build_logging
 from apps.core.observability import init_sentry
 
 from .base import *  # noqa: F401,F403
@@ -43,3 +44,7 @@ init_sentry(
     release=SENTRY_RELEASE or None,  # noqa: F405
     traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,  # noqa: F405
 )
+
+
+# ─── Logging ───
+LOGGING = build_logging(json_output=env.bool("LOG_JSON", default=True))  # noqa: F405

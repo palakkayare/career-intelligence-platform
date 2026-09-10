@@ -70,6 +70,8 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 DEBUG_TOOLBAR_CONFIG = {"IS_RUNNING_TESTS": False}
 
 MIDDLEWARE = [
+    # First, so every response - even CORS and security rejections - gets an id.
+    "apps.core.middleware.RequestIdMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # CORS must be near the top
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -136,7 +138,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DRF configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # JWTAuthentication that also tells Sentry whose request it was.
+        "apps.core.authentication.ObservedJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
@@ -363,3 +366,11 @@ INVOICE_COMPANY_ADDRESS = env(
 )
 INVOICE_GSTIN = env("INVOICE_GSTIN", default="")
 INVOICE_GST_RATE = env.float("INVOICE_GST_RATE", default=18.0)
+
+
+# ─── Logging ───
+# Readable text by default; production switches to JSON for a log aggregator.
+# Every line carries the request id from RequestIdMiddleware.
+from apps.core.log_format import build_logging  # noqa: E402
+
+LOGGING = build_logging(json_output=env.bool("LOG_JSON", default=False))

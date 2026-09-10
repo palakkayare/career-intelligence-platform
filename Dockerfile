@@ -64,3 +64,9 @@ CMD ["gunicorn", "config.wsgi:application", \
      "--timeout", "60", \
      "--access-logfile", "-", \
      "--error-logfile", "-"]
+
+# Git commit of this image, passed in by CI. Sentry tags every error with it,
+# so a bug can be traced to the deploy that introduced it. Kept last: a value
+# that changes every commit would otherwise bust the layer cache above it.
+ARG GIT_SHA=
+ENV SENTRY_RELEASE=${GIT_SHA}

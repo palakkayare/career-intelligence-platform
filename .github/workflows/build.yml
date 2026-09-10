@@ -51,6 +51,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           # Layer cache between runs, so a dependency-free change rebuilds in
           # under a minute instead of reinstalling spaCy every time.
           cache-from: type=gha

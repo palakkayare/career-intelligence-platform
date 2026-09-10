@@ -50,28 +50,106 @@ def calculate_median(values: Sequence[float]) -> Optional[float]:
     return calculate_percentile(values, 50)
 
 
-# Published figures are rounded to this band.
+# Published figures are rounded to a band.
 #
 # The reason is not presentation. With five submissions a percentile lands
 # exactly on a person: at n=5, p25 is values[1], the median is values[2] and
 # p75 is values[3] - so the "aggregate" is one individual's exact salary.
-# Rounding to a band means a published figure identifies a range rather than
-# a person, which is what the anonymity promise actually requires.
+# Rounding means a published figure identifies a range rather than a person,
+# which is what the anonymity promise actually requires.
 #
-# ₹50,000 is about 3% of a mid-level Indian salary: wide enough to hide an
-# individual, narrow enough that the number still guides a negotiation.
-PUBLISH_ROUNDING_INR = 50_000
+# The band is proportional, not flat. A flat ₹50,000 works for a group of
+# juniors clustered between ₹8L and ₹12L - several of them fall inside it, so
+# the figure stays ambiguous. It fails for five senior engineers spread from
+# ₹30L to ₹80L, where a ₹50,000 window around the median contains exactly one
+# person. That is the wrong way round: protection is thinnest where the
+# population is smallest and the salary is most identifying.
+#
+# Scaling with the data fixes that without per-bucket tuning that would go
+# stale. See choose_band.
+PUBLISH_BAND_PCT = 0.05
+PUBLISH_BAND_MIN_INR = 50_000
+PUBLISH_BAND_MAX_INR = 500_000
+
+# Kept as the floor's old name so existing callers and tests still read.
+PUBLISH_ROUNDING_INR = PUBLISH_BAND_MIN_INR
 
 
-def round_for_publication(value, band=PUBLISH_ROUNDING_INR):
+def publication_percentile(sorted_values, p):
     """
-    Round a salary figure to the nearest band before it is published.
+    A percentile that is never one person's exact salary.
+
+    Standard rank interpolation lands on a member whenever
+    `(p/100) x (n-1)` is a whole number - at n=5 that is p25, the median and
+    p75 all at once, so every published figure was an individual's salary.
+    It recurs at n=9, n=13 and so on; it is a periodic property of the
+    method, not an edge case at the threshold.
+
+    Rounding cannot fix it. Making the median of ₹30L/₹45L/₹55L/₹70L/₹80L
+    ambiguous would need a band of ±₹10L, which destroys the number.
+
+    So when the index is whole, this takes the midpoint of that value and
+    its neighbour instead. The result sits between two people and belongs to
+    neither, which is what an aggregate is supposed to be.
+
+    Used only for publication. `calculate_percentile` keeps standard
+    behaviour for the server-side comparison, where the output is a category
+    rather than a number.
+    """
+    if not sorted_values:
+        return None
+
+    values = sorted(float(v) for v in sorted_values)
+    if len(values) == 1:
+        return values[0]
+
+    index = (p / 100) * (len(values) - 1)
+    lower = int(index)
+
+    if index != lower:
+        upper = min(lower + 1, len(values) - 1)
+        return values[lower] + (index - lower) * (values[upper] - values[lower])
+
+    # Whole index: the raw result would be values[lower] exactly. Blend it
+    # with a neighbour - the one above, or the one below at the top end.
+    neighbour = lower + 1 if lower + 1 < len(values) else lower - 1
+    return (values[lower] + values[neighbour]) / 2
+
+
+def choose_band(reference):
+    """
+    The rounding band for a distribution centred on `reference`.
+
+    Five percent of the reference figure, clamped. The floor stops the band
+    collapsing on low salaries, where ₹50,000 is already a meaningful chunk.
+    The ceiling stops it swallowing the answer at the top end - a ₹5,00,000
+    band on a ₹1 crore median is still a useful number, a ₹20,00,000 one is
+    not.
+    """
+    if not reference:
+        return PUBLISH_BAND_MIN_INR
+
+    band = float(reference) * PUBLISH_BAND_PCT
+    return int(min(max(band, PUBLISH_BAND_MIN_INR), PUBLISH_BAND_MAX_INR))
+
+
+def round_for_publication(value, band=None, reference=None):
+    """
+    Round a salary figure before it is published.
+
+    `reference` is the figure the band is derived from - normally the
+    median, so every figure in one response is rounded to the same band.
+    Rounding each to its own band would make p25 and p75 sit on a finer grid
+    than the median, which leaks the shape of the distribution back.
 
     Returns None unchanged so callers do not have to special-case an absent
     figure.
     """
     if value is None:
         return None
+
+    if band is None:
+        band = choose_band(reference if reference is not None else value)
 
     return int(round(float(value) / band) * band)
 

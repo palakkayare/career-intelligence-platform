@@ -575,16 +575,16 @@ def test_published_figures_are_rounded_to_a_band():
     submissions p25 is values[1] and the median is values[2]. Rounding is
     what makes the published number describe a range instead.
     """
-    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+    from apps.career_intel.salary_algorithm import choose_band
 
     seed_submissions(6)
 
-    figures = SalaryService.get_insights(
-        {'role_title': 'Backend Developer'},
-    )['salary_range_inr']
+    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    figures = result['salary_range_inr']
+    band = choose_band(figures['median'])
 
     for name, value in figures.items():
-        assert value % PUBLISH_ROUNDING_INR == 0, f'{name} was not rounded'
+        assert value % band == 0, f'{name} was not rounded to the band'
 
 
 @pytest.mark.django_db
@@ -603,7 +603,7 @@ def test_a_published_figure_never_points_at_one_submission():
     spread much wider than the band, the ambiguity thins out. That is
     recorded in the re-identification assessment rather than hidden here.
     """
-    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+    from apps.career_intel.salary_algorithm import choose_band
 
     seed_submissions(7)
 
@@ -615,7 +615,7 @@ def test_a_published_figure_never_points_at_one_submission():
         {'role_title': 'Backend Developer'},
     )['salary_range_inr']
 
-    half_band = PUBLISH_ROUNDING_INR / 2
+    half_band = choose_band(published['median']) / 2
 
     for name, figure in published.items():
         nearby = [
@@ -634,15 +634,16 @@ def test_the_rounded_median_still_describes_the_data():
     Privacy that destroys the number is not a trade worth making - the
     figure has to stay useful for a negotiation.
     """
-    from apps.career_intel.salary_algorithm import PUBLISH_ROUNDING_INR
+    from apps.career_intel.salary_algorithm import choose_band
 
     seed_submissions(6)
 
     result = SalaryService.get_insights({'role_title': 'Backend Developer'})
     raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
 
+    band = choose_band(result['salary_range_inr']['median'])
     drift = abs(result['salary_range_inr']['median'] - raw['median'])
-    assert drift <= PUBLISH_ROUNDING_INR / 2
+    assert drift <= band / 2
 
 
 @pytest.mark.django_db
@@ -692,3 +693,200 @@ def test_the_raw_percentiles_never_reach_a_response(seeker_user):
 
     assert 'p90' not in result['salary_range_inr']
     assert 'p10' not in result['salary_range_inr']
+
+
+@pytest.mark.regression
+def test_the_band_scales_with_the_salary():
+    """
+    The point of a proportional band. A flat ₹50,000 protects a group of
+    juniors clustered between ₹8L and ₹12L and fails a group of seniors
+    spread from ₹30L to ₹80L, where it contains exactly one person.
+    """
+    from apps.career_intel.salary_algorithm import choose_band
+
+    assert choose_band(10 * LAKH) < choose_band(60 * LAKH)
+
+
+def test_the_band_has_a_floor():
+    """
+    Five percent of a small salary is not a meaningful window, and an
+    intern's figure deserves the same protection as anyone else's.
+    """
+    from apps.career_intel.salary_algorithm import (
+        PUBLISH_BAND_MIN_INR, choose_band,
+    )
+
+    assert choose_band(2 * LAKH) == PUBLISH_BAND_MIN_INR
+
+
+def test_the_band_has_a_ceiling():
+    """
+    Privacy that destroys the number is not a trade worth making. A
+    ₹20,00,000 band on a ₹1 crore median tells nobody anything.
+    """
+    from apps.career_intel.salary_algorithm import (
+        PUBLISH_BAND_MAX_INR, choose_band,
+    )
+
+    assert choose_band(200 * LAKH) == PUBLISH_BAND_MAX_INR
+
+
+def test_a_missing_reference_falls_back_to_the_floor():
+    from apps.career_intel.salary_algorithm import (
+        PUBLISH_BAND_MIN_INR, choose_band,
+    )
+
+    assert choose_band(None) == PUBLISH_BAND_MIN_INR
+    assert choose_band(0) == PUBLISH_BAND_MIN_INR
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_a_widely_spread_group_still_hides_its_members():
+    """
+    The case a flat band failed: five senior salaries spread across tens of
+    lakhs. The band scales with the median, so the published figure still
+    covers more than one of them.
+    """
+    from apps.career_intel.salary_algorithm import choose_band
+
+    year = datetime.now().year
+    for salary in (30, 45, 55, 70, 80):
+        SalarySubmission.objects.create(
+            role_title='Backend Developer',
+            location_city='Bangalore',
+            experience_years_bucket='10+',
+            salary_inr=Decimal(str(salary * LAKH)),
+            effective_year=year,
+        )
+
+    published = SalaryService.get_insights(
+        {'role_title': 'Backend Developer'},
+    )['salary_range_inr']
+    submitted = [
+        float(v) for v in
+        SalarySubmission.objects.values_list('salary_inr', flat=True)
+    ]
+
+    # A band cannot make this median ambiguous - the neighbours are ₹10L
+    # away. The published figure sits between two people instead, so it is
+    # nobody's salary at all.
+    assert published['median'] not in submitted
+
+
+@pytest.mark.django_db
+def test_every_figure_in_one_response_shares_a_band():
+    """
+    Rounding each figure to its own band would put p25 on a finer grid than
+    the median, which leaks the shape of the distribution back out.
+    """
+    from apps.career_intel.salary_algorithm import choose_band
+
+    seed_submissions(8)
+
+    figures = SalaryService.get_insights(
+        {'role_title': 'Backend Developer'},
+    )['salary_range_inr']
+    band = choose_band(figures['median'])
+
+    assert all(value % band == 0 for value in figures.values())
+
+
+# --------------------------------------------------------------------------
+# Publication percentiles
+# --------------------------------------------------------------------------
+
+@pytest.mark.regression
+def test_a_whole_index_never_returns_a_member():
+    """
+    The defect this exists for. Standard interpolation on five values puts
+    p25 at values[1], the median at values[2] and p75 at values[3] - every
+    published figure an individual's exact salary.
+    """
+    from apps.career_intel.salary_algorithm import publication_percentile
+
+    values = [10.0, 20.0, 30.0, 40.0, 50.0]
+
+    for p in (25, 50, 75):
+        assert publication_percentile(values, p) not in values
+
+
+def test_the_blend_sits_between_its_two_neighbours():
+    from apps.career_intel.salary_algorithm import publication_percentile
+
+    values = [10.0, 20.0, 30.0, 40.0, 50.0]
+
+    assert publication_percentile(values, 50) == 35.0  # between 30 and 40
+
+
+def test_a_fractional_index_interpolates_as_usual():
+    """Nothing changes when the index already falls between two people."""
+    from apps.career_intel.salary_algorithm import (
+        calculate_percentile, publication_percentile,
+    )
+
+    values = [10.0, 20.0, 30.0, 40.0]  # p50 index = 1.5
+
+    assert publication_percentile(values, 50) == calculate_percentile(values, 50)
+
+
+def test_the_top_end_blends_downwards():
+    """There is no neighbour above the last value, so it takes the one below."""
+    from apps.career_intel.salary_algorithm import publication_percentile
+
+    values = [10.0, 20.0, 30.0]
+
+    assert publication_percentile(values, 100) == 25.0  # between 20 and 30
+
+
+def test_a_single_value_is_returned_unchanged():
+    """Below K nothing is published anyway; this just must not crash."""
+    from apps.career_intel.salary_algorithm import publication_percentile
+
+    assert publication_percentile([42.0], 50) == 42.0
+    assert publication_percentile([], 50) is None
+
+
+@pytest.mark.django_db
+@pytest.mark.regression
+def test_no_published_figure_is_anybodys_salary():
+    """
+    The property the whole assessment turns on, checked against a sparse
+    senior distribution - the case a rounding band could not fix.
+    """
+    year = datetime.now().year
+    for salary in (30, 45, 55, 70, 80):
+        SalarySubmission.objects.create(
+            role_title='Backend Developer',
+            location_city='Bangalore',
+            experience_years_bucket='10+',
+            salary_inr=Decimal(str(salary * LAKH)),
+            effective_year=year,
+        )
+
+    published = SalaryService.get_insights(
+        {'role_title': 'Backend Developer'},
+    )['salary_range_inr']
+    submitted = {
+        float(v) for v in
+        SalarySubmission.objects.values_list('salary_inr', flat=True)
+    }
+
+    assert not {float(v) for v in published.values()} & submitted
+
+
+@pytest.mark.django_db
+def test_the_comparison_path_keeps_the_true_percentiles():
+    """
+    Publication blending is for the response. Market position is decided
+    server-side and returns a category, so it uses the real distribution.
+    """
+    seed_submissions(5)
+
+    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+    salaries = sorted(
+        float(v) for v in
+        SalarySubmission.objects.values_list('salary_inr', flat=True)
+    )
+
+    assert raw['median'] == salaries[2]

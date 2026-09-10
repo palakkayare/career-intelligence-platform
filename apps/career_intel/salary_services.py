@@ -21,9 +21,9 @@ from .models import SalarySubmission, TargetRole
 logger = logging.getLogger(__name__)
 
 
-def _publish(value):
-    """Round a figure to its publication band. See salary_algorithm."""
-    return salary_algorithm.round_for_publication(value)
+def _publish(value, band):
+    """Round a figure to the response's publication band."""
+    return salary_algorithm.round_for_publication(value, band=band)
 
 
 def hash_ip(ip_address):
@@ -280,6 +280,22 @@ class SalaryService:
 
         aggregates = salary_algorithm.calculate_aggregates(salaries)
 
+        # Published percentiles are computed separately from the internal
+        # ones. Standard rank interpolation lands exactly on a person
+        # whenever the index is whole - at n=5 that is p25, the median and
+        # p75 - so the published set uses a method that always sits between
+        # two submissions. See publication_percentile.
+        published = {
+            name: salary_algorithm.publication_percentile(salaries, p)
+            for name, p in (('p25', 25), ('median', 50), ('p75', 75))
+        }
+        published['mean'] = aggregates['mean']
+
+        # One band for the whole response, derived from the median. Rounding
+        # each figure to its own band would put p25 on a finer grid than the
+        # median, which leaks the shape of the distribution back out.
+        band = salary_algorithm.choose_band(published['median'])
+
         # --- Build the response: summary numbers only, no raw rows ---
         return {
             'has_data': True,
@@ -297,20 +313,20 @@ class SalaryService:
             # submissions, p25 is values[1] and the median is values[2].
             # See round_for_publication.
             'salary_range_inr': {
-                'p25': _publish(aggregates['p25']),
-                'median': _publish(aggregates['median']),
-                'p75': _publish(aggregates['p75']),
-                'mean': _publish(aggregates['mean']),
+                'p25': _publish(published['p25'], band),
+                'median': _publish(published['median'], band),
+                'p75': _publish(published['p75'], band),
+                'mean': _publish(published['mean'], band),
             },
             'salary_range_lpa': {
-                'p25': salary_algorithm.format_inr_lpa(_publish(aggregates['p25'])),
-                'median': salary_algorithm.format_inr_lpa(_publish(aggregates['median'])),
-                'p75': salary_algorithm.format_inr_lpa(_publish(aggregates['p75'])),
+                'p25': salary_algorithm.format_inr_lpa(_publish(published['p25'], band)),
+                'median': salary_algorithm.format_inr_lpa(_publish(published['median'], band)),
+                'p75': salary_algorithm.format_inr_lpa(_publish(published['p75'], band)),
             },
             'verified_share': cls._compute_verified_share(qs),
             'message': (
                 f"Based on {aggregates['count']} submissions. "
-                f"Median: ₹{_publish(aggregates['median']) / 100000:.1f} LPA."
+                f"Median: ₹{_publish(published['median'], band) / 100000:.1f} LPA."
             ),
         }
 

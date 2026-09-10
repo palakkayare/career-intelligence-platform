@@ -2,16 +2,12 @@
 Centralized notification creation + delivery.
 Every app should create notifications through this service, never directly.
 """
+
 import logging
 
 from django.utils import timezone
 
-from .models import (
-    Notification,
-    NotificationPreferences,
-    NotificationKind,
-    DeliveryPriority,
-)
+from .models import DeliveryPriority, Notification, NotificationKind, NotificationPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +36,7 @@ class NotificationService:
     """Single entry point for creating and reading notifications."""
 
     @classmethod
-    def create(cls, user, kind, title, message, link='', context=None):
+    def create(cls, user, kind, title, message, link="", context=None):
         """
         Create a notification.
 
@@ -82,7 +78,7 @@ class NotificationService:
         """
         user = notif.user
 
-        token = getattr(user, 'fcm_token', None)
+        token = getattr(user, "fcm_token", None)
         if not token:
             return False
 
@@ -104,8 +100,9 @@ class NotificationService:
         #         data={'link': notif.link, 'kind': notif.kind},
         #     ))
         logger.info(
-            'Push notification queued (stub) for %s: %s',
-            user.email, notif.title,
+            "Push notification queued (stub) for %s: %s",
+            user.email,
+            notif.title,
         )
         return True
 
@@ -121,12 +118,14 @@ class NotificationService:
         if prefs and not prefs.is_kind_enabled(notif.kind):
             logger.info(
                 "Email skipped for %s (%s) — user opted out",
-                notif.user.email, notif.kind,
+                notif.user.email,
+                notif.kind,
             )
             return
 
         # Imported here to avoid a circular import between service and tasks
         from django.db import transaction
+
         from .tasks import send_notification_email
 
         # Queue the email only after the surrounding DB transaction commits,
@@ -142,7 +141,7 @@ class NotificationService:
         if not notification.is_read:
             notification.is_read = True
             notification.read_at = timezone.now()
-            notification.save(update_fields=['is_read', 'read_at'])
+            notification.save(update_fields=["is_read", "read_at"])
 
     @classmethod
     def mark_all_read(cls, user):

@@ -13,5 +13,5 @@ def create_notification_preferences(sender, instance, created, **kwargs):
     if created:
         NotificationPreferences.objects.get_or_create(
             user=instance,
-            defaults={'unsubscribe_token': secrets.token_urlsafe(48)},
+            defaults={"unsubscribe_token": secrets.token_urlsafe(48)},
         )

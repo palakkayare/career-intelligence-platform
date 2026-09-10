@@ -6,6 +6,7 @@ This platform holds resumes, salary submissions and payment records, so what
 gets sent to a third-party error tracker matters as much as the fact that
 errors are tracked at all.
 """
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,24 +15,39 @@ logger = logging.getLogger(__name__)
 # default; listing them explicitly means the guarantee does not depend on
 # their defaults staying the same.
 SENSITIVE_KEYS = {
-    'password', 'passwd', 'secret', 'token', 'authorization', 'api_key',
-    'access_token', 'refresh_token', 'jwt', 'signature',
-    'razorpay_signature', 'razorpay_key_secret', 'fcm_token',
-    'google_sub', 'code_hash', 'backup_code', 'otp',
-    'salary_inr', 'annual_salary', 'bonus_inr',
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "authorization",
+    "api_key",
+    "access_token",
+    "refresh_token",
+    "jwt",
+    "signature",
+    "razorpay_signature",
+    "razorpay_key_secret",
+    "fcm_token",
+    "google_sub",
+    "code_hash",
+    "backup_code",
+    "otp",
+    "salary_inr",
+    "annual_salary",
+    "bonus_inr",
 }
 
 # Errors that say nothing about a defect. Filtering them keeps the signal
 # usable rather than drowning real bugs in expected 4xx noise.
 IGNORED_EXCEPTIONS = [
-    'rest_framework.exceptions.ValidationError',
-    'rest_framework.exceptions.NotAuthenticated',
-    'rest_framework.exceptions.AuthenticationFailed',
-    'rest_framework.exceptions.PermissionDenied',
-    'rest_framework.exceptions.NotFound',
-    'rest_framework.exceptions.Throttled',
-    'django.http.Http404',
-    'django.core.exceptions.PermissionDenied',
+    "rest_framework.exceptions.ValidationError",
+    "rest_framework.exceptions.NotAuthenticated",
+    "rest_framework.exceptions.AuthenticationFailed",
+    "rest_framework.exceptions.PermissionDenied",
+    "rest_framework.exceptions.NotFound",
+    "rest_framework.exceptions.Throttled",
+    "django.http.Http404",
+    "django.core.exceptions.PermissionDenied",
 ]
 
 
@@ -43,7 +59,7 @@ def _scrub(value, depth=0):
     if isinstance(value, dict):
         return {
             key: (
-                '[Filtered]'
+                "[Filtered]"
                 if any(marker in str(key).lower() for marker in SENSITIVE_KEYS)
                 else _scrub(inner, depth + 1)
             )
@@ -56,17 +72,17 @@ def _scrub(value, depth=0):
 
 def before_send(event, hint):
     """Last gate before an event leaves the process."""
-    for section in ('request', 'extra', 'contexts'):
+    for section in ("request", "extra", "contexts"):
         if section in event:
             event[section] = _scrub(event[section])
 
     # Cookies carry the session and JWT; there is no version of them that is
     # safe to ship, so the whole jar goes.
-    if 'request' in event:
-        event['request'].pop('cookies', None)
-        headers = event['request'].get('headers')
+    if "request" in event:
+        event["request"].pop("cookies", None)
+        headers = event["request"].get("headers")
         if isinstance(headers, dict):
-            event['request']['headers'] = _scrub(headers)
+            event["request"]["headers"] = _scrub(headers)
 
     return event
 
@@ -77,7 +93,7 @@ def init_sentry(dsn, environment, release=None, traces_sample_rate=0.0):
     same settings file usable in environments that have no Sentry project.
     """
     if not dsn:
-        logger.info('Sentry DSN not configured - error tracking disabled')
+        logger.info("Sentry DSN not configured - error tracking disabled")
         return False
 
     try:
@@ -86,7 +102,7 @@ def init_sentry(dsn, environment, release=None, traces_sample_rate=0.0):
         from sentry_sdk.integrations.django import DjangoIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
     except ImportError:
-        logger.warning('sentry-sdk not installed - error tracking disabled')
+        logger.warning("sentry-sdk not installed - error tracking disabled")
         return False
 
     sentry_sdk.init(
@@ -97,7 +113,7 @@ def init_sentry(dsn, environment, release=None, traces_sample_rate=0.0):
             DjangoIntegration(),
             CeleryIntegration(),
             LoggingIntegration(
-                level=logging.INFO,        # breadcrumbs
+                level=logging.INFO,  # breadcrumbs
                 event_level=logging.ERROR,  # what becomes an issue
             ),
         ],
@@ -111,5 +127,5 @@ def init_sentry(dsn, environment, release=None, traces_sample_rate=0.0):
         ignore_errors=IGNORED_EXCEPTIONS,
         max_breadcrumbs=50,
     )
-    logger.info('Sentry initialised for environment=%s', environment)
+    logger.info("Sentry initialised for environment=%s", environment)
     return True

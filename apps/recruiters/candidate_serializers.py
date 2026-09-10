@@ -20,10 +20,8 @@ def _initials(full_name):
     natural, and initials are upper-cased so a lower-case profile entry
     does not leak how the seeker typed their name.
     """
-    return ' '.join(
-        f"{part[0].upper()}{'*' * (len(part) - 1)}"
-        for part in full_name.split()
-        if part
+    return " ".join(
+        f"{part[0].upper()}{'*' * (len(part) - 1)}" for part in full_name.split() if part
     )
 
 
@@ -32,7 +30,8 @@ class CandidateSearchInputSerializer(serializers.Serializer):
 
     skill_ids = serializers.ListField(
         child=serializers.IntegerField(),
-        required=False, default=list,
+        required=False,
+        default=list,
     )
     experience_years_min = serializers.IntegerField(required=False, min_value=0)
     experience_years_max = serializers.IntegerField(required=False, min_value=0)
@@ -41,17 +40,23 @@ class CandidateSearchInputSerializer(serializers.Serializer):
     target_job_uuid = serializers.UUIDField(required=False)
     page = serializers.IntegerField(required=False, default=1, min_value=1)
     page_size = serializers.IntegerField(
-        required=False, default=20, min_value=5, max_value=50,
+        required=False,
+        default=20,
+        min_value=5,
+        max_value=50,
     )
 
     def validate(self, attrs):
-        low = attrs.get('experience_years_min')
-        high = attrs.get('experience_years_max')
+        low = attrs.get("experience_years_min")
+        high = attrs.get("experience_years_max")
         if low is not None and high is not None and low > high:
-            raise serializers.ValidationError({
-                'experience_years_max':
-                    'Maximum experience must be greater than or equal to minimum.',
-            })
+            raise serializers.ValidationError(
+                {
+                    "experience_years_max": (
+                        "Maximum experience must be greater than or equal " "to minimum."
+                    ),
+                }
+            )
         return attrs
 
 
@@ -67,12 +72,18 @@ class CandidatePreviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = SeekerProfile
         fields = (
-            'public_id', 'full_name_initials',
-            'current_title', 'target_role', 'company',
-            'years_of_experience', 'location',
-            'skills', 'bio',
-            'matched_skills_count', 'match_score',
-            'updated_at',
+            "public_id",
+            "full_name_initials",
+            "current_title",
+            "target_role",
+            "company",
+            "years_of_experience",
+            "location",
+            "skills",
+            "bio",
+            "matched_skills_count",
+            "match_score",
+            "updated_at",
         )
         read_only_fields = fields
 
@@ -85,24 +96,24 @@ class CandidatePreviewSerializer(serializers.ModelSerializer):
         reveal paywall, even one character of it.
         """
         if not obj.full_name:
-            return 'Candidate'
+            return "Candidate"
         return _initials(obj.full_name)
 
     def get_company(self, obj):
         """Respect the seeker's stealth-mode toggle."""
         if obj.hide_current_company:
-            return 'Stealth'
+            return "Stealth"
         return _current_company(obj)
 
     def get_match_score(self, obj):
-        match_scores_map = self.context.get('match_scores_map', {})
+        match_scores_map = self.context.get("match_scores_map", {})
         score = match_scores_map.get(obj.id)
         if not score:
             return None
         return {
-            'overall': score.overall_score,
-            'skills': score.skills_score,
-            'experience': score.experience_score,
+            "overall": score.overall_score,
+            "skills": score.skills_score,
+            "experience": score.experience_score,
         }
 
 
@@ -118,29 +129,34 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = SeekerProfile
         fields = (
-            'public_id', 'full_name_masked',
-            'current_title', 'target_role', 'company',
-            'years_of_experience', 'location',
-            'bio', 'skills',
-            'contact_revealed',
-            'contact',  # null until the recruiter spends a credit
-            'updated_at',
+            "public_id",
+            "full_name_masked",
+            "current_title",
+            "target_role",
+            "company",
+            "years_of_experience",
+            "location",
+            "bio",
+            "skills",
+            "contact_revealed",
+            "contact",  # null until the recruiter spends a credit
+            "updated_at",
         )
         read_only_fields = fields
 
     def _is_revealed(self):
-        return self.context.get('contact_revealed', False)
+        return self.context.get("contact_revealed", False)
 
     def get_full_name_masked(self, obj):
         if self._is_revealed() and obj.full_name:
             return obj.full_name
         if not obj.full_name:
-            return 'Anonymous Seeker'
+            return "Anonymous Seeker"
         return _initials(obj.full_name)
 
     def get_company(self, obj):
         if obj.hide_current_company and not self._is_revealed():
-            return 'Stealth'
+            return "Stealth"
         return _current_company(obj)
 
     def get_contact_revealed(self, obj):
@@ -150,8 +166,8 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         if not self._is_revealed():
             return None
         return {
-            'email': obj.user.email,
-            'linkedin_url': obj.linkedin_url or None,
+            "email": obj.user.email,
+            "linkedin_url": obj.linkedin_url or None,
         }
 
 
@@ -162,11 +178,11 @@ class RecruiterCreditsSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecruiterCredits
         fields = (
-            'monthly_reveal_limit',
-            'reveals_used_this_month',
-            'remaining',
-            'cycle_starts_on',
-            'cycle_ends_on',
+            "monthly_reveal_limit",
+            "reveals_used_this_month",
+            "remaining",
+            "cycle_starts_on",
+            "cycle_ends_on",
         )
         read_only_fields = fields
 
@@ -176,15 +192,20 @@ class CandidateViewHistorySerializer(serializers.ModelSerializer):
 
     seeker_name = serializers.SerializerMethodField()
     seeker_public_id = serializers.UUIDField(
-        source='seeker.public_id', read_only=True,
+        source="seeker.public_id",
+        read_only=True,
     )
 
     class Meta:
         model = CandidateView
         fields = (
-            'id', 'seeker_public_id', 'seeker_name',
-            'view_kind', 'contact_revealed', 'revealed_at',
-            'created_at',
+            "id",
+            "seeker_public_id",
+            "seeker_name",
+            "view_kind",
+            "contact_revealed",
+            "revealed_at",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -193,8 +214,8 @@ class CandidateViewHistorySerializer(serializers.ModelSerializer):
             return obj.seeker.full_name or obj.seeker.user.email
         # Still masked — the recruiter never paid for this one
         if not obj.seeker.full_name:
-            return 'Anonymous Seeker'
-        return obj.seeker.full_name.split()[0] + ' ***'
+            return "Anonymous Seeker"
+        return obj.seeker.full_name.split()[0] + " ***"
 
 
 class WhoViewedMeSerializer(serializers.ModelSerializer):
@@ -206,9 +227,12 @@ class WhoViewedMeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CandidateView
         fields = (
-            'id', 'recruiter_name', 'company_name',
-            'view_kind', 'contact_revealed',
-            'created_at',
+            "id",
+            "recruiter_name",
+            "company_name",
+            "view_kind",
+            "contact_revealed",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -223,29 +247,36 @@ class WhoViewedMeSerializer(serializers.ModelSerializer):
 
 class TalentPoolSerializer(serializers.ModelSerializer):
     """A saved candidate search."""
+
     member_count = serializers.SerializerMethodField()
 
     class Meta:
         model = TalentPool
         fields = (
-            'id', 'name', 'description', 'filters', 'notify_on_new',
-            'last_checked_at', 'member_count', 'created_at',
+            "id",
+            "name",
+            "description",
+            "filters",
+            "notify_on_new",
+            "last_checked_at",
+            "member_count",
+            "created_at",
         )
-        read_only_fields = ('id', 'last_checked_at', 'member_count', 'created_at')
+        read_only_fields = ("id", "last_checked_at", "member_count", "created_at")
 
     def get_member_count(self, obj):
         from .services import TalentPoolService
 
         # Counted live rather than stored: a pool is a set of criteria, and
         # a saved number would start lying the moment anyone signed up.
-        return TalentPoolService.members(obj, page_size=1)['total']
-    
+        return TalentPoolService.members(obj, page_size=1)["total"]
+
     def validate_name(self, value):
         """The unique_together on (recruiter, name) is enforced by the database,
         but recruiter is not a serializer field - it is set in perform_create -
         so DRF's UniqueTogetherValidator never runs. Without this check the
-        user gets a 500 instead of a 400. """
-        recruiter = self.context['request'].user.recruiter_profile
+        user gets a 500 instead of a 400."""
+        recruiter = self.context["request"].user.recruiter_profile
 
         clashes = TalentPool.objects.filter(recruiter=recruiter, name=value)
         if self.instance is not None:
@@ -253,7 +284,7 @@ class TalentPoolSerializer(serializers.ModelSerializer):
 
         if clashes.exists():
             raise serializers.ValidationError(
-                'You already have a pool with this name.',
+                "You already have a pool with this name.",
             )
 
         return value

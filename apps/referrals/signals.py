@@ -21,7 +21,7 @@ def create_referral_code(sender, instance, created, **kwargs):
     try:
         ReferralCode.objects.get_or_create(
             user=instance,
-            defaults={'code': generate_unique_code(instance)},
+            defaults={"code": generate_unique_code(instance)},
         )
     except Exception as exc:
         # Never break the signup flow because of referral code creation

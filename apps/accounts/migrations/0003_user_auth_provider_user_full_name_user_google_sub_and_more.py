@@ -6,28 +6,39 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0002_loginhistory_otpcode'),
+        ("accounts", "0002_loginhistory_otpcode"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='auth_provider',
-            field=models.CharField(choices=[('email', 'Email/Password'), ('google', 'Google OAuth')], default='email', max_length=20),
+            model_name="user",
+            name="auth_provider",
+            field=models.CharField(
+                choices=[("email", "Email/Password"), ("google", "Google OAuth")],
+                default="email",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='full_name',
+            model_name="user",
+            name="full_name",
             field=models.CharField(blank=True, max_length=255),
         ),
         migrations.AddField(
-            model_name='user',
-            name='google_sub',
-            field=models.CharField(blank=True, db_index=True, help_text="Google's unique user ID (sub claim from ID token)", max_length=100, null=True, unique=True),
+            model_name="user",
+            name="google_sub",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="Google's unique user ID (sub claim from ID token)",
+                max_length=100,
+                null=True,
+                unique=True,
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='profile_picture_url',
+            model_name="user",
+            name="profile_picture_url",
             field=models.URLField(blank=True),
         ),
     ]

@@ -6,6 +6,7 @@ nothing read it, so a free company could collect any number of recruiters.
 The limit is read from whoever created the company, since that is the person
 holding the paid seat the rest of the team sits under.
 """
+
 from decimal import Decimal
 
 import pytest
@@ -13,7 +14,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
 from apps.payments.models import Plan, Subscription
-from apps.recruiters.models import Company, RecruiterProfile
+from apps.recruiters.models import Company
 from apps.recruiters.services import CompanyTeamService
 
 pytestmark = pytest.mark.django_db
@@ -22,11 +23,11 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def business_plan(plans):
     return Plan.objects.create(
-        name='Business Monthly',
-        slug='business_monthly',
+        name="Business Monthly",
+        slug="business_monthly",
         tier=Plan.Tier.BUSINESS,
         billing_period=Plan.BillingPeriod.MONTHLY,
-        price_inr=Decimal('2999'),
+        price_inr=Decimal("2999"),
         max_team_members=5,
         sort_order=3,
     )
@@ -34,13 +35,15 @@ def business_plan(plans):
 
 def make_recruiter(email, company=None):
     user = User.objects.create_user(
-        email=email, password='TestPass123!',
-        role=User.Role.RECRUITER, is_email_verified=True,
+        email=email,
+        password="TestPass123!",
+        role=User.Role.RECRUITER,
+        is_email_verified=True,
     )
     profile = user.recruiter_profile
     if company is not None:
         profile.company = company
-        profile.save(update_fields=['company'])
+        profile.save(update_fields=["company"])
     return profile
 
 
@@ -57,11 +60,12 @@ def put_on_plan(user, plan):
     from django.utils import timezone
 
     now = timezone.now()
-    sub = user.subscriptions.order_by('-created_at').first()
+    sub = user.subscriptions.order_by("-created_at").first()
 
     if sub is None:
         return Subscription.objects.create(
-            user=user, plan=plan,
+            user=user,
+            plan=plan,
             status=Subscription.Status.ACTIVE,
             current_period_start=now,
             current_period_end=now + timedelta(days=30),
@@ -75,14 +79,16 @@ def put_on_plan(user, plan):
     sub.save()
     return sub
 
+
 def fill_team(company, count, start=0):
     for index in range(start, start + count):
-        make_recruiter(f'member{index}@test.com', company=company)
+        make_recruiter(f"member{index}@test.com", company=company)
 
 
 # --------------------------------------------------------------------------
 # Reading the limit
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_a_free_company_gets_a_single_seat(company, plans):
@@ -101,8 +107,11 @@ def test_a_business_company_gets_five_seats(company, business_plan):
 
 def test_an_unlimited_plan_reports_no_limit(company, plans):
     unlimited = Plan.objects.create(
-        name='Enterprise', slug='enterprise', tier=Plan.Tier.BUSINESS,
-        price_inr=Decimal('9999'), max_team_members=None,
+        name="Enterprise",
+        slug="enterprise",
+        tier=Plan.Tier.BUSINESS,
+        price_inr=Decimal("9999"),
+        max_team_members=None,
     )
     put_on_plan(company.created_by, unlimited)
 
@@ -121,9 +130,11 @@ def test_the_creator_is_always_on_file(company):
         with transaction.atomic():
             Company.objects.filter(pk=company.pk).update(created_by=None)
 
+
 # --------------------------------------------------------------------------
 # Counting and enforcing
 # --------------------------------------------------------------------------
+
 
 def test_the_current_size_counts_members(company, recruiter, plans):
     assert CompanyTeamService.current_size(company) == 0
@@ -158,8 +169,11 @@ def test_the_free_seat_is_used_by_the_first_member(company, plans):
 
 def test_an_unlimited_plan_never_refuses(company, plans):
     unlimited = Plan.objects.create(
-        name='Enterprise', slug='enterprise', tier=Plan.Tier.BUSINESS,
-        price_inr=Decimal('9999'), max_team_members=None,
+        name="Enterprise",
+        slug="enterprise",
+        tier=Plan.Tier.BUSINESS,
+        price_inr=Decimal("9999"),
+        max_team_members=None,
     )
     put_on_plan(company.created_by, unlimited)
     fill_team(company, 20)
@@ -176,7 +190,7 @@ def test_the_refusal_says_what_to_do_about_it(company, business_plan):
 
     message = str(error.value)
     assert company.name in message
-    assert 'upgrade' in message.lower()
+    assert "upgrade" in message.lower()
 
 
 @pytest.mark.regression
@@ -189,7 +203,7 @@ def test_downgrading_does_not_evict_anyone(company, business_plan, plans):
     put_on_plan(company.created_by, business_plan)
     fill_team(company, 5)
 
-    put_on_plan(company.created_by, plans['free'])
+    put_on_plan(company.created_by, plans["free"])
 
     assert CompanyTeamService.current_size(company) == 5
     with pytest.raises(ValidationError):
@@ -200,15 +214,16 @@ def test_downgrading_does_not_evict_anyone(company, business_plan, plans):
 # Through the endpoint
 # --------------------------------------------------------------------------
 
+
 def test_joining_a_full_company_returns_400(company, plans):
     from rest_framework.test import APIClient
 
     fill_team(company, 1)
-    outsider = make_recruiter('outsider@test.com')
+    outsider = make_recruiter("outsider@test.com")
 
     client = APIClient()
     client.force_authenticate(user=outsider.user)
-    response = client.post(f'/api/v1/companies/{company.pk}/join/')
+    response = client.post(f"/api/v1/companies/{company.pk}/join/")
 
     outsider.refresh_from_db()
     assert response.status_code == 400
@@ -219,11 +234,11 @@ def test_joining_a_company_with_room_succeeds(company, business_plan):
     from rest_framework.test import APIClient
 
     put_on_plan(company.created_by, business_plan)
-    joiner = make_recruiter('joiner@test.com')
+    joiner = make_recruiter("joiner@test.com")
 
     client = APIClient()
     client.force_authenticate(user=joiner.user)
-    response = client.post(f'/api/v1/companies/{company.pk}/join/')
+    response = client.post(f"/api/v1/companies/{company.pk}/join/")
 
     joiner.refresh_from_db()
     assert response.status_code == 200

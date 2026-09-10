@@ -15,27 +15,89 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AuditLog',
+            name="AuditLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('user_email', models.EmailField(blank=True, help_text='Copied at write time so the trail survives user deletion.', max_length=254)),
-                ('action', models.CharField(choices=[('CREATE', 'Create'), ('UPDATE', 'Update'), ('DELETE', 'Delete')], db_index=True, max_length=10)),
-                ('model_name', models.CharField(db_index=True, help_text='app_label.ModelName, e.g. jobs.Job', max_length=100)),
-                ('object_id', models.CharField(db_index=True, max_length=64)),
-                ('object_repr', models.CharField(blank=True, help_text='str() of the object at write time, for readable listings.', max_length=255)),
-                ('old_value', models.JSONField(blank=True, default=dict)),
-                ('new_value', models.JSONField(blank=True, default=dict)),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True)),
-                ('user_agent', models.CharField(blank=True, max_length=500)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_logs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "user_email",
+                    models.EmailField(
+                        blank=True,
+                        help_text="Copied at write time so the trail survives user deletion.",
+                        max_length=254,
+                    ),
+                ),
+                (
+                    "action",
+                    models.CharField(
+                        choices=[
+                            ("CREATE", "Create"),
+                            ("UPDATE", "Update"),
+                            ("DELETE", "Delete"),
+                        ],
+                        db_index=True,
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "model_name",
+                    models.CharField(
+                        db_index=True,
+                        help_text="app_label.ModelName, e.g. jobs.Job",
+                        max_length=100,
+                    ),
+                ),
+                ("object_id", models.CharField(db_index=True, max_length=64)),
+                (
+                    "object_repr",
+                    models.CharField(
+                        blank=True,
+                        help_text="str() of the object at write time, for readable listings.",
+                        max_length=255,
+                    ),
+                ),
+                ("old_value", models.JSONField(blank=True, default=dict)),
+                ("new_value", models.JSONField(blank=True, default=dict)),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                ("user_agent", models.CharField(blank=True, max_length=500)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="audit_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Audit log entry',
-                'verbose_name_plural': 'Audit log',
-                'db_table': 'audit_logs',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['model_name', 'object_id'], name='audit_logs_model_n_656046_idx'), models.Index(fields=['user', '-created_at'], name='audit_logs_user_id_6193b2_idx'), models.Index(fields=['action', '-created_at'], name='audit_logs_action_bcaa71_idx')],
+                "verbose_name": "Audit log entry",
+                "verbose_name_plural": "Audit log",
+                "db_table": "audit_logs",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["model_name", "object_id"],
+                        name="audit_logs_model_n_656046_idx",
+                    ),
+                    models.Index(
+                        fields=["user", "-created_at"],
+                        name="audit_logs_user_id_6193b2_idx",
+                    ),
+                    models.Index(
+                        fields=["action", "-created_at"],
+                        name="audit_logs_action_bcaa71_idx",
+                    ),
+                ],
             },
         ),
     ]

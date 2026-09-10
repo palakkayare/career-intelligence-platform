@@ -7,34 +7,42 @@ from apps.payments.permissions import HasFeature
 from apps.seekers.permissions import IsSeeker
 
 from .learning_services import LearningService
-from .models import LearningResource, SalarySubmission, SkillGapSnapshot, TargetRole, UserLearning, CareerPathNode, CareerPathEdge
+from .models import (
+    CareerPathNode,
+    LearningResource,
+    SalarySubmission,
+    SkillGapSnapshot,
+    TargetRole,
+    UserLearning,
+)
+from .path_services import CareerPathService
+from .salary_services import SalaryService
 from .serializers import (
     AnalyzeGapInputSerializer,
+    CareerPathNodeDetailSerializer,
+    CareerPathNodeListSerializer,
     CompleteLearningSerializer,
+    FindPathInputSerializer,
     LearningResourceDetailSerializer,
     LearningResourceListSerializer,
+    SalaryInsightsInputSerializer,
+    SalarySubmissionDisplaySerializer,
+    SalarySubmitSerializer,
     SnapshotSerializer,
     StartLearningInputSerializer,
     TargetRoleDetailSerializer,
     TargetRoleListSerializer,
     UpdateProgressSerializer,
     UserLearningSerializer,
-    SalarySubmitSerializer,
-    SalaryInsightsInputSerializer,
-    SalarySubmissionDisplaySerializer,
-    CareerPathNodeListSerializer,
-   CareerPathNodeDetailSerializer,
-   FindPathInputSerializer,
 )
 from .services import SkillGapService
-from .salary_services import SalaryService
-from .path_services import CareerPathService
 
 # Feature-flag permission built in Step 15
-HasSkillGap = HasFeature.create('skill_gap')
+HasSkillGap = HasFeature.create("skill_gap")
 
 
 # --- Target Roles (readable by any authenticated user) ---
+
 
 class TargetRoleListView(generics.ListAPIView):
     """
@@ -48,9 +56,10 @@ class TargetRoleListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = TargetRole.objects.filter(is_active=True).order_by(
-            'sort_order', 'name',
+            "sort_order",
+            "name",
         )
-        category = self.request.query_params.get('category')
+        category = self.request.query_params.get("category")
         if category:
             qs = qs.filter(category=category)
         return qs
@@ -62,10 +71,11 @@ class TargetRoleDetailView(generics.RetrieveAPIView):
     serializer_class = TargetRoleDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = TargetRole.objects.filter(is_active=True)
-    lookup_field = 'slug'
+    lookup_field = "slug"
 
 
 # --- Skill Gap Analysis (Pro feature) ---
+
 
 class AnalyzeGapView(APIView):
     """
@@ -85,9 +95,9 @@ class AnalyzeGapView(APIView):
         serializer = AnalyzeGapInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        slug = serializer.validated_data['target_role_slug']
-        save_snapshot = serializer.validated_data.get('save_snapshot', False)
-        label = serializer.validated_data.get('label', '')
+        slug = serializer.validated_data["target_role_slug"]
+        save_snapshot = serializer.validated_data.get("save_snapshot", False)
+        label = serializer.validated_data.get("label", "")
 
         target_role = get_object_or_404(TargetRole, slug=slug, is_active=True)
         seeker = request.user.seeker_profile
@@ -97,14 +107,18 @@ class AnalyzeGapView(APIView):
         snapshot = None
         if save_snapshot:
             snapshot = SkillGapService.save_snapshot(
-                seeker, target_role, label=label,
+                seeker,
+                target_role,
+                label=label,
             )
 
-        return Response({
-            **analysis,
-            'snapshot_saved': snapshot is not None,
-            'snapshot_public_id': str(snapshot.public_id) if snapshot else None,
-        })
+        return Response(
+            {
+                **analysis,
+                "snapshot_saved": snapshot is not None,
+                "snapshot_public_id": str(snapshot.public_id) if snapshot else None,
+            }
+        )
 
 
 class MyLatestGapView(APIView):
@@ -115,25 +129,26 @@ class MyLatestGapView(APIView):
     def get(self, request):
         seeker = request.user.seeker_profile
         snapshot = (
-            SkillGapSnapshot.objects
-            .filter(seeker=seeker)
-            .select_related('target_role')
-            .order_by('-created_at')
+            SkillGapSnapshot.objects.filter(seeker=seeker)
+            .select_related("target_role")
+            .order_by("-created_at")
             .first()
         )
 
         if not snapshot:
-            return Response({
-                'has_snapshot': False,
-                'message': (
-                    'No analysis yet. POST to /skill-gap/analyze/ to start.'
-                ),
-            })
+            return Response(
+                {
+                    "has_snapshot": False,
+                    "message": ("No analysis yet. POST to /skill-gap/analyze/ to start."),
+                }
+            )
 
-        return Response({
-            'has_snapshot': True,
-            'snapshot': SnapshotSerializer(snapshot).data,
-        })
+        return Response(
+            {
+                "has_snapshot": True,
+                "snapshot": SnapshotSerializer(snapshot).data,
+            }
+        )
 
 
 class MyGapHistoryView(generics.ListAPIView):
@@ -150,14 +165,14 @@ class MyGapHistoryView(generics.ListAPIView):
         seeker = self.request.user.seeker_profile
         qs = SkillGapSnapshot.objects.filter(
             seeker=seeker,
-        ).select_related('target_role')
+        ).select_related("target_role")
 
-        target_slug = self.request.query_params.get('target_role_slug')
+        target_slug = self.request.query_params.get("target_role_slug")
         if target_slug:
             qs = qs.filter(target_role__slug=target_slug)
 
         # Cap the history so the chart stays readable
-        return qs.order_by('-created_at')[:24]
+        return qs.order_by("-created_at")[:24]
 
 
 # ---------------------------------------------------------------------------
@@ -166,10 +181,11 @@ class MyGapHistoryView(generics.ListAPIView):
 
 # Recommendations reuse the skill_gap feature flag for now. When learning gets
 # its own plan entitlement, swap this for HasFeature.create('learning_recs').
-HasLearningRecs = HasFeature.create('skill_gap')
+HasLearningRecs = HasFeature.create("skill_gap")
 
 
 # --- Resources (browsable by any authenticated user, including free) ---
+
 
 class LearningResourceListView(generics.ListAPIView):
     """
@@ -182,28 +198,27 @@ class LearningResourceListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = (
-            LearningResource.objects
-            .filter(is_active=True)
-            .select_related('provider')
-            .prefetch_related('resource_skills__skill')
-            .order_by('-is_endorsed', '-quality_score')
+            LearningResource.objects.filter(is_active=True)
+            .select_related("provider")
+            .prefetch_related("resource_skills__skill")
+            .order_by("-is_endorsed", "-quality_score")
         )
 
-        kind = self.request.query_params.get('kind')
+        kind = self.request.query_params.get("kind")
         if kind:
             qs = qs.filter(kind=kind)
 
-        difficulty = self.request.query_params.get('difficulty')
+        difficulty = self.request.query_params.get("difficulty")
         if difficulty:
             qs = qs.filter(difficulty=difficulty)
 
-        is_free = self.request.query_params.get('is_free')
-        if is_free == 'true':
+        is_free = self.request.query_params.get("is_free")
+        if is_free == "true":
             qs = qs.filter(is_free=True)
-        elif is_free == 'false':
+        elif is_free == "false":
             qs = qs.filter(is_free=False)
 
-        q = self.request.query_params.get('q')
+        q = self.request.query_params.get("q")
         if q:
             qs = qs.filter(title__icontains=q)
 
@@ -216,10 +231,9 @@ class LearningResourceDetailView(generics.RetrieveAPIView):
     serializer_class = LearningResourceDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = (
-        LearningResource.objects
-        .filter(is_active=True)
-        .select_related('provider')
-        .prefetch_related('resource_skills__skill')
+        LearningResource.objects.filter(is_active=True)
+        .select_related("provider")
+        .prefetch_related("resource_skills__skill")
     )
 
 
@@ -235,19 +249,19 @@ class SkillResourcesView(generics.ListAPIView):
 
     def get_queryset(self):
         return (
-            LearningResource.objects
-            .filter(
-                resource_skills__skill_id=self.kwargs['skill_id'],
+            LearningResource.objects.filter(
+                resource_skills__skill_id=self.kwargs["skill_id"],
                 is_active=True,
             )
-            .select_related('provider')
-            .prefetch_related('resource_skills__skill')
-            .order_by('-is_endorsed', '-quality_score')
+            .select_related("provider")
+            .prefetch_related("resource_skills__skill")
+            .order_by("-is_endorsed", "-quality_score")
             .distinct()
         )
 
 
 # --- Recommendations (Pro feature) ---
+
 
 class MyRecommendationsView(APIView):
     """
@@ -258,12 +272,14 @@ class MyRecommendationsView(APIView):
     permission_classes = [IsSeeker, HasLearningRecs]
 
     def get(self, request):
-        target_role_slug = request.query_params.get('target_role_slug')
+        target_role_slug = request.query_params.get("target_role_slug")
 
         target_role = None
         if target_role_slug:
             target_role = get_object_or_404(
-                TargetRole, slug=target_role_slug, is_active=True,
+                TargetRole,
+                slug=target_role_slug,
+                is_active=True,
             )
 
         result = LearningService.get_recommendations(
@@ -272,15 +288,17 @@ class MyRecommendationsView(APIView):
         )
 
         # The service returns model instances; serialize them for the response
-        for rec in result.get('recommendations', []):
-            rec['resources'] = LearningResourceListSerializer(
-                rec['resources'], many=True,
+        for rec in result.get("recommendations", []):
+            rec["resources"] = LearningResourceListSerializer(
+                rec["resources"],
+                many=True,
             ).data
 
         return Response(result)
 
 
 # --- User progress tracking (open to any authenticated user) ---
+
 
 class MyLearningsView(generics.ListAPIView):
     """
@@ -293,17 +311,16 @@ class MyLearningsView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = (
-            UserLearning.objects
-            .filter(user=self.request.user)
-            .select_related('resource', 'resource__provider')
-            .prefetch_related('resource__resource_skills__skill')
+            UserLearning.objects.filter(user=self.request.user)
+            .select_related("resource", "resource__provider")
+            .prefetch_related("resource__resource_skills__skill")
         )
 
-        status_filter = self.request.query_params.get('status')
+        status_filter = self.request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
 
-        return qs.order_by('-updated_at')
+        return qs.order_by("-updated_at")
 
 
 class StartLearningView(APIView):
@@ -320,7 +337,7 @@ class StartLearningView(APIView):
 
         resource = get_object_or_404(
             LearningResource,
-            id=serializer.validated_data['resource_id'],
+            id=serializer.validated_data["resource_id"],
             is_active=True,
         )
 
@@ -348,8 +365,8 @@ class UpdateProgressView(APIView):
 
         LearningService.update_progress(
             learning,
-            progress_pct=serializer.validated_data['progress_pct'],
-            notes=serializer.validated_data.get('notes', ''),
+            progress_pct=serializer.validated_data["progress_pct"],
+            notes=serializer.validated_data.get("notes", ""),
         )
 
         return Response(UserLearningSerializer(learning).data)
@@ -371,8 +388,8 @@ class CompleteLearningView(APIView):
 
         LearningService.mark_completed(
             learning,
-            user_rating=serializer.validated_data.get('user_rating'),
-            notes=serializer.validated_data.get('notes', ''),
+            user_rating=serializer.validated_data.get("user_rating"),
+            notes=serializer.validated_data.get("notes", ""),
         )
 
         return Response(UserLearningSerializer(learning).data)
@@ -385,7 +402,8 @@ class DropLearningView(generics.DestroyAPIView):
 
     def get_queryset(self):
         return UserLearning.objects.filter(user=self.request.user)
-    
+
+
 # =============================================================================
 # STEP 6 -- Append this to: apps/career_intel/views.py
 #
@@ -405,7 +423,7 @@ class DropLearningView(generics.DestroyAPIView):
 
 
 # Feature-gate for the paid salary insights endpoints.
-HasSalaryInsights = HasFeature.create('salary_insights')
+HasSalaryInsights = HasFeature.create("salary_insights")
 
 
 class SubmitSalaryView(APIView):
@@ -432,8 +450,8 @@ class SubmitSalaryView(APIView):
 
         return Response(
             {
-                'message': 'Thank you for contributing. Your data stays anonymous.',
-                'submission_id': submission.id,
+                "message": "Thank you for contributing. Your data stays anonymous.",
+                "submission_id": submission.id,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -484,16 +502,18 @@ class SalaryInsightsView(APIView):
         filters = {
             key: value
             for key, value in serializer.validated_data.items()
-            if value not in (None, '', [])
+            if value not in (None, "", [])
         }
 
         if not filters:
-            return Response({
-                'has_data': False,
-                'message': (
-                    'Provide at least one filter, for example role_title or location_city.'
-                ),
-            })
+            return Response(
+                {
+                    "has_data": False,
+                    "message": (
+                        "Provide at least one filter, for example role_title or location_city."
+                    ),
+                }
+            )
 
         result = SalaryService.get_insights(filters)
         return Response(result)
@@ -511,7 +531,8 @@ class MySalaryComparisonView(APIView):
     def get(self, request):
         result = SalaryService.get_user_comparison(request.user)
         return Response(result)
-    
+
+
 # =============================================================================
 # STEP 6 -- Append this to: apps/career_intel/views.py
 #
@@ -534,7 +555,7 @@ class MySalaryComparisonView(APIView):
 
 
 # Feature-gate for the paid path-finding endpoints.
-HasCareerPath = HasFeature.create('career_path')
+HasCareerPath = HasFeature.create("career_path")
 
 
 class CareerPathNodeListView(generics.ListAPIView):
@@ -553,15 +574,15 @@ class CareerPathNodeListView(generics.ListAPIView):
     def get_queryset(self):
         qs = CareerPathNode.objects.filter(is_active=True)
 
-        category = self.request.query_params.get('category')
+        category = self.request.query_params.get("category")
         if category:
             qs = qs.filter(category=category)
 
-        level = self.request.query_params.get('level')
+        level = self.request.query_params.get("level")
         if level:
             qs = qs.filter(level=level)
 
-        return qs.order_by('level', 'name')
+        return qs.order_by("level", "name")
 
 
 class CareerPathNodeDetailView(generics.RetrieveAPIView):
@@ -570,7 +591,7 @@ class CareerPathNodeDetailView(generics.RetrieveAPIView):
     serializer_class = CareerPathNodeDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = CareerPathNode.objects.filter(is_active=True)
-    lookup_field = 'slug'
+    lookup_field = "slug"
 
 
 class FindPathView(APIView):
@@ -588,13 +609,13 @@ class FindPathView(APIView):
         serializer.is_valid(raise_exception=True)
 
         result = CareerPathService.find_paths(
-            from_slug=serializer.validated_data['from_slug'],
-            to_slug=serializer.validated_data['to_slug'],
-            max_paths=serializer.validated_data.get('max_paths', 3),
+            from_slug=serializer.validated_data["from_slug"],
+            to_slug=serializer.validated_data["to_slug"],
+            max_paths=serializer.validated_data.get("max_paths", 3),
         )
 
         # An unknown slug is a client error, not an empty success.
-        if result.get('error'):
+        if result.get("error"):
             return Response(result, status=status.HTTP_404_NOT_FOUND)
 
         return Response(result)
@@ -613,19 +634,17 @@ class FromCurrentView(APIView):
 
     def get(self, request):
         seeker = request.user.seeker_profile
-        current_title = (seeker.current_title or '').strip()
+        current_title = (seeker.current_title or "").strip()
 
         if not current_title:
             return Response(
-                {'error': 'Set your current title in your profile first.'},
+                {"error": "Set your current title in your profile first."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # First try an exact name match, then fall back to a loose match on the
         # first word so that "Backend Developer at Acme" still resolves.
-        node = CareerPathNode.objects.filter(
-            is_active=True, name__iexact=current_title
-        ).first()
+        node = CareerPathNode.objects.filter(is_active=True, name__iexact=current_title).first()
 
         if not node:
             node = CareerPathNode.objects.filter(
@@ -635,27 +654,25 @@ class FromCurrentView(APIView):
         if not node:
             return Response(
                 {
-                    'error': (
+                    "error": (
                         f'Could not match "{current_title}" to any role in the career '
-                        f'graph. Browse /career-path/nodes/ to find yours.'
+                        f"graph. Browse /career-path/nodes/ to find yours."
                     ),
-                    'suggestions': list(
-                        CareerPathNode.objects
-                        .filter(is_active=True)
-                        .values('slug', 'name')[:10]
+                    "suggestions": list(
+                        CareerPathNode.objects.filter(is_active=True).values("slug", "name")[:10]
                     ),
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         try:
-            max_hops = int(request.query_params.get('max_hops', 3))
+            max_hops = int(request.query_params.get("max_hops", 3))
         except (TypeError, ValueError):
             max_hops = 3
         max_hops = max(1, min(max_hops, 5))  # Keep the traversal bounded.
 
         result = CareerPathService.reachable_from(node.slug, max_hops=max_hops)
-        result['matched_from_title'] = current_title
+        result["matched_from_title"] = current_title
         return Response(result)
 
 

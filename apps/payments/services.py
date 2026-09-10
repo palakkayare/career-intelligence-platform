@@ -1,6 +1,7 @@
 """
 Business logic for subscriptions and payments.
 """
+
 import logging
 import uuid
 from datetime import timedelta
@@ -12,7 +13,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import Plan, Subscription, PaymentTransaction, Refund
+from .models import PaymentTransaction, Plan, Refund, Subscription
 from .razorpay_client import RazorpayClient
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class SubscriptionService:
 
     # Contact-reveal credits granted by each paid tier
     REVEAL_CREDITS_BY_TIER = {
-        'business': 25,
+        "business": 25,
     }
 
     @classmethod
@@ -38,10 +39,10 @@ class SubscriptionService:
             return None
 
         # Find appropriate Pro plan
-        if user.role == 'seeker':
-            trial_plan = Plan.objects.filter(slug='pro_monthly').first()
-        elif user.role == 'recruiter':
-            trial_plan = Plan.objects.filter(slug='business_monthly').first()
+        if user.role == "seeker":
+            trial_plan = Plan.objects.filter(slug="pro_monthly").first()
+        elif user.role == "recruiter":
+            trial_plan = Plan.objects.filter(slug="business_monthly").first()
         else:
             return None  # Admins don't need trials
 
@@ -62,12 +63,7 @@ class SubscriptionService:
     @classmethod
     def get_active_subscription(cls, user):
         """Get user's currently-active subscription (or None)."""
-        sub = (
-            Subscription.objects
-            .filter(user=user)
-            .order_by('-created_at')
-            .first()
-        )
+        sub = Subscription.objects.filter(user=user).order_by("-created_at").first()
         if sub and sub.is_currently_active():
             return sub
         return None
@@ -96,7 +92,7 @@ class SubscriptionService:
         now = timezone.now()
 
         # Existing subscription? Replace or extend.
-        existing = Subscription.objects.filter(user=user).order_by('-created_at').first()
+        existing = Subscription.objects.filter(user=user).order_by("-created_at").first()
 
         if existing and existing.is_currently_active() and existing.plan.tier == plan.tier:
             # Same tier — extend the period
@@ -112,7 +108,7 @@ class SubscriptionService:
             # New subscription (or different tier — supersedes existing)
             if existing:
                 existing.status = Subscription.Status.EXPIRED
-                existing.save(update_fields=['status'])
+                existing.save(update_fields=["status"])
 
             subscription = Subscription.objects.create(
                 user=user,
@@ -124,7 +120,7 @@ class SubscriptionService:
 
         # Link transaction to subscription
         transaction_obj.subscription = subscription
-        transaction_obj.save(update_fields=['subscription'])
+        transaction_obj.save(update_fields=["subscription"])
 
         # Grant contact-reveal credits for recruiter plans
         cls.sync_recruiter_credits(subscription)
@@ -144,7 +140,7 @@ class SubscriptionService:
 
     @classmethod
     @transaction.atomic
-    def cancel_subscription(cls, user, reason=''):
+    def cancel_subscription(cls, user, reason=""):
         """
         Graceful cancellation:
         - TRIALING: cancel immediately (nothing was paid).
@@ -155,7 +151,7 @@ class SubscriptionService:
         """
         sub = cls.get_active_subscription(user)
         if not sub:
-            raise ValidationError({'detail': 'No active subscription to cancel.'})
+            raise ValidationError({"detail": "No active subscription to cancel."})
 
         sub.cancelled_at = timezone.now()
         sub.cancellation_reason = reason[:1000]
@@ -184,8 +180,7 @@ class SubscriptionService:
         # rows, and each affected user needs telling why their Pro features
         # stopped working.
         expiring = list(
-            Subscription.objects
-            .filter(
+            Subscription.objects.filter(
                 Q(
                     status=Subscription.Status.TRIALING,
                     trial_ends_at__lt=now,
@@ -195,8 +190,7 @@ class SubscriptionService:
                     current_period_end__lt=now,
                     auto_renew=False,
                 )
-            )
-            .select_related('user', 'plan')
+            ).select_related("user", "plan")
         )
 
         if not expiring:
@@ -215,7 +209,8 @@ class SubscriptionService:
                 # One failed notification must not stop the sweep, and the
                 # subscription is already correctly marked expired.
                 logger.exception(
-                    'Could not notify %s about expiry', subscription.user_id,
+                    "Could not notify %s about expiry",
+                    subscription.user_id,
                 )
 
         return len(expiring)
@@ -226,10 +221,10 @@ class SubscriptionService:
         Align RecruiterCredits.monthly_reveal_limit with the active plan.
         Called right after a subscription is activated or changed.
         """
-        if subscription.user.role != 'recruiter':
+        if subscription.user.role != "recruiter":
             return None
 
-        recruiter = getattr(subscription.user, 'recruiter_profile', None)
+        recruiter = getattr(subscription.user, "recruiter_profile", None)
         if recruiter is None:
             return None
 
@@ -242,11 +237,11 @@ class SubscriptionService:
 
         credits, _ = RecruiterCredits.objects.get_or_create(
             recruiter=recruiter,
-            defaults={'monthly_reveal_limit': credits_limit},
+            defaults={"monthly_reveal_limit": credits_limit},
         )
         if credits.monthly_reveal_limit != credits_limit:
             credits.monthly_reveal_limit = credits_limit
-            credits.save(update_fields=['monthly_reveal_limit'])
+            credits.save(update_fields=["monthly_reveal_limit"])
 
         return credits
 
@@ -268,10 +263,10 @@ class PaymentService:
         try:
             plan = Plan.objects.get(slug=plan_slug, is_active=True)
         except Plan.DoesNotExist:
-            raise ValidationError({'plan_slug': 'Invalid plan.'})
+            raise ValidationError({"plan_slug": "Invalid plan."})
 
         if not plan.is_paid:
-            raise ValidationError({'plan_slug': 'Cannot pay for free plan.'})
+            raise ValidationError({"plan_slug": "Cannot pay for free plan."})
 
         # Verify user role matches plan tier
         cls._validate_user_can_buy(user, plan)
@@ -283,7 +278,7 @@ class PaymentService:
             plan=plan,
             amount_inr=plan.price_inr,
             status=PaymentTransaction.Status.CREATED,
-            razorpay_order_id='',  # Set after Razorpay call
+            razorpay_order_id="",  # Set after Razorpay call
         )
 
         # Generate short receipt ID (Razorpay max 40 chars)
@@ -294,37 +289,36 @@ class PaymentService:
                 amount_inr=plan.price_inr,
                 receipt=receipt,
                 notes={
-                    'transaction_id': str(transaction_obj.id),
-                    'user_id': str(user.id),
-                    'plan_slug': plan.slug,
+                    "transaction_id": str(transaction_obj.id),
+                    "user_id": str(user.id),
+                    "plan_slug": plan.slug,
                 },
             )
         except Exception as e:
             transaction_obj.status = PaymentTransaction.Status.FAILED
             transaction_obj.failure_reason = f"Razorpay order creation failed: {str(e)}"
             transaction_obj.save()
-            raise ValidationError({'detail': 'Could not create payment order. Please try again.'})
+            raise ValidationError({"detail": "Could not create payment order. Please try again."})
 
         # Save Razorpay order_id
-        transaction_obj.razorpay_order_id = order['id']
-        transaction_obj.save(update_fields=['razorpay_order_id'])
+        transaction_obj.razorpay_order_id = order["id"]
+        transaction_obj.save(update_fields=["razorpay_order_id"])
 
         return {
-            'order_id': order['id'],
-            'amount': order['amount'],  # paise
-            'currency': order['currency'],
-            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
-            'plan': {
-                'slug': plan.slug,
-                'name': plan.name,
-                'price_inr': str(plan.price_inr),
+            "order_id": order["id"],
+            "amount": order["amount"],  # paise
+            "currency": order["currency"],
+            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+            "plan": {
+                "slug": plan.slug,
+                "name": plan.name,
+                "price_inr": str(plan.price_inr),
             },
-            'transaction_id': str(transaction_obj.id),
+            "transaction_id": str(transaction_obj.id),
         }
 
     @classmethod
-    def verify_and_activate(cls, user, order_id, payment_id, signature,
-                            plan_slug):
+    def verify_and_activate(cls, user, order_id, payment_id, signature, plan_slug):
         """
         Verify the Razorpay payment signature, then activate the subscription.
         IDEMPOTENT - safe to call repeatedly with the same payment_id.
@@ -350,7 +344,7 @@ class PaymentService:
                 status=PaymentTransaction.Status.CREATED,
             )
         except PaymentTransaction.DoesNotExist:
-            raise ValidationError({'detail': 'Order not found or already processed.'})
+            raise ValidationError({"detail": "Order not found or already processed."})
 
         # -- Verify signature (CRITICAL) --
         try:
@@ -362,16 +356,14 @@ class PaymentService:
             txn.razorpay_signature = signature
             txn.save()
             raise ValidationError(
-                {'detail': 'Invalid payment signature. Possibly tampered request.'}
+                {"detail": "Invalid payment signature. Possibly tampered request."}
             )
 
-        return cls._mark_paid_and_activate(user, txn.pk, payment_id,
-                                           signature, plan_slug)
+        return cls._mark_paid_and_activate(user, txn.pk, payment_id, signature, plan_slug)
 
     @classmethod
     @transaction.atomic
-    def _mark_paid_and_activate(cls, user, txn_pk, payment_id, signature,
-                                plan_slug):
+    def _mark_paid_and_activate(cls, user, txn_pk, payment_id, signature, plan_slug):
         """
         Success path only: flip the transaction to SUCCESS and switch the
         subscription on. Atomic, because a half-applied payment is far worse
@@ -386,9 +378,13 @@ class PaymentService:
         txn.razorpay_payment_id = payment_id
         txn.razorpay_signature = signature
         txn.status = PaymentTransaction.Status.SUCCESS
-        txn.save(update_fields=[
-            'razorpay_payment_id', 'razorpay_signature', 'status',
-        ])
+        txn.save(
+            update_fields=[
+                "razorpay_payment_id",
+                "razorpay_signature",
+                "status",
+            ]
+        )
 
         plan = Plan.objects.get(slug=plan_slug)
         subscription = SubscriptionService.activate_paid_subscription(
@@ -399,6 +395,7 @@ class PaymentService:
 
         # Notify the user that the payment succeeded
         from apps.notifications.triggers import notify_payment_success
+
         notify_payment_success(txn)
 
         return subscription
@@ -406,10 +403,10 @@ class PaymentService:
     @staticmethod
     def _validate_user_can_buy(user, plan):
         """Seekers can buy Pro, recruiters can buy Business."""
-        if plan.tier == Plan.Tier.PRO and user.role != 'seeker':
-            raise ValidationError({'plan_slug': 'Pro plans are for job seekers.'})
-        if plan.tier == Plan.Tier.BUSINESS and user.role != 'recruiter':
-            raise ValidationError({'plan_slug': 'Business plans are for recruiters.'})
+        if plan.tier == Plan.Tier.PRO and user.role != "seeker":
+            raise ValidationError({"plan_slug": "Pro plans are for job seekers."})
+        if plan.tier == Plan.Tier.BUSINESS and user.role != "recruiter":
+            raise ValidationError({"plan_slug": "Business plans are for recruiters."})
 
 
 class FeatureGateService:
@@ -433,7 +430,7 @@ class FeatureGateService:
 
         # No active subscription — everyone defaults to the Free tier
         try:
-            return Plan.objects.get(slug='free')
+            return Plan.objects.get(slug="free")
         except Plan.DoesNotExist:
             return None
 
@@ -446,27 +443,27 @@ class FeatureGateService:
         """
         plan = cls.get_user_plan(user)
         if not plan:
-            return {'can': False, 'reason': 'No plan available'}
+            return {"can": False, "reason": "No plan available"}
 
         used = cls._count_recent_applications(user)
 
         # Unlimited plans skip the arithmetic entirely
         if plan.max_applications_per_month is None:
             return {
-                'can': True,
-                'used': used,
-                'limit': None,
-                'remaining': None,
-                'plan': plan.name,
+                "can": True,
+                "used": used,
+                "limit": None,
+                "remaining": None,
+                "plan": plan.name,
             }
 
         remaining = max(0, plan.max_applications_per_month - used)
         return {
-            'can': remaining > 0,
-            'used': used,
-            'limit': plan.max_applications_per_month,
-            'remaining': remaining,
-            'plan': plan.name,
+            "can": remaining > 0,
+            "used": used,
+            "limit": plan.max_applications_per_month,
+            "remaining": remaining,
+            "plan": plan.name,
         }
 
     @classmethod
@@ -478,12 +475,13 @@ class FeatureGateService:
         """
         plan = cls.get_user_plan(recruiter_profile.user)
         if not plan:
-            return {'can': False, 'reason': 'No plan available'}
+            return {"can": False, "reason": "No plan available"}
 
         if plan.max_active_jobs is None:
-            return {'can': True, 'limit': None, 'plan': plan.name}
+            return {"can": True, "limit": None, "plan": plan.name}
 
         from apps.jobs.models import Job
+
         active = Job.objects.filter(
             posted_by=recruiter_profile,
             status__in=[
@@ -496,11 +494,11 @@ class FeatureGateService:
 
         remaining = max(0, plan.max_active_jobs - active)
         return {
-            'can': remaining > 0,
-            'active': active,
-            'limit': plan.max_active_jobs,
-            'remaining': remaining,
-            'plan': plan.name,
+            "can": remaining > 0,
+            "active": active,
+            "limit": plan.max_active_jobs,
+            "remaining": remaining,
+            "plan": plan.name,
         }
 
     @classmethod
@@ -523,7 +521,7 @@ class FeatureGateService:
         plan = cls.get_user_plan(user)
         if not plan:
             return False
-        return getattr(plan, f'has_{feature_name}', False)
+        return getattr(plan, f"has_{feature_name}", False)
 
     @classmethod
     def get_capabilities(cls, user):
@@ -536,41 +534,41 @@ class FeatureGateService:
             return {}
 
         capabilities = {
-            'plan': {
-                'name': plan.name,
-                'slug': plan.slug,
-                'tier': plan.tier,
+            "plan": {
+                "name": plan.name,
+                "slug": plan.slug,
+                "tier": plan.tier,
             },
-            'limits': {
-                'applications_per_month': plan.max_applications_per_month,
-                'active_jobs': plan.max_active_jobs,
-                'applicants_view_per_job': plan.max_applicants_view_per_job,
-                'resumes': plan.max_resumes,
-                'team_members': plan.max_team_members,
-                'saved_searches': plan.max_saved_searches,
+            "limits": {
+                "applications_per_month": plan.max_applications_per_month,
+                "active_jobs": plan.max_active_jobs,
+                "applicants_view_per_job": plan.max_applicants_view_per_job,
+                "resumes": plan.max_resumes,
+                "team_members": plan.max_team_members,
+                "saved_searches": plan.max_saved_searches,
             },
-            'features': {
-                'match_score': plan.has_match_score,
-                'skill_gap': plan.has_skill_gap,
-                'career_path': plan.has_career_path,
-                'candidate_search': plan.has_candidate_search,
-                'priority_search_visibility': plan.has_priority_search_visibility,
-                'advanced_filters': plan.has_advanced_filters,
-                'company_branding': plan.has_company_branding,
-                'analytics_dashboard': plan.has_analytics_dashboard,
-                'resume_ai_analysis': plan.has_resume_ai_analysis,
-                'salary_insights': plan.has_salary_insights,
+            "features": {
+                "match_score": plan.has_match_score,
+                "skill_gap": plan.has_skill_gap,
+                "career_path": plan.has_career_path,
+                "candidate_search": plan.has_candidate_search,
+                "priority_search_visibility": plan.has_priority_search_visibility,
+                "advanced_filters": plan.has_advanced_filters,
+                "company_branding": plan.has_company_branding,
+                "analytics_dashboard": plan.has_analytics_dashboard,
+                "resume_ai_analysis": plan.has_resume_ai_analysis,
+                "salary_insights": plan.has_salary_insights,
             },
         }
 
         # Attach live usage numbers for the role that has quotas
-        if user.role == 'seeker':
-            capabilities['usage'] = {
-                'applications': cls.can_apply_to_job(user),
+        if user.role == "seeker":
+            capabilities["usage"] = {
+                "applications": cls.can_apply_to_job(user),
             }
-        elif user.role == 'recruiter' and hasattr(user, 'recruiter_profile'):
-            capabilities['usage'] = {
-                'jobs': cls.can_post_job(user.recruiter_profile),
+        elif user.role == "recruiter" and hasattr(user, "recruiter_profile"):
+            capabilities["usage"] = {
+                "jobs": cls.can_post_job(user.recruiter_profile),
             }
 
         return capabilities
@@ -589,7 +587,9 @@ class FeatureGateService:
         currently-open applications.
         """
         from datetime import timedelta
+
         from django.utils import timezone
+
         from apps.applications.models import Application
 
         cutoff = timezone.now() - timedelta(days=30)
@@ -610,8 +610,7 @@ class RefundService:
     """
 
     @classmethod
-    def issue(cls, transaction_obj, reason, amount_inr=None, actor=None,
-              revoke_access=None):
+    def issue(cls, transaction_obj, reason, amount_inr=None, actor=None, revoke_access=None):
         """
         Refund a successful payment, in full or in part.
 
@@ -628,36 +627,33 @@ class RefundService:
         middle, and a failure record has to survive the error that follows it.
         """
         if not reason or not reason.strip():
-            raise ValidationError({'reason': 'A refund reason is required.'})
+            raise ValidationError({"reason": "A refund reason is required."})
 
         if transaction_obj.status != PaymentTransaction.Status.SUCCESS:
-            raise ValidationError({
-                'detail': 'Only successful payments can be refunded '
-                          f'(this one is {transaction_obj.status}).'
-            })
+            raise ValidationError(
+                {
+                    "detail": "Only successful payments can be refunded "
+                    f"(this one is {transaction_obj.status})."
+                }
+            )
 
         if not transaction_obj.razorpay_payment_id:
-            raise ValidationError({
-                'detail': 'This transaction has no Razorpay payment id.'
-            })
+            raise ValidationError({"detail": "This transaction has no Razorpay payment id."})
 
         remaining = cls.refundable_amount(transaction_obj)
         if remaining <= 0:
-            raise ValidationError({
-                'detail': 'This payment has already been fully refunded.'
-            })
+            raise ValidationError({"detail": "This payment has already been fully refunded."})
 
         if amount_inr is None:
             amount_inr = remaining
         else:
             amount_inr = Decimal(str(amount_inr))
             if amount_inr <= 0:
-                raise ValidationError({'amount_inr': 'Amount must be positive.'})
+                raise ValidationError({"amount_inr": "Amount must be positive."})
             if amount_inr > remaining:
-                raise ValidationError({
-                    'amount_inr': f'Only Rs.{remaining} remains refundable '
-                                  f'on this payment.'
-                })
+                raise ValidationError(
+                    {"amount_inr": f"Only Rs.{remaining} remains refundable " f"on this payment."}
+                )
 
         is_full = amount_inr >= remaining
         if revoke_access is None:
@@ -676,32 +672,32 @@ class RefundService:
                 payment_id=transaction_obj.razorpay_payment_id,
                 amount_inr=amount_inr,
                 notes={
-                    'refund_id': str(refund.id),
-                    'reason': reason.strip()[:200],
-                    'issued_by': getattr(actor, 'email', 'system'),
+                    "refund_id": str(refund.id),
+                    "reason": reason.strip()[:200],
+                    "issued_by": getattr(actor, "email", "system"),
                 },
             )
         except Exception as e:
             refund.status = Refund.Status.FAILED
             refund.failure_reason = str(e)
-            refund.save(update_fields=['status', 'failure_reason'])
-            logger.exception(
-                'Refund failed for transaction %s', transaction_obj.id
-            )
-            raise ValidationError({'detail': f'Refund failed at gateway: {e}'})
+            refund.save(update_fields=["status", "failure_reason"])
+            logger.exception("Refund failed for transaction %s", transaction_obj.id)
+            raise ValidationError({"detail": f"Refund failed at gateway: {e}"})
 
-        refund.razorpay_refund_id = result.get('id', '')
+        refund.razorpay_refund_id = result.get("id", "")
         # A gateway that settles instantly reports 'processed' straight away
-        if result.get('status') == 'processed':
+        if result.get("status") == "processed":
             refund.status = Refund.Status.PROCESSED
-        refund.save(update_fields=['razorpay_refund_id', 'status'])
+        refund.save(update_fields=["razorpay_refund_id", "status"])
 
         cls._apply_side_effects(refund, is_full, revoke_access)
 
         logger.info(
-            'Refund %s of Rs.%s issued on transaction %s by %s',
-            refund.razorpay_refund_id, amount_inr, transaction_obj.id,
-            getattr(actor, 'email', 'system'),
+            "Refund %s of Rs.%s issued on transaction %s by %s",
+            refund.razorpay_refund_id,
+            amount_inr,
+            transaction_obj.id,
+            getattr(actor, "email", "system"),
         )
         return refund
 
@@ -710,7 +706,9 @@ class RefundService:
         """Original amount minus everything not already failed."""
         spent = transaction_obj.refunds.exclude(
             status=Refund.Status.FAILED,
-        ).aggregate(total=Sum('amount_inr'))['total'] or Decimal('0')
+        ).aggregate(
+            total=Sum("amount_inr")
+        )["total"] or Decimal("0")
         return transaction_obj.amount_inr - spent
 
     @classmethod
@@ -721,14 +719,15 @@ class RefundService:
 
         if is_full:
             txn.status = PaymentTransaction.Status.REFUNDED
-            txn.save(update_fields=['status'])
+            txn.save(update_fields=["status"])
 
         if not revoke_access:
             return
 
         subscription = txn.subscription
         if subscription and subscription.status in (
-            Subscription.Status.ACTIVE, Subscription.Status.TRIALING,
+            Subscription.Status.ACTIVE,
+            Subscription.Status.TRIALING,
         ):
             now = timezone.now()
             subscription.status = Subscription.Status.CANCELLED
@@ -736,16 +735,19 @@ class RefundService:
             subscription.cancelled_at = now
             # Refunded money means access ends now, not at period end.
             subscription.current_period_end = now
-            subscription.cancellation_reason = (
-                f'Payment refunded: {refund.reason}'[:500]
+            subscription.cancellation_reason = f"Payment refunded: {refund.reason}"[:500]
+            subscription.save(
+                update_fields=[
+                    "status",
+                    "auto_renew",
+                    "cancelled_at",
+                    "current_period_end",
+                    "cancellation_reason",
+                ]
             )
-            subscription.save(update_fields=[
-                'status', 'auto_renew', 'cancelled_at',
-                'current_period_end', 'cancellation_reason',
-            ])
 
         refund.access_revoked = True
-        refund.save(update_fields=['access_revoked'])
+        refund.save(update_fields=["access_revoked"])
 
     @classmethod
     def mark_processed(cls, razorpay_refund_id):
@@ -754,10 +756,10 @@ class RefundService:
             razorpay_refund_id=razorpay_refund_id,
         ).first()
         if not refund:
-            logger.warning('Unknown refund id in webhook: %s', razorpay_refund_id)
+            logger.warning("Unknown refund id in webhook: %s", razorpay_refund_id)
             return None
 
         if refund.status != Refund.Status.PROCESSED:
             refund.status = Refund.Status.PROCESSED
-            refund.save(update_fields=['status'])
+            refund.save(update_fields=["status"])
         return refund

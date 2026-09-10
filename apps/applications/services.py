@@ -1,14 +1,14 @@
 """
 Application lifecycle services.
 """
-from datetime import timedelta
 
-from django.conf import settings
+
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.jobs.models import Job
+
 from .models import Application, ApplicationStatusHistory
 
 
@@ -17,12 +17,24 @@ class ApplicationStatusService:
 
     # Recruiter-allowed transitions
     RECRUITER_TRANSITIONS = {
-        Application.Status.SUBMITTED: [Application.Status.REVIEWING, Application.Status.REJECTED],
-        Application.Status.REVIEWING: [Application.Status.SHORTLISTED, Application.Status.REJECTED],
-        Application.Status.SHORTLISTED: [Application.Status.INTERVIEW, Application.Status.REJECTED],
-        Application.Status.INTERVIEW: [Application.Status.OFFERED, Application.Status.REJECTED],
-        Application.Status.OFFERED: [],    # Terminal
-        Application.Status.REJECTED: [],   # Terminal
+        Application.Status.SUBMITTED: [
+            Application.Status.REVIEWING,
+            Application.Status.REJECTED,
+        ],
+        Application.Status.REVIEWING: [
+            Application.Status.SHORTLISTED,
+            Application.Status.REJECTED,
+        ],
+        Application.Status.SHORTLISTED: [
+            Application.Status.INTERVIEW,
+            Application.Status.REJECTED,
+        ],
+        Application.Status.INTERVIEW: [
+            Application.Status.OFFERED,
+            Application.Status.REJECTED,
+        ],
+        Application.Status.OFFERED: [],  # Terminal
+        Application.Status.REJECTED: [],  # Terminal
         Application.Status.WITHDRAWN: [],  # Terminal
     }
 
@@ -36,7 +48,7 @@ class ApplicationStatusService:
 
     @classmethod
     @transaction.atomic
-    def update_status(cls, application, new_status, actor, notes=''):
+    def update_status(cls, application, new_status, actor, notes=""):
         """
         Update application status.
         Validates based on actor type (recruiter vs seeker).
@@ -44,13 +56,10 @@ class ApplicationStatusService:
         old_status = application.status
 
         # Determine actor type
-        is_seeker = (
-            actor.role == 'seeker'
-            and application.seeker.user_id == actor.id
-        )
+        is_seeker = actor.role == "seeker" and application.seeker.user_id == actor.id
         is_recruiter = (
-            actor.role == 'recruiter'
-            and hasattr(actor, 'recruiter_profile')
+            actor.role == "recruiter"
+            and hasattr(actor, "recruiter_profile")
             and application.job.posted_by_id == actor.recruiter_profile.id
         )
 
@@ -64,15 +73,12 @@ class ApplicationStatusService:
                     f"Seeker can only withdraw an application, not change to {new_status}."
                 )
             if old_status not in cls.NON_TERMINAL:
-                raise ValidationError(
-                    f"Cannot withdraw from {old_status} state."
-                )
+                raise ValidationError(f"Cannot withdraw from {old_status} state.")
         elif is_recruiter:
             allowed = cls.RECRUITER_TRANSITIONS.get(old_status, [])
             if new_status not in allowed:
                 raise ValidationError(
-                    f"Cannot transition from {old_status} to {new_status}. "
-                    f"Allowed: {allowed}"
+                    f"Cannot transition from {old_status} to {new_status}. " f"Allowed: {allowed}"
                 )
 
         # Apply
@@ -82,9 +88,14 @@ class ApplicationStatusService:
             application.is_deleted = True
             application.deleted_at = timezone.now()
 
-        application.save(update_fields=[
-            'status', 'last_status_change_at', 'is_deleted', 'deleted_at',
-        ])
+        application.save(
+            update_fields=[
+                "status",
+                "last_status_change_at",
+                "is_deleted",
+                "deleted_at",
+            ]
+        )
 
         # Audit log
         ApplicationStatusHistory.objects.create(
@@ -100,6 +111,7 @@ class ApplicationStatusService:
                 notify_application_status_change,
                 notify_application_withdrawn,
             )
+
             notify_application_status_change(application, old_status, new_status)
 
             # A withdrawal is the one transition the recruiter does not
@@ -129,14 +141,16 @@ class QuotaService:
         {can, used, limit, remaining, plan} — limit None means unlimited.
         """
         from apps.payments.services import FeatureGateService
+
         return FeatureGateService.can_apply_to_job(user)
 
     @classmethod
     def can_apply(cls, user):
         """True when the user may submit another application."""
         from apps.payments.services import FeatureGateService
+
         result = FeatureGateService.can_apply_to_job(user)
-        return result.get('can', False)
+        return result.get("can", False)
 
 
 class ApplicationCreationService:
@@ -144,8 +158,7 @@ class ApplicationCreationService:
 
     @classmethod
     @transaction.atomic
-    def create(cls, seeker_profile, job, cover_letter='', resume_url='',
-               resume=None):
+    def create(cls, seeker_profile, job, cover_letter="", resume_url="", resume=None):
         """
         Validate and create an application.
 
@@ -167,15 +180,18 @@ class ApplicationCreationService:
         # 4. Quota check - plan-driven via FeatureGateService.
         # Pro/Business plans have limit=None (unlimited) and pass through.
         from apps.payments.services import FeatureGateService
+
         usage = FeatureGateService.can_apply_to_job(seeker_profile.user)
-        if not usage['can']:
-            raise ValidationError({
-                'detail': (
-                    f"Application limit reached ({usage['used']}/{usage['limit']} "
-                    "applications in the last 30 days). "
-                    f"Current plan: {usage['plan']}. Upgrade for more."
-                )
-            })
+        if not usage["can"]:
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"Application limit reached ({usage['used']}/{usage['limit']} "
+                        "applications in the last 30 days). "
+                        f"Current plan: {usage['plan']}. Upgrade for more."
+                    )
+                }
+            )
 
         # 5. Resolve which resume travels with this application
         resume = cls._resolve_resume(seeker_profile, resume)
@@ -195,14 +211,15 @@ class ApplicationCreationService:
         # 7. Initial history entry
         ApplicationStatusHistory.objects.create(
             application=application,
-            from_status='',
+            from_status="",
             to_status=Application.Status.SUBMITTED,
             changed_by=seeker_profile.user,
-            notes='Initial application',
+            notes="Initial application",
         )
 
         # Notify the recruiter about the new application
         from apps.notifications.triggers import notify_application_received
+
         notify_application_received(application)
 
         return application
@@ -220,9 +237,10 @@ class ApplicationCreationService:
 
         if resume is not None:
             if resume.user_id != seeker_profile.user_id:
-                raise ValidationError({'resume': 'That resume is not yours.'})
+                raise ValidationError({"resume": "That resume is not yours."})
             return resume
 
         return Resume.objects.filter(
-            user=seeker_profile.user, is_primary=True,
+            user=seeker_profile.user,
+            is_primary=True,
         ).first()

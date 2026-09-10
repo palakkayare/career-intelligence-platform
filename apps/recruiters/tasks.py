@@ -27,8 +27,9 @@ def reset_expired_credit_cycles():
         credits.reset_cycle()
         count += 1
 
-    logger.info('Reset %s recruiter credit cycles', count)
+    logger.info("Reset %s recruiter credit cycles", count)
     return count
+
 
 @shared_task
 def sweep_talent_pools():
@@ -43,7 +44,7 @@ def sweep_talent_pools():
 
     pools = TalentPool.objects.filter(
         notify_on_new=True,
-    ).select_related('recruiter', 'recruiter__user')
+    ).select_related("recruiter", "recruiter__user")
 
     notified = 0
     for pool in pools:
@@ -52,7 +53,7 @@ def sweep_talent_pools():
                 notified += 1
         except Exception:
             # One broken pool must not stop the sweep for everyone else.
-            logger.exception('Talent pool sweep failed for pool %s', pool.pk)
+            logger.exception("Talent pool sweep failed for pool %s", pool.pk)
 
-    logger.info('Talent pool sweep: %s pools had new candidates', notified)
-    return {'pools_with_new_candidates': notified}
+    logger.info("Talent pool sweep: %s pools had new candidates", notified)
+    return {"pools_with_new_candidates": notified}

@@ -1,15 +1,16 @@
 """
 Business logic for resume management.
 """
+
 import logging
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.payments.services import FeatureGateService
+
 from .models import Resume
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ResumeService:
     """Manages resume lifecycle."""
 
-    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
+    ALLOWED_EXTENSIONS = {"pdf", "doc", "docx"}
     MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
     @classmethod
@@ -26,25 +27,25 @@ class ResumeService:
         """Pre-upload validation."""
         # Size check
         if file_obj.size > cls.MAX_FILE_SIZE_BYTES:
-            raise ValidationError({
-                'file': f'File too large. Max {cls.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB.'
-            })
+            raise ValidationError(
+                {"file": f"File too large. Max {cls.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB."}
+            )
 
         # Extension check
-        ext = file_obj.name.split('.')[-1].lower()
+        ext = file_obj.name.split(".")[-1].lower()
         if ext not in cls.ALLOWED_EXTENSIONS:
-            raise ValidationError({
-                'file': f'Allowed types: {", ".join(sorted(cls.ALLOWED_EXTENSIONS))}.'
-            })
+            raise ValidationError(
+                {"file": f'Allowed types: {", ".join(sorted(cls.ALLOWED_EXTENSIONS))}.'}
+            )
 
         # MIME type check (extra safety — browser-reported content-type)
         valid_mimes = {
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         }
-        if hasattr(file_obj, 'content_type') and file_obj.content_type not in valid_mimes:
-            raise ValidationError({'file': 'Invalid file type.'})
+        if hasattr(file_obj, "content_type") and file_obj.content_type not in valid_mimes:
+            raise ValidationError({"file": "Invalid file type."})
 
     @classmethod
     def check_quota(cls, user):
@@ -53,12 +54,14 @@ class ResumeService:
         if plan and plan.max_resumes is not None:
             current_count = Resume.objects.filter(user=user, is_deleted=False).count()
             if current_count >= plan.max_resumes:
-                raise ValidationError({
-                    'detail': (
-                        f'Resume limit reached ({current_count}/{plan.max_resumes}). '
-                        f'Plan: {plan.name}. Upgrade for more.'
-                    )
-                })
+                raise ValidationError(
+                    {
+                        "detail": (
+                            f"Resume limit reached ({current_count}/{plan.max_resumes}). "
+                            f"Plan: {plan.name}. Upgrade for more."
+                        )
+                    }
+                )
 
     @classmethod
     @transaction.atomic
@@ -84,20 +87,19 @@ class ResumeService:
         )
 
         # First resume OR explicitly requested → make primary
-        is_first = not Resume.objects.filter(
-            user=user, is_deleted=False
-        ).exclude(pk=resume.pk).exists()
+        is_first = (
+            not Resume.objects.filter(user=user, is_deleted=False).exclude(pk=resume.pk).exists()
+        )
 
         if is_first or set_as_primary:
             cls.set_primary(resume)
 
         # Queue async parsing (plan-gated)
-        if FeatureGateService.has_feature(user, 'resume_ai_analysis'):
+        if FeatureGateService.has_feature(user, "resume_ai_analysis"):
             from .tasks import parse_resume_task
+
             parse_resume_task.delay(resume.id)
-            logger.info(
-                f"Resume {resume.id} uploaded for {user.email}, parsing queued"
-            )
+            logger.info(f"Resume {resume.id} uploaded for {user.email}, parsing queued")
         else:
             logger.info(
                 f"Resume {resume.id} uploaded for {user.email}, "
@@ -105,6 +107,7 @@ class ResumeService:
             )
 
         return resume
+
     @classmethod
     @transaction.atomic
     def set_primary(cls, resume):
@@ -113,10 +116,12 @@ class ResumeService:
             user=resume.user,
             is_primary=True,
             is_deleted=False,
-        ).exclude(pk=resume.pk).update(is_primary=False)
+        ).exclude(
+            pk=resume.pk
+        ).update(is_primary=False)
 
         resume.is_primary = True
-        resume.save(update_fields=['is_primary'])
+        resume.save(update_fields=["is_primary"])
 
     @classmethod
     def get_download_url(cls, resume, expires_in=300):
@@ -129,12 +134,13 @@ class ResumeService:
 
         if settings.AWS_S3_USE_S3:
             from storages.backends.s3boto3 import S3Boto3Storage
+
             storage = S3Boto3Storage()
             return storage.connection.meta.client.generate_presigned_url(
-                'get_object',
+                "get_object",
                 Params={
-                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
-                    'Key': resume.file.name,
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": resume.file.name,
                 },
                 ExpiresIn=expires_in,
             )

@@ -1,6 +1,7 @@
 """
 Redis caching for match scores.
 """
+
 import json
 import logging
 
@@ -8,8 +9,8 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL_SCORE = 3600      # 1 hour
-CACHE_TTL_TOP_LIST = 1800   # 30 min
+CACHE_TTL_SCORE = 3600  # 1 hour
+CACHE_TTL_TOP_LIST = 1800  # 30 min
 
 
 class MatchCache:
@@ -17,15 +18,15 @@ class MatchCache:
 
     @staticmethod
     def _key_score(seeker_id, job_id):
-        return f'match:s{seeker_id}:j{job_id}'
+        return f"match:s{seeker_id}:j{job_id}"
 
     @staticmethod
     def _key_top_jobs(seeker_id):
-        return f'match:top_jobs:s{seeker_id}'
+        return f"match:top_jobs:s{seeker_id}"
 
     @staticmethod
     def _key_top_candidates(job_id):
-        return f'match:top_candidates:j{job_id}'
+        return f"match:top_candidates:j{job_id}"
 
     @classmethod
     def get_score(cls, seeker_id, job_id):

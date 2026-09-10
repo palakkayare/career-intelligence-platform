@@ -1,6 +1,7 @@
 """
 Recruiter and company services.
 """
+
 from rest_framework.exceptions import ValidationError
 
 
@@ -48,12 +49,14 @@ class CompanyTeamService:
 
         used = cls.current_size(company)
         if used >= limit:
-            raise ValidationError({
-                'detail': (
-                    f'{company.name} has used all {limit} of its team seats. '
-                    f'Upgrade the company plan to add more recruiters.'
-                ),
-            })
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"{company.name} has used all {limit} of its team seats. "
+                        f"Upgrade the company plan to add more recruiters."
+                    ),
+                }
+            )
 
         return limit
 
@@ -97,14 +100,14 @@ class TalentPoolService:
         if pool.last_checked_at:
             qs = qs.filter(created_at__gt=pool.last_checked_at)
 
-        return qs.select_related('user')
+        return qs.select_related("user")
 
     @classmethod
     def mark_checked(cls, pool):
         from django.utils import timezone
 
         pool.last_checked_at = timezone.now()
-        pool.save(update_fields=['last_checked_at'])
+        pool.save(update_fields=["last_checked_at"])
         return pool
 
     @classmethod
@@ -128,20 +131,17 @@ class TalentPoolService:
             NotificationService.create(
                 user=pool.recruiter.user,
                 kind=NotificationKind.NEW_MATCHING_CANDIDATE,
-                title=(
-                    f'{len(new_members)} new candidates in "{pool.name}"'
-                ),
+                title=(f'{len(new_members)} new candidates in "{pool.name}"'),
                 message=(
                     f'{first.full_name or "A candidate"} and '
                     f'{len(new_members) - 1} others match "{pool.name}".'
                     if len(new_members) > 1
-                    else f'{first.full_name or "A candidate"} matches '
-                         f'"{pool.name}".'
+                    else f'{first.full_name or "A candidate"} matches ' f'"{pool.name}".'
                 ),
-                link=f'/candidates/pools/{pool.pk}/',
+                link=f"/candidates/pools/{pool.pk}/",
                 context={
-                    'pool_name': pool.name,
-                    'new_count': len(new_members),
+                    "pool_name": pool.name,
+                    "new_count": len(new_members),
                 },
             )
 

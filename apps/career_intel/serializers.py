@@ -1,21 +1,20 @@
+from datetime import datetime
+
 from rest_framework import serializers
 
 from apps.skills.serializers import SkillSerializer
 
 from .models import (
+    CareerPathNode,
     LearningProvider,
     LearningResource,
     ResourceSkill,
+    SalarySubmission,
     SkillGapSnapshot,
     TargetRole,
     TargetRoleSkill,
     UserLearning,
-    SalarySubmission,
-    CareerPathNode, 
-    CareerPathEdge
-    
 )
-from datetime import datetime
 
 
 class TargetRoleSkillSerializer(serializers.ModelSerializer):
@@ -25,7 +24,7 @@ class TargetRoleSkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TargetRoleSkill
-        fields = ('skill', 'importance', 'difficulty', 'rationale')
+        fields = ("skill", "importance", "difficulty", "rationale")
         read_only_fields = fields
 
 
@@ -37,9 +36,14 @@ class TargetRoleListSerializer(serializers.ModelSerializer):
     class Meta:
         model = TargetRole
         fields = (
-            'id', 'name', 'slug', 'category',
-            'min_experience_years', 'typical_experience_years',
-            'avg_salary_inr', 'skill_count',
+            "id",
+            "name",
+            "slug",
+            "category",
+            "min_experience_years",
+            "typical_experience_years",
+            "avg_salary_inr",
+            "skill_count",
         )
         read_only_fields = fields
 
@@ -51,7 +55,7 @@ class TargetRoleDetailSerializer(serializers.ModelSerializer):
     """Full role payload including every required skill."""
 
     skills = TargetRoleSkillSerializer(
-        source='target_role_skills',
+        source="target_role_skills",
         many=True,
         read_only=True,
     )
@@ -59,9 +63,15 @@ class TargetRoleDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TargetRole
         fields = (
-            'id', 'name', 'slug', 'description', 'category',
-            'min_experience_years', 'typical_experience_years',
-            'avg_salary_inr', 'skills',
+            "id",
+            "name",
+            "slug",
+            "description",
+            "category",
+            "min_experience_years",
+            "typical_experience_years",
+            "avg_salary_inr",
+            "skills",
         )
         read_only_fields = fields
 
@@ -72,7 +82,9 @@ class AnalyzeGapInputSerializer(serializers.Serializer):
     target_role_slug = serializers.SlugField()
     save_snapshot = serializers.BooleanField(default=False, required=False)
     label = serializers.CharField(
-        max_length=100, required=False, allow_blank=True,
+        max_length=100,
+        required=False,
+        allow_blank=True,
     )
 
 
@@ -80,21 +92,27 @@ class SnapshotSerializer(serializers.ModelSerializer):
     """Snapshot payload used by the latest-analysis and history endpoints."""
 
     target_role_name = serializers.CharField(
-        source='target_role.name', read_only=True,
+        source="target_role.name",
+        read_only=True,
     )
     target_role_slug = serializers.SlugField(
-        source='target_role.slug', read_only=True,
+        source="target_role.slug",
+        read_only=True,
     )
 
     class Meta:
         model = SkillGapSnapshot
         fields = (
-            'public_id',
-            'target_role_name', 'target_role_slug',
-            'gap_score', 'label',
-            'total_required_skills', 'matched_count',
-            'missing_critical_count', 'missing_important_count',
-            'created_at',
+            "public_id",
+            "target_role_name",
+            "target_role_slug",
+            "gap_score",
+            "label",
+            "total_required_skills",
+            "matched_count",
+            "missing_critical_count",
+            "missing_important_count",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -107,7 +125,7 @@ class SnapshotSerializer(serializers.ModelSerializer):
 class LearningProviderSerializer(serializers.ModelSerializer):
     class Meta:
         model = LearningProvider
-        fields = ('id', 'name', 'slug', 'logo_url', 'website', 'trust_score')
+        fields = ("id", "name", "slug", "logo_url", "website", "trust_score")
         read_only_fields = fields
 
 
@@ -118,7 +136,7 @@ class ResourceSkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResourceSkill
-        fields = ('skill', 'is_primary', 'coverage')
+        fields = ("skill", "is_primary", "coverage")
         read_only_fields = fields
 
 
@@ -131,11 +149,20 @@ class LearningResourceListSerializer(serializers.ModelSerializer):
     class Meta:
         model = LearningResource
         fields = (
-            'id', 'title', 'url', 'kind', 'difficulty',
-            'duration_hours', 'is_free', 'price_inr',
-            'external_rating', 'quality_score',
-            'provider', 'is_endorsed', 'enrollment_count',
-            'skills_summary',
+            "id",
+            "title",
+            "url",
+            "kind",
+            "difficulty",
+            "duration_hours",
+            "is_free",
+            "price_inr",
+            "external_rating",
+            "quality_score",
+            "provider",
+            "is_endorsed",
+            "enrollment_count",
+            "skills_summary",
         )
         read_only_fields = fields
 
@@ -149,41 +176,54 @@ class LearningResourceDetailSerializer(serializers.ModelSerializer):
 
     provider = LearningProviderSerializer(read_only=True)
     skills = ResourceSkillSerializer(
-        source='resource_skills', many=True, read_only=True,
+        source="resource_skills",
+        many=True,
+        read_only=True,
     )
     user_status = serializers.SerializerMethodField()
 
     class Meta:
         model = LearningResource
         fields = (
-            'id', 'title', 'description', 'url',
-            'kind', 'difficulty',
-            'duration_hours', 'is_free', 'price_inr',
-            'external_rating', 'quality_score',
-            'provider', 'is_endorsed', 'enrollment_count',
-            'skills', 'user_status',
+            "id",
+            "title",
+            "description",
+            "url",
+            "kind",
+            "difficulty",
+            "duration_hours",
+            "is_free",
+            "price_inr",
+            "external_rating",
+            "quality_score",
+            "provider",
+            "is_endorsed",
+            "enrollment_count",
+            "skills",
+            "user_status",
         )
         read_only_fields = fields
 
     def get_user_status(self, obj):
         """Return the requesting user's progress, or None if not started."""
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
 
         learning = UserLearning.objects.filter(
-            user=request.user, resource=obj,
+            user=request.user,
+            resource=obj,
         ).first()
         if not learning:
             return None
 
         return {
-            'id': learning.id,
-            'status': learning.status,
-            'progress_pct': learning.progress_pct,
-            'started_at': learning.started_at,
-            'completed_at': learning.completed_at,
-            'user_rating': learning.user_rating,
+            "id": learning.id,
+            "status": learning.status,
+            "progress_pct": learning.progress_pct,
+            "started_at": learning.started_at,
+            "completed_at": learning.completed_at,
+            "user_rating": learning.user_rating,
         }
 
 
@@ -193,13 +233,17 @@ class UserLearningSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserLearning
         fields = (
-            'id', 'resource',
-            'status', 'progress_pct',
-            'started_at', 'completed_at',
-            'user_rating', 'notes',
-            'updated_at',
+            "id",
+            "resource",
+            "status",
+            "progress_pct",
+            "started_at",
+            "completed_at",
+            "user_rating",
+            "notes",
+            "updated_at",
         )
-        read_only_fields = ('id', 'started_at', 'completed_at', 'updated_at')
+        read_only_fields = ("id", "started_at", "completed_at", "updated_at")
 
 
 class StartLearningInputSerializer(serializers.Serializer):
@@ -213,7 +257,9 @@ class UpdateProgressSerializer(serializers.Serializer):
 
     progress_pct = serializers.IntegerField(min_value=0, max_value=100)
     notes = serializers.CharField(
-        required=False, allow_blank=True, max_length=1000,
+        required=False,
+        allow_blank=True,
+        max_length=1000,
     )
 
 
@@ -221,10 +267,14 @@ class CompleteLearningSerializer(serializers.Serializer):
     """Request body for POST /learning/me/<id>/complete/"""
 
     user_rating = serializers.IntegerField(
-        min_value=1, max_value=5, required=False,
+        min_value=1,
+        max_value=5,
+        required=False,
     )
     notes = serializers.CharField(
-        required=False, allow_blank=True, max_length=1000,
+        required=False,
+        allow_blank=True,
+        max_length=1000,
     )
 
 
@@ -232,7 +282,8 @@ class RecommendationsInputSerializer(serializers.Serializer):
     """Optional target_role_slug to override the default (latest snapshot)."""
 
     target_role_slug = serializers.SlugField(required=False)
-    
+
+
 # =============================================================================
 # STEP 5 -- Append this to: apps/career_intel/serializers.py
 #
@@ -249,17 +300,17 @@ class SalarySubmitSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalarySubmission
         fields = (
-            'role_title',
-            'industry',
-            'location_city',
-            'company_size_bucket',
-            'experience_years_bucket',
-            'employment_type',
-            'work_arrangement',
-            'salary_inr',
-            'bonus_inr',
-            'has_equity',
-            'effective_year',
+            "role_title",
+            "industry",
+            "location_city",
+            "company_size_bucket",
+            "experience_years_bucket",
+            "employment_type",
+            "work_arrangement",
+            "salary_inr",
+            "bonus_inr",
+            "has_equity",
+            "effective_year",
         )
 
     def validate_role_title(self, value):
@@ -275,9 +326,7 @@ class SalarySubmitSerializer(serializers.ModelSerializer):
     def validate_effective_year(self, value):
         current = datetime.now().year
         if value < current - 5 or value > current:
-            raise serializers.ValidationError(
-                f"Year must be between {current - 5} and {current}."
-            )
+            raise serializers.ValidationError(f"Year must be between {current - 5} and {current}.")
         return value
 
 
@@ -323,25 +372,27 @@ class SalarySubmissionDisplaySerializer(serializers.ModelSerializer):
     class Meta:
         model = SalarySubmission
         fields = (
-            'id',
-            'role_title',
-            'location_city',
-            'company_size_bucket',
-            'experience_years_bucket',
-            'salary_inr',
-            'salary_lpa',
-            'bonus_inr',
-            'has_equity',
-            'effective_year',
-            'submitted_at',
-            'is_verified',
+            "id",
+            "role_title",
+            "location_city",
+            "company_size_bucket",
+            "experience_years_bucket",
+            "salary_inr",
+            "salary_lpa",
+            "bonus_inr",
+            "has_equity",
+            "effective_year",
+            "submitted_at",
+            "is_verified",
         )
-        read_only_fields = ('id', 'salary_lpa', 'submitted_at', 'is_verified')
+        read_only_fields = ("id", "salary_lpa", "submitted_at", "is_verified")
 
     def get_salary_lpa(self, obj):
         from .salary_algorithm import format_inr_lpa
+
         return format_inr_lpa(float(obj.salary_inr))
-    
+
+
 # =============================================================================
 # STEP 5 -- Append this to: apps/career_intel/serializers.py
 #
@@ -357,13 +408,13 @@ class CareerPathNodeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CareerPathNode
         fields = (
-            'slug',
-            'name',
-            'description',
-            'level',
-            'category',
-            'typical_experience_years',
-            'avg_salary_inr',
+            "slug",
+            "name",
+            "description",
+            "level",
+            "category",
+            "typical_experience_years",
+            "avg_salary_inr",
         )
         read_only_fields = fields
 
@@ -382,15 +433,15 @@ class CareerPathNodeDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CareerPathNode
         fields = (
-            'slug',
-            'name',
-            'description',
-            'level',
-            'category',
-            'typical_experience_years',
-            'avg_salary_inr',
-            'incoming_count',
-            'outgoing_count',
+            "slug",
+            "name",
+            "description",
+            "level",
+            "category",
+            "typical_experience_years",
+            "avg_salary_inr",
+            "incoming_count",
+            "outgoing_count",
         )
         read_only_fields = fields
 

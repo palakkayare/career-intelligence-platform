@@ -6,17 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('career_intel', '0004_careerpathnode_careerpathedge_and_more'),
-        ('skills', '0001_initial'),
+        ("career_intel", "0004_careerpathnode_careerpathedge_and_more"),
+        ("skills", "0001_initial"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='careerpathedge',
-            index=models.Index(fields=['from_node', 'weight'], name='cpe_from_weight_idx'),
+            model_name="careerpathedge",
+            index=models.Index(
+                fields=["from_node", "weight"], name="cpe_from_weight_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='targetroleskill',
-            index=models.Index(fields=['target_role', 'importance'], name='trs_role_importance_idx'),
+            model_name="targetroleskill",
+            index=models.Index(
+                fields=["target_role", "importance"], name="trs_role_importance_idx"
+            ),
         ),
     ]

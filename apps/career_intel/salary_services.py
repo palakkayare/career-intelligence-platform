@@ -43,12 +43,14 @@ def hash_ip(ip_address):
 
     from django.conf import settings
 
-    pepper = getattr(settings, 'SALARY_IP_PEPPER', '')
+    pepper = getattr(settings, "SALARY_IP_PEPPER", "")
     if not ip_address or not pepper:
-        return ''
+        return ""
 
     return hmac.new(
-        pepper.encode(), str(ip_address).encode(), hashlib.sha256,
+        pepper.encode(),
+        str(ip_address).encode(),
+        hashlib.sha256,
     ).hexdigest()
 
 
@@ -60,10 +62,10 @@ def client_ip(request):
     if request is None:
         return None
 
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
     if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        return forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 class SalaryService:
@@ -87,39 +89,45 @@ class SalaryService:
         reaches the database.
         """
         # --- Validate the salary range ---
-        salary = data.get('salary_inr') or 0
+        salary = data.get("salary_inr") or 0
 
         if salary < settings.SALARY_MIN_INR:
-            raise ValidationError({
-                'salary_inr': (
-                    f'Salary is too low (the minimum is '
-                    f'₹{settings.SALARY_MIN_INR / 100000:.1f}L per year).'
-                ),
-            })
+            raise ValidationError(
+                {
+                    "salary_inr": (
+                        f"Salary is too low (the minimum is "
+                        f"₹{settings.SALARY_MIN_INR / 100000:.1f}L per year)."
+                    ),
+                }
+            )
 
         if salary > settings.SALARY_MAX_INR:
-            raise ValidationError({
-                'salary_inr': (
-                    f'Salary is too high (the maximum is '
-                    f'₹{settings.SALARY_MAX_INR / 10000000:.1f}Cr per year).'
-                ),
-            })
+            raise ValidationError(
+                {
+                    "salary_inr": (
+                        f"Salary is too high (the maximum is "
+                        f"₹{settings.SALARY_MAX_INR / 10000000:.1f}Cr per year)."
+                    ),
+                }
+            )
 
         # --- Prevent a duplicate entry from the same user for the same year ---
         if user:
             existing = SalarySubmission.objects.filter(
                 user=user,
-                effective_year=data['effective_year'],
-                role_title__iexact=data['role_title'],
+                effective_year=data["effective_year"],
+                role_title__iexact=data["role_title"],
             ).first()
 
             if existing:
-                raise ValidationError({
-                    'detail': (
-                        'You have already submitted a salary for this role and year. '
-                        'Delete the earlier submission if you want to replace it.'
-                    ),
-                })
+                raise ValidationError(
+                    {
+                        "detail": (
+                            "You have already submitted a salary for this role and year. "
+                            "Delete the earlier submission if you want to replace it."
+                        ),
+                    }
+                )
 
         # --- Per-device rate limit ---
         ip_hash = hash_ip(ip_address)
@@ -127,15 +135,17 @@ class SalaryService:
             cls._check_device_limit(ip_hash)
 
         # --- Auto-link to a TargetRole when the title matches the taxonomy ---
-        if not data.get('target_role') and data.get('role_title'):
+        if not data.get("target_role") and data.get("role_title"):
             target_role = TargetRole.objects.filter(
-                name__iexact=data['role_title'],
+                name__iexact=data["role_title"],
             ).first()
             if target_role:
-                data['target_role'] = target_role
+                data["target_role"] = target_role
 
         submission = SalarySubmission.objects.create(
-            user=user, submitter_ip_hash=ip_hash, **data,
+            user=user,
+            submitter_ip_hash=ip_hash,
+            **data,
         )
 
         logger.info(
@@ -169,14 +179,16 @@ class SalaryService:
         ).count()
 
         if recent >= settings.SALARY_MAX_SUBMISSIONS_PER_IP:
-            raise ValidationError({
-                'detail': (
-                    f'This device has submitted '
-                    f'{settings.SALARY_MAX_SUBMISSIONS_PER_IP} salaries in the '
-                    f'last {settings.SALARY_IP_WINDOW_HOURS} hours. '
-                    f'Try again later.'
-                ),
-            })
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"This device has submitted "
+                        f"{settings.SALARY_MAX_SUBMISSIONS_PER_IP} salaries in the "
+                        f"last {settings.SALARY_IP_WINDOW_HOURS} hours. "
+                        f"Try again later."
+                    ),
+                }
+            )
 
     # ------------------------------------------------------------------
     # Aggregated insights
@@ -193,30 +205,30 @@ class SalaryService:
         # Flagged submissions never take part in any aggregate.
         qs = SalarySubmission.objects.filter(is_flagged=False)
 
-        if filters.get('role_title'):
-            qs = qs.filter(role_title__iexact=filters['role_title'])
+        if filters.get("role_title"):
+            qs = qs.filter(role_title__iexact=filters["role_title"])
 
-        if filters.get('target_role_id'):
-            qs = qs.filter(target_role_id=filters['target_role_id'])
+        if filters.get("target_role_id"):
+            qs = qs.filter(target_role_id=filters["target_role_id"])
 
-        if filters.get('location_city'):
-            qs = qs.filter(location_city__iexact=filters['location_city'])
+        if filters.get("location_city"):
+            qs = qs.filter(location_city__iexact=filters["location_city"])
 
-        if filters.get('company_size_bucket'):
-            qs = qs.filter(company_size_bucket=filters['company_size_bucket'])
+        if filters.get("company_size_bucket"):
+            qs = qs.filter(company_size_bucket=filters["company_size_bucket"])
 
-        if filters.get('experience_years_bucket'):
+        if filters.get("experience_years_bucket"):
             qs = qs.filter(
-                experience_years_bucket=filters['experience_years_bucket'],
+                experience_years_bucket=filters["experience_years_bucket"],
             )
 
-        if filters.get('industry_id'):
-            qs = qs.filter(industry_id=filters['industry_id'])
+        if filters.get("industry_id"):
+            qs = qs.filter(industry_id=filters["industry_id"])
 
         # Default to the last 2 years so inflation and market shifts do not
         # distort the picture.
-        if filters.get('effective_year'):
-            qs = qs.filter(effective_year=filters['effective_year'])
+        if filters.get("effective_year"):
+            qs = qs.filter(effective_year=filters["effective_year"])
         else:
             current_year = datetime.now().year
             qs = qs.filter(effective_year__gte=current_year - 2)
@@ -250,17 +262,17 @@ class SalaryService:
 
         if count < k:
             return {
-                'has_data': False,
-                'count': count,
-                'k_threshold': k,
-                'message': (
-                    f'Not enough data ({count} submissions found, at least {k} are '
-                    f'needed to protect privacy). Try broadening your filters.'
+                "has_data": False,
+                "count": count,
+                "k_threshold": k,
+                "message": (
+                    f"Not enough data ({count} submissions found, at least {k} are "
+                    f"needed to protect privacy). Try broadening your filters."
                 ),
             }
 
         # --- Compute the aggregates ---
-        salaries = list(qs.values_list('salary_inr', flat=True))
+        salaries = list(qs.values_list("salary_inr", flat=True))
 
         # Remove values outside the sane market range before computing statistics.
         salaries = salary_algorithm.trim_outliers_simple(
@@ -272,10 +284,10 @@ class SalaryService:
         # Re-check K: trimming may have pushed the sample below the threshold.
         if len(salaries) < k:
             return {
-                'has_data': False,
-                'count': len(salaries),
-                'k_threshold': k,
-                'message': 'Not enough valid data left after filtering out invalid values.',
+                "has_data": False,
+                "count": len(salaries),
+                "k_threshold": k,
+                "message": "Not enough valid data left after filtering out invalid values.",
             }
 
         aggregates = salary_algorithm.calculate_aggregates(salaries)
@@ -287,21 +299,21 @@ class SalaryService:
         # two submissions. See publication_percentile.
         published = {
             name: salary_algorithm.publication_percentile(salaries, p)
-            for name, p in (('p25', 25), ('median', 50), ('p75', 75))
+            for name, p in (("p25", 25), ("median", 50), ("p75", 75))
         }
-        published['mean'] = aggregates['mean']
+        published["mean"] = aggregates["mean"]
 
         # One band for the whole response, derived from the median. Rounding
         # each figure to its own band would put p25 on a finer grid than the
         # median, which leaks the shape of the distribution back out.
-        band = salary_algorithm.choose_band(published['median'])
+        band = salary_algorithm.choose_band(published["median"])
 
         # --- Build the response: summary numbers only, no raw rows ---
         return {
-            'has_data': True,
-            'filters_applied': {key: value for key, value in filters.items() if value},
-            'sample_size': aggregates['count'],
-            'k_threshold': k,
+            "has_data": True,
+            "filters_applied": {key: value for key, value in filters.items() if value},
+            "sample_size": aggregates["count"],
+            "k_threshold": k,
             # min and max are gone, and the rest are rounded.
             #
             # A published min or max is one person's exact salary - not an
@@ -312,19 +324,19 @@ class SalaryService:
             # sample sizes they also land on individuals: with five
             # submissions, p25 is values[1] and the median is values[2].
             # See round_for_publication.
-            'salary_range_inr': {
-                'p25': _publish(published['p25'], band),
-                'median': _publish(published['median'], band),
-                'p75': _publish(published['p75'], band),
-                'mean': _publish(published['mean'], band),
+            "salary_range_inr": {
+                "p25": _publish(published["p25"], band),
+                "median": _publish(published["median"], band),
+                "p75": _publish(published["p75"], band),
+                "mean": _publish(published["mean"], band),
             },
-            'salary_range_lpa': {
-                'p25': salary_algorithm.format_inr_lpa(_publish(published['p25'], band)),
-                'median': salary_algorithm.format_inr_lpa(_publish(published['median'], band)),
-                'p75': salary_algorithm.format_inr_lpa(_publish(published['p75'], band)),
+            "salary_range_lpa": {
+                "p25": salary_algorithm.format_inr_lpa(_publish(published["p25"], band)),
+                "median": salary_algorithm.format_inr_lpa(_publish(published["median"], band)),
+                "p75": salary_algorithm.format_inr_lpa(_publish(published["p75"], band)),
             },
-            'verified_share': cls._compute_verified_share(qs),
-            'message': (
+            "verified_share": cls._compute_verified_share(qs),
+            "message": (
                 f"Based on {aggregates['count']} submissions. "
                 f"Median: ₹{_publish(published['median'], band) / 100000:.1f} LPA."
             ),
@@ -340,7 +352,7 @@ class SalaryService:
         a category rather than a number.
         """
         qs = cls._apply_filters(filters)
-        salaries = list(qs.values_list('salary_inr', flat=True))
+        salaries = list(qs.values_list("salary_inr", flat=True))
         trimmed = salary_algorithm.trim_outliers_simple(salaries)
 
         return salary_algorithm.calculate_aggregates(trimmed) or {}
@@ -357,41 +369,40 @@ class SalaryService:
         (experience is dropped first) rather than failing outright.
         """
         submission = (
-            SalarySubmission.objects
-            .filter(user=user, is_flagged=False)
-            .order_by('-effective_year', '-submitted_at')
+            SalarySubmission.objects.filter(user=user, is_flagged=False)
+            .order_by("-effective_year", "-submitted_at")
             .first()
         )
 
         if not submission:
             return {
-                'has_submission': False,
-                'message': 'Submit your own salary first at /salary/submit/.',
+                "has_submission": False,
+                "message": "Submit your own salary first at /salary/submit/.",
             }
 
         # First attempt: role + city + experience bucket.
         filters = {
-            'role_title': submission.role_title,
-            'location_city': submission.location_city,
-            'experience_years_bucket': submission.experience_years_bucket,
+            "role_title": submission.role_title,
+            "location_city": submission.location_city,
+            "experience_years_bucket": submission.experience_years_bucket,
         }
         insights = cls.get_insights(filters)
 
         # Graceful degradation: retry with role + city only.
-        if not insights['has_data']:
-            filters.pop('experience_years_bucket', None)
+        if not insights["has_data"]:
+            filters.pop("experience_years_bucket", None)
             insights = cls.get_insights(filters)
 
-        if not insights['has_data']:
+        if not insights["has_data"]:
             return {
-                'has_submission': True,
-                'has_market_data': False,
-                'message': (
-                    'There is not enough market data for your role yet. '
-                    'Invite others to contribute so these insights improve.'
+                "has_submission": True,
+                "has_market_data": False,
+                "message": (
+                    "There is not enough market data for your role yet. "
+                    "Invite others to contribute so these insights improve."
                 ),
-                'your_submission': {
-                    'salary_lpa': salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
+                "your_submission": {
+                    "salary_lpa": salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
                 },
             }
 
@@ -405,25 +416,28 @@ class SalaryService:
         raw = cls._raw_percentiles(filters)
 
         position = salary_algorithm.determine_market_position(
-            submission.salary_inr, raw,
+            submission.salary_inr,
+            raw,
         )
         message = salary_algorithm.market_position_message(
-            position, submission.salary_inr, raw,
+            position,
+            submission.salary_inr,
+            raw,
         )
 
         return {
-            'has_submission': True,
-            'has_market_data': True,
-            'your_submission': {
-                'role_title': submission.role_title,
-                'location_city': submission.location_city,
-                'salary_lpa': salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
-                'experience': submission.experience_years_bucket,
-                'effective_year': submission.effective_year,
+            "has_submission": True,
+            "has_market_data": True,
+            "your_submission": {
+                "role_title": submission.role_title,
+                "location_city": submission.location_city,
+                "salary_lpa": salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
+                "experience": submission.experience_years_bucket,
+                "effective_year": submission.effective_year,
             },
-            'market_position': position,
-            'market_insights': insights,
-            'message': message,
+            "market_position": position,
+            "market_insights": insights,
+            "message": message,
         }
 
     # ------------------------------------------------------------------

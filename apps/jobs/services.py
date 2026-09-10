@@ -2,6 +2,8 @@
 Business logic for job lifecycle.
 Encapsulates state machine + duplication.
 """
+
+import logging
 import uuid
 
 from django.conf import settings
@@ -10,8 +12,9 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import Job
-import logging
+
 logger = logging.getLogger(__name__)
+
 
 class InvalidTransition(ValidationError):
     pass
@@ -32,7 +35,7 @@ class JobStatusService:
     @classmethod
     def can_transition(cls, current_status, new_status):
         return new_status in cls.ALLOWED_TRANSITIONS.get(current_status, [])
-    
+
     @classmethod
     @transaction.atomic
     def submit(cls, job):
@@ -42,10 +45,10 @@ class JobStatusService:
 
         job.status = Job.Status.PENDING_APPROVAL
         job.submitted_at = timezone.now()
-        job.save(update_fields=['status', 'submitted_at'])
+        job.save(update_fields=["status", "submitted_at"])
 
         # Auto-approve in dev
-        if getattr(settings, 'JOB_AUTO_APPROVE', False):
+        if getattr(settings, "JOB_AUTO_APPROVE", False):
             cls.approve(job, actor=None, _auto=True)
 
         return job
@@ -60,18 +63,24 @@ class JobStatusService:
         job.activated_at = timezone.now()
         job.approved_by = actor if not _auto else None
         job.approved_at = timezone.now()
-        job.rejection_reason = ''  # Clear any old reason
-        job.save(update_fields=[
-            'status', 'activated_at', 'approved_by',
-            'approved_at', 'rejection_reason',
-        ])
+        job.rejection_reason = ""  # Clear any old reason
+        job.save(
+            update_fields=[
+                "status",
+                "activated_at",
+                "approved_by",
+                "approved_at",
+                "rejection_reason",
+            ]
+        )
         # Only notify on a real admin approval, not on dev auto-approve
         if not _auto:
             from apps.notifications.triggers import notify_job_approved
+
             notify_job_approved(job)
 
         return job
-    
+
     @classmethod
     @transaction.atomic
     def reject(cls, job, actor, reason):
@@ -79,17 +88,23 @@ class JobStatusService:
         cls._ensure_transition(job, Job.Status.REJECTED)
 
         if not reason or len(reason.strip()) < 10:
-            raise ValidationError({'reason': 'Provide a clear rejection reason (min 10 chars).'})
+            raise ValidationError({"reason": "Provide a clear rejection reason (min 10 chars)."})
 
         job.status = Job.Status.REJECTED
         job.rejection_reason = reason.strip()
         job.approved_by = actor  # Track who rejected
         job.approved_at = timezone.now()
-        job.save(update_fields=[
-            'status', 'rejection_reason', 'approved_by', 'approved_at',
-        ])
+        job.save(
+            update_fields=[
+                "status",
+                "rejection_reason",
+                "approved_by",
+                "approved_at",
+            ]
+        )
         # NEW: notify the recruiter that their job posting needs revision
         from apps.notifications.triggers import notify_job_rejected
+
         notify_job_rejected(job, reason)
         return job
 
@@ -101,7 +116,7 @@ class JobStatusService:
 
         job.status = Job.Status.CLOSED
         job.closed_at = timezone.now()
-        job.save(update_fields=['status', 'closed_at'])
+        job.save(update_fields=["status", "closed_at"])
         return job
 
     @classmethod
@@ -112,7 +127,7 @@ class JobStatusService:
 
         job.status = Job.Status.EXPIRED
         job.closed_at = timezone.now()
-        job.save(update_fields=['status', 'closed_at'])
+        job.save(update_fields=["status", "closed_at"])
         return job
 
     @classmethod
@@ -121,20 +136,22 @@ class JobStatusService:
         cls._ensure_transition(job, Job.Status.DRAFT)
 
         job.status = Job.Status.DRAFT
-        job.save(update_fields=['status'])
+        job.save(update_fields=["status"])
         return job
-    
+
     # ─── Helpers ──────────────────────────────────────
 
     @classmethod
     def _ensure_transition(cls, job, new_status):
         if not cls.can_transition(job.status, new_status):
-            raise InvalidTransition({
-                'detail': (
-                    f"Cannot transition from {job.status} to {new_status}. "
-                    f"Allowed: {cls.ALLOWED_TRANSITIONS.get(job.status, [])}"
-                )
-            })
+            raise InvalidTransition(
+                {
+                    "detail": (
+                        f"Cannot transition from {job.status} to {new_status}. "
+                        f"Allowed: {cls.ALLOWED_TRANSITIONS.get(job.status, [])}"
+                    )
+                }
+            )
 
     @staticmethod
     def _validate_required_fields(job):
@@ -142,23 +159,23 @@ class JobStatusService:
         errors = {}
 
         if not job.title or len(job.title.strip()) < 5:
-            errors['title'] = 'Title must be at least 5 characters.'
+            errors["title"] = "Title must be at least 5 characters."
 
         if not job.description or len(job.description.strip()) < 50:
-            errors['description'] = 'Description must be at least 50 characters.'
+            errors["description"] = "Description must be at least 50 characters."
 
         if not job.required_skills.exists():
-            errors['required_skills'] = 'At least one required skill needed.'
+            errors["required_skills"] = "At least one required skill needed."
 
         if job.salary_min and job.salary_max and job.salary_min > job.salary_max:
-            errors['salary'] = 'salary_min cannot exceed salary_max.'
+            errors["salary"] = "salary_min cannot exceed salary_max."
 
         if job.application_deadline and job.application_deadline < timezone.now():
-            errors['application_deadline'] = 'Deadline must be in the future.'
+            errors["application_deadline"] = "Deadline must be in the future."
 
         if errors:
             raise ValidationError(errors)
-        
+
     @classmethod
     def expire_overdue(cls):
         """
@@ -184,11 +201,12 @@ class JobStatusService:
                 cls.expire(job)
                 expired += 1
             except Exception:
-                logger.exception('Failed to expire job %s', job.id)
+                logger.exception("Failed to expire job %s", job.id)
                 failed += 1
 
         return expired, failed
-        
+
+
 class JobDuplicationService:
     """Clone an existing job as a new draft."""
 

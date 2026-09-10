@@ -17,6 +17,7 @@ approval sit empty, because nobody writes into a void for a week. The
 protections are a per-company limit of one, an edit window, and a report
 route that hides content pending review.
 """
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -37,33 +38,35 @@ class CompanyReview(TimestampedModel, SoftDeleteModel):
     """
 
     class EmploymentStatus(models.TextChoices):
-        CURRENT = 'current', 'Current employee'
-        FORMER = 'former', 'Former employee'
+        CURRENT = "current", "Current employee"
+        FORMER = "former", "Former employee"
 
     class Status(models.TextChoices):
-        PUBLISHED = 'published', 'Published'
-        UNDER_REVIEW = 'under_review', 'Hidden pending review'
-        REMOVED = 'removed', 'Removed by moderator'
+        PUBLISHED = "published", "Published"
+        UNDER_REVIEW = "under_review", "Hidden pending review"
+        REMOVED = "removed", "Removed by moderator"
 
     company = models.ForeignKey(
-        'recruiters.Company',
+        "recruiters.Company",
         on_delete=models.CASCADE,
-        related_name='reviews',
+        related_name="reviews",
     )
     # Stored for verification, deduplication and abuse handling. Never
     # serialised. See the module docstring.
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='company_reviews',
+        related_name="company_reviews",
     )
 
     job_title = models.CharField(max_length=120)
     employment_status = models.CharField(
-        max_length=10, choices=EmploymentStatus.choices,
+        max_length=10,
+        choices=EmploymentStatus.choices,
     )
     employment_years = models.PositiveSmallIntegerField(
-        default=0, help_text='Years spent at the company.',
+        default=0,
+        help_text="Years spent at the company.",
     )
 
     # The four dimensions from Feature 20
@@ -86,31 +89,33 @@ class CompanyReview(TimestampedModel, SoftDeleteModel):
     is_verified_employee = models.BooleanField(default=False)
 
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PUBLISHED,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PUBLISHED,
         db_index=True,
     )
     report_count = models.PositiveSmallIntegerField(default=0)
     helpful_count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        db_table = 'company_reviews'
-        ordering = ['-created_at']
+        db_table = "company_reviews"
+        ordering = ["-created_at"]
         constraints = [
             # One review per person per company. Without it a single bad
             # experience can be posted twenty times.
             models.UniqueConstraint(
-                fields=['company', 'author'],
+                fields=["company", "author"],
                 condition=models.Q(is_deleted=False),
-                name='one_review_per_person_per_company',
+                name="one_review_per_person_per_company",
             ),
         ]
         indexes = [
-            models.Index(fields=['company', 'status', '-created_at']),
-            models.Index(fields=['status', '-helpful_count']),
+            models.Index(fields=["company", "status", "-created_at"]),
+            models.Index(fields=["status", "-helpful_count"]),
         ]
 
     def __str__(self):
-        return f'{self.company.name}: {self.headline[:50]}'
+        return f"{self.company.name}: {self.headline[:50]}"
 
     @property
     def overall_rating(self):
@@ -122,8 +127,7 @@ class CompanyReview(TimestampedModel, SoftDeleteModel):
         at this scale.
         """
         total = (
-            self.rating_culture + self.rating_management
-            + self.rating_growth + self.rating_salary
+            self.rating_culture + self.rating_management + self.rating_growth + self.rating_salary
         )
         return round(total / 4, 1)
 
@@ -138,25 +142,25 @@ class InterviewExperience(TimestampedModel, SoftDeleteModel):
     """
 
     class Outcome(models.TextChoices):
-        OFFER = 'offer', 'Received an offer'
-        REJECTED = 'rejected', 'Rejected'
-        WITHDREW = 'withdrew', 'Withdrew'
-        PENDING = 'pending', 'Still waiting'
+        OFFER = "offer", "Received an offer"
+        REJECTED = "rejected", "Rejected"
+        WITHDREW = "withdrew", "Withdrew"
+        PENDING = "pending", "Still waiting"
 
     class Difficulty(models.TextChoices):
-        EASY = 'easy', 'Easy'
-        MODERATE = 'moderate', 'Moderate'
-        HARD = 'hard', 'Hard'
+        EASY = "easy", "Easy"
+        MODERATE = "moderate", "Moderate"
+        HARD = "hard", "Hard"
 
     company = models.ForeignKey(
-        'recruiters.Company',
+        "recruiters.Company",
         on_delete=models.CASCADE,
-        related_name='interview_experiences',
+        related_name="interview_experiences",
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='interview_experiences',
+        related_name="interview_experiences",
     )
 
     role_applied = models.CharField(max_length=120)
@@ -167,11 +171,12 @@ class InterviewExperience(TimestampedModel, SoftDeleteModel):
 
     process = models.TextField(
         max_length=2000,
-        help_text='What the rounds were and how they ran.',
+        help_text="What the rounds were and how they ran.",
     )
     questions_asked = models.JSONField(
-        default=list, blank=True,
-        help_text='Questions remembered from the interview.',
+        default=list,
+        blank=True,
+        help_text="Questions remembered from the interview.",
     )
 
     was_experience_positive = models.BooleanField(default=True)
@@ -185,14 +190,14 @@ class InterviewExperience(TimestampedModel, SoftDeleteModel):
     report_count = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
-        db_table = 'interview_experiences'
-        ordering = ['-created_at']
+        db_table = "interview_experiences"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['company', 'status', '-created_at']),
+            models.Index(fields=["company", "status", "-created_at"]),
         ]
 
     def __str__(self):
-        return f'{self.company.name}: {self.role_applied} ({self.outcome})'
+        return f"{self.company.name}: {self.role_applied} ({self.outcome})"
 
 
 class CompanyResponse(TimestampedModel):
@@ -203,16 +208,17 @@ class CompanyResponse(TimestampedModel):
     company reply repeatedly turns a review into an argument, which helps
     nobody reading it.
     """
+
     review = models.OneToOneField(
         CompanyReview,
         on_delete=models.CASCADE,
-        related_name='company_response',
+        related_name="company_response",
     )
     responder = models.ForeignKey(
-        'recruiters.RecruiterProfile',
+        "recruiters.RecruiterProfile",
         on_delete=models.SET_NULL,
         null=True,
-        related_name='review_responses',
+        related_name="review_responses",
     )
     # Kept so the response still reads correctly after the responder leaves.
     responder_name = models.CharField(max_length=120, blank=True)
@@ -221,10 +227,10 @@ class CompanyResponse(TimestampedModel):
     response = models.TextField(max_length=2000)
 
     class Meta:
-        db_table = 'company_review_responses'
+        db_table = "company_review_responses"
 
     def __str__(self):
-        return f'Response to {self.review_id}'
+        return f"Response to {self.review_id}"
 
 
 class ReviewReport(TimestampedModel):
@@ -237,21 +243,21 @@ class ReviewReport(TimestampedModel):
     """
 
     class Reason(models.TextChoices):
-        FALSE = 'false', 'Factually untrue'
-        ABUSIVE = 'abusive', 'Abusive or harassing'
-        IDENTIFYING = 'identifying', 'Identifies an individual'
-        SPAM = 'spam', 'Spam or promotional'
-        OTHER = 'other', 'Something else'
+        FALSE = "false", "Factually untrue"
+        ABUSIVE = "abusive", "Abusive or harassing"
+        IDENTIFYING = "identifying", "Identifies an individual"
+        SPAM = "spam", "Spam or promotional"
+        OTHER = "other", "Something else"
 
     review = models.ForeignKey(
         CompanyReview,
         on_delete=models.CASCADE,
-        related_name='reports',
+        related_name="reports",
     )
     reported_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='review_reports',
+        related_name="review_reports",
     )
     reason = models.CharField(max_length=20, choices=Reason.choices)
     detail = models.TextField(max_length=500, blank=True)
@@ -260,17 +266,17 @@ class ReviewReport(TimestampedModel):
     admin_notes = models.TextField(max_length=500, blank=True)
 
     class Meta:
-        db_table = 'review_reports'
-        ordering = ['-created_at']
+        db_table = "review_reports"
+        ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=['review', 'reported_by'],
-                name='one_report_per_person_per_review',
+                fields=["review", "reported_by"],
+                name="one_report_per_person_per_review",
             ),
         ]
 
     def __str__(self):
-        return f'Report on {self.review_id}: {self.reason}'
+        return f"Report on {self.review_id}: {self.reason}"
 
 
 class ReviewHelpfulVote(TimestampedModel):
@@ -280,24 +286,26 @@ class ReviewHelpfulVote(TimestampedModel):
     Only useful, never unhelpful. A downvote button on a review of an
     employer is a tool for that employer, and the signal is not worth it.
     """
+
     review = models.ForeignKey(
         CompanyReview,
         on_delete=models.CASCADE,
-        related_name='helpful_votes',
+        related_name="helpful_votes",
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='helpful_votes',
+        related_name="helpful_votes",
     )
 
     class Meta:
-        db_table = 'review_helpful_votes'
+        db_table = "review_helpful_votes"
         constraints = [
             models.UniqueConstraint(
-                fields=['review', 'user'], name='one_helpful_vote_per_person',
+                fields=["review", "user"],
+                name="one_helpful_vote_per_person",
             ),
         ]
 
     def __str__(self):
-        return f'{self.user_id} found {self.review_id} helpful'
+        return f"{self.user_id} found {self.review_id} helpful"

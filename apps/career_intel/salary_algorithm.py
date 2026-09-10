@@ -11,8 +11,8 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Sequence
 
 # Default sanity bounds for the Indian market (annual base, INR).
-DEFAULT_MIN_INR = 100_000        # 1 Lakh floor  -> anything lower is a data entry error
-DEFAULT_MAX_INR = 100_000_000    # 10 Crore ceiling -> anything higher needs verification
+DEFAULT_MIN_INR = 100_000  # 1 Lakh floor  -> anything lower is a data entry error
+DEFAULT_MAX_INR = 100_000_000  # 10 Crore ceiling -> anything higher needs verification
 
 
 def calculate_percentile(values: Sequence[float], pct: float) -> Optional[float]:
@@ -170,15 +170,15 @@ def calculate_aggregates(salaries: Sequence[Decimal]) -> Optional[Dict]:
     floats = [float(s) for s in salaries]
 
     return {
-        'count': len(floats),
-        'min': min(floats),
-        'max': max(floats),
-        'mean': sum(floats) / len(floats),
-        'median': calculate_median(floats),
-        'p10': calculate_percentile(floats, 10),
-        'p25': calculate_percentile(floats, 25),
-        'p75': calculate_percentile(floats, 75),
-        'p90': calculate_percentile(floats, 90),
+        "count": len(floats),
+        "min": min(floats),
+        "max": max(floats),
+        "mean": sum(floats) / len(floats),
+        "median": calculate_median(floats),
+        "p10": calculate_percentile(floats, 10),
+        "p25": calculate_percentile(floats, 25),
+        "p75": calculate_percentile(floats, 75),
+        "p90": calculate_percentile(floats, 90),
     }
 
 
@@ -235,39 +235,39 @@ def determine_market_position(user_salary, percentiles: Dict) -> str:
     """
     user_val = float(user_salary)
 
-    if user_val < percentiles['p25']:
-        return 'below_market'
-    if user_val < percentiles['p75']:
-        return 'fair_market'
-    if user_val < percentiles['p90']:
-        return 'above_market'
-    return 'top_of_market'
+    if user_val < percentiles["p25"]:
+        return "below_market"
+    if user_val < percentiles["p75"]:
+        return "fair_market"
+    if user_val < percentiles["p90"]:
+        return "above_market"
+    return "top_of_market"
 
 
 def market_position_message(position: str, user_salary, percentiles: Dict) -> str:
     """Build a short, human-readable summary of the user's market position."""
     user_val = float(user_salary)
-    median = percentiles.get('median') or 0
+    median = percentiles.get("median") or 0
 
     # Guard against a division by zero if the median is somehow 0.
     diff_pct = ((user_val - median) / median * 100) if median else 0
 
     messages = {
-        'below_market': (
+        "below_market": (
             f"Your salary is below the 25th percentile. "
             f"The market median is ₹{median / 100000:.1f}L and you are at "
             f"₹{user_val / 100000:.1f}L ({abs(diff_pct):.0f}% below the median). "
             f"This may be worth negotiating."
         ),
-        'fair_market': (
+        "fair_market": (
             f"Your salary sits in the fair range, between the 25th and 75th percentile. "
             f"The market median is ₹{median / 100000:.1f}L."
         ),
-        'above_market': (
+        "above_market": (
             f"You are paid above market. The 75th percentile is "
             f"₹{percentiles['p75'] / 100000:.1f}L and you are at ₹{user_val / 100000:.1f}L."
         ),
-        'top_of_market': (
+        "top_of_market": (
             f"Top earner. You are in the top 10%: the 90th percentile is "
             f"₹{percentiles['p90'] / 100000:.1f}L."
         ),

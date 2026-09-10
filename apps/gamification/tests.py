@@ -5,6 +5,7 @@ Two things get most of the attention here: the points economy, because it
 touches revenue, and the streak, because the unit of time is the whole
 design decision.
 """
+
 from datetime import date, timedelta
 
 import pytest
@@ -41,7 +42,7 @@ def badges(db):
     """Badge definitions, seeded the way the command does."""
     from django.core.management import call_command
 
-    call_command('seed_badges', verbosity=0)
+    call_command("seed_badges", verbosity=0)
 
 
 @pytest.fixture
@@ -61,16 +62,18 @@ def make_skill(db):
 
     def _make(name):
         return Skill.objects.create(name=name)
+
     return _make
 
 
 def give(user, amount):
-    return PointsService.award(user, amount, Reason.ADJUSTMENT, 'test')
+    return PointsService.award(user, amount, Reason.ADJUSTMENT, "test")
 
 
 # --------------------------------------------------------------------------
 # Points ledger
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_a_new_user_has_no_points(seeker_user):
@@ -121,7 +124,7 @@ def test_every_movement_leaves_a_row(seeker_user):
     has to be answerable.
     """
     give(seeker_user, 100)
-    PointsService.spend(seeker_user, 40, Reason.REDEMPTION, 'A perk')
+    PointsService.spend(seeker_user, 40, Reason.REDEMPTION, "A perk")
 
     history = list(PointsService.history(seeker_user))
 
@@ -139,17 +142,18 @@ def test_points_are_per_user(seeker_user, recruiter_user):
 # Badges
 # --------------------------------------------------------------------------
 
+
 def test_a_badge_can_be_awarded(seeker_user):
-    _, created = BadgeService.award(seeker_user, 'first-application')
+    _, created = BadgeService.award(seeker_user, "first-application")
 
     assert created is True
     assert EarnedBadge.objects.filter(user=seeker_user).count() == 1
 
 
 def test_a_badge_carries_points(seeker_user):
-    badge = Badge.objects.get(code='first-application')
+    badge = Badge.objects.get(code="first-application")
 
-    BadgeService.award(seeker_user, 'first-application')
+    BadgeService.award(seeker_user, "first-application")
 
     assert PointsService.balance(seeker_user) == badge.points
 
@@ -157,17 +161,17 @@ def test_a_badge_carries_points(seeker_user):
 @pytest.mark.regression
 def test_a_badge_pays_only_once(seeker_user):
     """Re-running the checker must not keep topping people up."""
-    BadgeService.award(seeker_user, 'first-application')
+    BadgeService.award(seeker_user, "first-application")
     balance = PointsService.balance(seeker_user)
 
-    _, created = BadgeService.award(seeker_user, 'first-application')
+    _, created = BadgeService.award(seeker_user, "first-application")
 
     assert created is False
     assert PointsService.balance(seeker_user) == balance
 
 
 def test_an_unknown_badge_code_is_ignored(seeker_user):
-    earned, created = BadgeService.award(seeker_user, 'no-such-badge')
+    earned, created = BadgeService.award(seeker_user, "no-such-badge")
 
     assert earned is None
     assert created is False
@@ -176,13 +180,13 @@ def test_an_unknown_badge_code_is_ignored(seeker_user):
 def test_profile_badges_follow_the_strength_score(seeker, make_skill):
     from apps.seekers.models import SeekerSkill
 
-    seeker.full_name = 'Palak K'
-    seeker.bio = 'Backend engineer focused on payments and search systems. ' * 2
-    seeker.location = 'Bangalore'
-    seeker.current_title = 'Backend Developer'
-    seeker.target_role = 'Senior Backend Engineer'
+    seeker.full_name = "Palak K"
+    seeker.bio = "Backend engineer focused on payments and search systems. " * 2
+    seeker.location = "Bangalore"
+    seeker.current_title = "Backend Developer"
+    seeker.target_role = "Senior Backend Engineer"
     seeker.save()
-    SeekerSkill.objects.create(seeker=seeker, skill=make_skill('Python'))
+    SeekerSkill.objects.create(seeker=seeker, skill=make_skill("Python"))
     seeker.refresh_from_db()
 
     # basic_info 15 + career_goals 15 + one skill 5 = 35, over the 25 floor
@@ -190,21 +194,23 @@ def test_profile_badges_follow_the_strength_score(seeker, make_skill):
 
     earned = BadgeService.check_all(seeker.user)
 
-    assert 'profile-started' in earned
-    assert 'profile-complete' not in earned
+    assert "profile-started" in earned
+    assert "profile-complete" not in earned
+
 
 def test_skill_badges_follow_the_skill_count(seeker, make_skill):
     from apps.seekers.models import SeekerSkill
 
     for index in range(5):
         SeekerSkill.objects.create(
-            seeker=seeker, skill=make_skill(f'Skill {index}'),
+            seeker=seeker,
+            skill=make_skill(f"Skill {index}"),
         )
 
     earned = BadgeService.check_all(seeker.user)
 
-    assert 'skills-5' in earned
-    assert 'skills-10' not in earned
+    assert "skills-5" in earned
+    assert "skills-10" not in earned
 
 
 def test_an_application_earns_the_first_step_badge(seeker, job):
@@ -214,7 +220,7 @@ def test_an_application_earns_the_first_step_badge(seeker, job):
 
     earned = BadgeService.check_all(seeker.user)
 
-    assert 'first-application' in earned
+    assert "first-application" in earned
 
 
 @pytest.mark.regression
@@ -224,16 +230,16 @@ def test_a_withdrawn_application_still_counts_towards_badges(seeker, job):
     when someone withdraws would punish a reasonable decision.
     """
     from apps.applications.models import Application
-    from apps.applications.services import (
-        ApplicationCreationService, ApplicationStatusService,
-    )
+    from apps.applications.services import ApplicationCreationService, ApplicationStatusService
 
     application = ApplicationCreationService.create(seeker, job)
     ApplicationStatusService.update_status(
-        application, Application.Status.WITHDRAWN, actor=seeker.user,
+        application,
+        Application.Status.WITHDRAWN,
+        actor=seeker.user,
     )
 
-    assert 'first-application' in BadgeService.check_all(seeker.user)
+    assert "first-application" in BadgeService.check_all(seeker.user)
 
 
 def test_checking_twice_awards_nothing_new(seeker, job):
@@ -253,9 +259,12 @@ def test_a_recruiter_earns_no_seeker_badges(recruiter_user):
 # Streaks
 # --------------------------------------------------------------------------
 
+
 def test_the_week_starts_on_monday():
     wednesday = timezone.now().replace(
-        year=2026, month=9, day=9,
+        year=2026,
+        month=9,
+        day=9,
     )  # a Wednesday
     assert week_start(wednesday) == date(2026, 9, 7)  # the Monday
 
@@ -302,7 +311,8 @@ def test_the_longest_streak_is_remembered(seeker_user):
     now = timezone.now()
     for weeks_ago in (4, 3, 2):
         StreakService.record_application(
-            seeker_user, when=now - timedelta(days=weeks_ago * 7),
+            seeker_user,
+            when=now - timedelta(days=weeks_ago * 7),
         )
     StreakService.record_application(seeker_user, when=now)
 
@@ -315,7 +325,8 @@ def test_a_streak_milestone_pays_points(seeker_user):
     now = timezone.now()
     for weeks_ago in (3, 2, 1, 0):
         StreakService.record_application(
-            seeker_user, when=now - timedelta(days=weeks_ago * 7),
+            seeker_user,
+            when=now - timedelta(days=weeks_ago * 7),
         )
 
     assert PointsService.balance(seeker_user) == 25  # the 4-week milestone
@@ -328,27 +339,29 @@ def test_a_stale_streak_reads_as_zero(seeker_user):
     that ended a month ago would be a lie the database is happy to tell.
     """
     StreakService.record_application(
-        seeker_user, when=timezone.now() - timedelta(days=30),
+        seeker_user,
+        when=timezone.now() - timedelta(days=30),
     )
 
     current = StreakService.current(seeker_user)
 
-    assert current['current_weeks'] == 0
-    assert current['is_live'] is False
-    assert current['longest_weeks'] == 1
+    assert current["current_weeks"] == 0
+    assert current["is_live"] is False
+    assert current["longest_weeks"] == 1
 
 
 def test_last_weeks_streak_is_still_live(seeker_user):
     """The week is not over yet, so there is still time to keep it."""
     StreakService.record_application(
-        seeker_user, when=timezone.now() - timedelta(days=7),
+        seeker_user,
+        when=timezone.now() - timedelta(days=7),
     )
 
-    assert StreakService.current(seeker_user)['is_live'] is True
+    assert StreakService.current(seeker_user)["is_live"] is True
 
 
 def test_someone_who_never_applied_has_no_streak(seeker_user):
-    assert StreakService.current(seeker_user)['current_weeks'] == 0
+    assert StreakService.current(seeker_user)["current_weeks"] == 0
 
 
 @pytest.mark.regression
@@ -358,12 +371,13 @@ def test_applying_updates_the_streak_automatically(seeker, job):
 
     ApplicationCreationService.create(seeker, job)
 
-    assert StreakService.current(seeker.user)['current_weeks'] == 1
+    assert StreakService.current(seeker.user)["current_weeks"] == 1
 
 
 # --------------------------------------------------------------------------
 # Weekly goals
 # --------------------------------------------------------------------------
+
 
 def test_a_goal_can_be_set(seeker_user):
     goal = GoalService.set_goal(seeker_user, WeeklyGoal.Kind.APPLICATIONS, 3)
@@ -381,7 +395,7 @@ def test_a_goal_can_be_changed_while_the_week_is_open(seeker_user):
     assert goals.first().target == 5
 
 
-@pytest.mark.parametrize('target', [0, -1, 51, 1000])
+@pytest.mark.parametrize("target", [0, -1, 51, 1000])
 def test_absurd_targets_are_refused(seeker_user, target):
     with pytest.raises(ValidationError):
         GoalService.set_goal(seeker_user, WeeklyGoal.Kind.APPLICATIONS, target)
@@ -396,9 +410,9 @@ def test_progress_counts_this_weeks_applications(seeker, six_jobs):
 
     progress = GoalService.progress(seeker.user)
 
-    assert progress[0]['current'] == 2
-    assert progress[0]['target'] == 3
-    assert progress[0]['achieved'] is False
+    assert progress[0]["current"] == 2
+    assert progress[0]["target"] == 3
+    assert progress[0]["achieved"] is False
 
 
 def test_meeting_a_goal_pays_points(seeker, six_jobs):
@@ -409,7 +423,7 @@ def test_meeting_a_goal_pays_points(seeker, six_jobs):
         ApplicationCreationService.create(seeker, job)
 
     assert PointsService.balance(seeker.user) >= GoalService.GOAL_POINTS
-    assert GoalService.progress(seeker.user)[0]['achieved'] is True
+    assert GoalService.progress(seeker.user)[0]["achieved"] is True
 
 
 @pytest.mark.regression
@@ -425,7 +439,8 @@ def test_exceeding_a_goal_does_not_pay_twice(seeker, six_jobs):
         ApplicationCreationService.create(seeker, job)
 
     goal_points = PointsLedger.objects.filter(
-        user=seeker.user, reason=Reason.GOAL,
+        user=seeker.user,
+        reason=Reason.GOAL,
     )
     assert goal_points.count() == 1
 
@@ -441,12 +456,13 @@ def test_last_weeks_applications_do_not_count(seeker, job):
 
     GoalService.set_goal(seeker.user, WeeklyGoal.Kind.APPLICATIONS, 1)
 
-    assert GoalService.progress(seeker.user)[0]['current'] == 0
+    assert GoalService.progress(seeker.user)[0]["current"] == 0
 
 
 # --------------------------------------------------------------------------
 # Perks
 # --------------------------------------------------------------------------
+
 
 def test_a_perk_can_be_redeemed(seeker_user):
     give(seeker_user, 200)
@@ -515,9 +531,7 @@ def test_a_perk_is_priced_out_of_casual_reach(seeker_user):
     Every badge at once comes to less than the cheapest perk. Points have to
     show someone what Pro does without becoming a substitute for it.
     """
-    every_badge_point = sum(
-        Badge.objects.values_list('points', flat=True)
-    )
+    every_badge_point = sum(Badge.objects.values_list("points", flat=True))
 
     assert min(PERK_COSTS.values()) < every_badge_point  # reachable
     assert min(PERK_COSTS.values()) > every_badge_point / 3  # not trivially
@@ -526,21 +540,22 @@ def test_a_perk_is_priced_out_of_casual_reach(seeker_user):
 def test_the_perk_list_shows_affordability(seeker_user):
     give(seeker_user, PERK_COSTS[Perk.MATCH_SCORE_DAY])
 
-    perks = {p['perk']: p for p in PerkService.available(seeker_user)}
+    perks = {p["perk"]: p for p in PerkService.available(seeker_user)}
 
-    assert perks[Perk.MATCH_SCORE_DAY]['affordable'] is True
-    assert perks[Perk.SKILL_GAP_DAY]['affordable'] is False
+    assert perks[Perk.MATCH_SCORE_DAY]["affordable"] is True
+    assert perks[Perk.SKILL_GAP_DAY]["affordable"] is False
 
 
 # --------------------------------------------------------------------------
 # Endpoints
 # --------------------------------------------------------------------------
 
+
 def test_the_progress_endpoint_returns_everything(auth, seeker_user):
-    response = auth.get('/api/v1/gamification/me/')
+    response = auth.get("/api/v1/gamification/me/")
 
     assert response.status_code == 200
-    for key in ('points', 'badges', 'streak', 'goals', 'perks'):
+    for key in ("points", "badges", "streak", "goals", "perks"):
         assert key in response.data
 
 
@@ -549,25 +564,35 @@ def test_the_progress_endpoint_awards_pending_badges(auth, seeker, job):
 
     ApplicationCreationService.create(seeker, job)
 
-    response = auth.get('/api/v1/gamification/me/')
+    response = auth.get("/api/v1/gamification/me/")
 
-    earned = {b['code'] for b in response.data['badges'] if b['earned']}
-    assert 'first-application' in earned
+    earned = {b["code"] for b in response.data["badges"] if b["earned"]}
+    assert "first-application" in earned
 
 
 def test_a_goal_can_be_set_through_the_api(auth):
-    response = auth.post('/api/v1/gamification/goals/', {
-        'kind': 'applications', 'target': 3,
-    }, format='json')
+    response = auth.post(
+        "/api/v1/gamification/goals/",
+        {
+            "kind": "applications",
+            "target": 3,
+        },
+        format="json",
+    )
 
     assert response.status_code == 201
-    assert response.data['goals'][0]['target'] == 3
+    assert response.data["goals"][0]["target"] == 3
 
 
 def test_the_api_refuses_an_absurd_target(auth):
-    response = auth.post('/api/v1/gamification/goals/', {
-        'kind': 'applications', 'target': 500,
-    }, format='json')
+    response = auth.post(
+        "/api/v1/gamification/goals/",
+        {
+            "kind": "applications",
+            "target": 500,
+        },
+        format="json",
+    )
 
     assert response.status_code == 400
 
@@ -575,18 +600,26 @@ def test_the_api_refuses_an_absurd_target(auth):
 def test_redeeming_through_the_api(auth, seeker_user):
     give(seeker_user, 200)
 
-    response = auth.post('/api/v1/gamification/perks/redeem/', {
-        'perk': 'match_score_day',
-    }, format='json')
+    response = auth.post(
+        "/api/v1/gamification/perks/redeem/",
+        {
+            "perk": "match_score_day",
+        },
+        format="json",
+    )
 
     assert response.status_code == 201
-    assert response.data['points_spent'] == PERK_COSTS[Perk.MATCH_SCORE_DAY]
+    assert response.data["points_spent"] == PERK_COSTS[Perk.MATCH_SCORE_DAY]
 
 
 def test_redeeming_without_points_returns_400(auth):
-    response = auth.post('/api/v1/gamification/perks/redeem/', {
-        'perk': 'match_score_day',
-    }, format='json')
+    response = auth.post(
+        "/api/v1/gamification/perks/redeem/",
+        {
+            "perk": "match_score_day",
+        },
+        format="json",
+    )
 
     assert response.status_code == 400
 
@@ -594,28 +627,29 @@ def test_redeeming_without_points_returns_400(auth):
 def test_the_points_history_endpoint(auth, seeker_user):
     give(seeker_user, 50)
 
-    response = auth.get('/api/v1/gamification/points/')
+    response = auth.get("/api/v1/gamification/points/")
 
-    assert response.data['balance'] == 50
-    assert len(response.data['history']) == 1
+    assert response.data["balance"] == 50
+    assert len(response.data["history"]) == 1
 
 
 def test_recruiters_have_no_gamification(recruiter_user):
     client = APIClient()
     client.force_authenticate(user=recruiter_user)
 
-    assert client.get('/api/v1/gamification/me/').status_code == 403
+    assert client.get("/api/v1/gamification/me/").status_code == 403
 
 
 def test_gamification_needs_a_login():
     assert APIClient().get(
-        '/api/v1/gamification/me/',
+        "/api/v1/gamification/me/",
     ).status_code in (401, 403)
 
 
 # --------------------------------------------------------------------------
 # Safety
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_a_gamification_failure_does_not_break_an_application(seeker, job):
@@ -628,8 +662,8 @@ def test_a_gamification_failure_does_not_break_an_application(seeker, job):
     from apps.applications.services import ApplicationCreationService
 
     with patch(
-        'apps.gamification.services.StreakService.record_application',
-        side_effect=RuntimeError('gamification exploded'),
+        "apps.gamification.services.StreakService.record_application",
+        side_effect=RuntimeError("gamification exploded"),
     ):
         application = ApplicationCreationService.create(seeker, job)
 
@@ -640,6 +674,6 @@ def test_the_badge_seed_is_idempotent(db):
     from django.core.management import call_command
 
     before = Badge.objects.count()
-    call_command('seed_badges', verbosity=0)
+    call_command("seed_badges", verbosity=0)
 
     assert Badge.objects.count() == before

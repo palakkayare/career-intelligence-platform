@@ -7,27 +7,57 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Skill',
+            name="Skill",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(db_index=True, max_length=100, unique=True)),
-                ('slug', models.SlugField(blank=True, max_length=120, unique=True)),
-                ('category', models.CharField(choices=[('programming', 'Programming Languages'), ('framework', 'Frameworks & Libraries'), ('database', 'Databases'), ('cloud', 'Cloud & DevOps'), ('design', 'Design'), ('soft_skill', 'Soft Skills'), ('domain', 'Domain Knowledge'), ('tool', 'Tools'), ('other', 'Other')], db_index=True, default='other', max_length=30)),
-                ('aliases', models.JSONField(blank=True, default=list)),
-                ('is_approved', models.BooleanField(default=True)),
-                ('is_deprecated', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(db_index=True, max_length=100, unique=True)),
+                ("slug", models.SlugField(blank=True, max_length=120, unique=True)),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("programming", "Programming Languages"),
+                            ("framework", "Frameworks & Libraries"),
+                            ("database", "Databases"),
+                            ("cloud", "Cloud & DevOps"),
+                            ("design", "Design"),
+                            ("soft_skill", "Soft Skills"),
+                            ("domain", "Domain Knowledge"),
+                            ("tool", "Tools"),
+                            ("other", "Other"),
+                        ],
+                        db_index=True,
+                        default="other",
+                        max_length=30,
+                    ),
+                ),
+                ("aliases", models.JSONField(blank=True, default=list)),
+                ("is_approved", models.BooleanField(default=True)),
+                ("is_deprecated", models.BooleanField(default=False)),
             ],
             options={
-                'db_table': 'skills',
-                'ordering': ['name'],
-                'indexes': [models.Index(fields=['category', 'is_approved'], name='skills_categor_bd2274_idx')],
+                "db_table": "skills",
+                "ordering": ["name"],
+                "indexes": [
+                    models.Index(
+                        fields=["category", "is_approved"],
+                        name="skills_categor_bd2274_idx",
+                    )
+                ],
             },
         ),
     ]

@@ -13,9 +13,7 @@ from apps.core.models import TimestampedModel
 
 # Ambiguous characters are excluded so a code can be shared verbally
 # without confusion: O vs 0, I vs 1 vs L.
-ALLOWED_CHARS = ''.join(
-    c for c in (string.ascii_uppercase + string.digits) if c not in 'O0I1L'
-)
+ALLOWED_CHARS = "".join(c for c in (string.ascii_uppercase + string.digits) if c not in "O0I1L")
 
 
 def generate_unique_code(user, max_attempts: int = 10) -> str:
@@ -25,19 +23,19 @@ def generate_unique_code(user, max_attempts: int = 10) -> str:
     Example: "PRIYA-X4F9". Retries on collision, then falls back to a
     fully random code.
     """
-        # Different user models expose the name differently, so try the common
+    # Different user models expose the name differently, so try the common
     # options in order and fall back to the email prefix.
     raw_name = (
-        getattr(user, 'first_name', '')
-        or (getattr(user, 'full_name', '') or '').split(' ')[0]
-        or (getattr(user, 'email', '') or '').split('@')[0]
+        getattr(user, "first_name", "")
+        or (getattr(user, "full_name", "") or "").split(" ")[0]
+        or (getattr(user, "email", "") or "").split("@")[0]
     )
 
     name_part = raw_name[:6].upper()
     # Keep letters and digits only, so the code stays URL safe
-    name_part = ''.join(c for c in name_part if c.isalnum()) or 'USER'
+    name_part = "".join(c for c in name_part if c.isalnum()) or "USER"
     for _ in range(max_attempts):
-        random_part = ''.join(secrets.choice(ALLOWED_CHARS) for _ in range(4))
+        random_part = "".join(secrets.choice(ALLOWED_CHARS) for _ in range(4))
         code = f"{name_part}-{random_part}"
         if not ReferralCode.objects.filter(code=code).exists():
             return code
@@ -54,7 +52,7 @@ class ReferralCode(TimestampedModel):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='referral_code',
+        related_name="referral_code",
     )
     code = models.CharField(max_length=20, unique=True, db_index=True)
 
@@ -66,7 +64,7 @@ class ReferralCode(TimestampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'referral_codes'
+        db_table = "referral_codes"
 
     def __str__(self):
         return f"{self.code} ({self.user.email})"
@@ -78,27 +76,27 @@ class Referral(TimestampedModel):
     """
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending (signed up)'
-        CONVERTED = 'converted', 'Converted (paid)'
-        EXPIRED = 'expired', 'Expired'
-        FLAGGED = 'flagged', 'Flagged (abuse review)'
+        PENDING = "pending", "Pending (signed up)"
+        CONVERTED = "converted", "Converted (paid)"
+        EXPIRED = "expired", "Expired"
+        FLAGGED = "flagged", "Flagged (abuse review)"
 
     referrer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='referrals_made',
+        related_name="referrals_made",
     )
     # OneToOne: a user can be referred only once, ever
     referee = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='referral_received',
+        related_name="referral_received",
     )
     code_used = models.ForeignKey(
         ReferralCode,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='referrals',
+        related_name="referrals",
     )
     status = models.CharField(
         max_length=20,
@@ -111,7 +109,10 @@ class Referral(TimestampedModel):
     signup_at = models.DateTimeField(auto_now_add=True)
     converted_at = models.DateTimeField(null=True, blank=True)
     converted_amount_inr = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True,
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
 
     # Audit trail for abuse review
@@ -120,11 +121,11 @@ class Referral(TimestampedModel):
     flag_reason = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'referrals'
-        ordering = ['-created_at']
+        db_table = "referrals"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['referrer', 'status']),
-            models.Index(fields=['-created_at']),
+            models.Index(fields=["referrer", "status"]),
+            models.Index(fields=["-created_at"]),
         ]
 
     def __str__(self):
@@ -137,24 +138,24 @@ class ReferralReward(TimestampedModel):
     """
 
     class Kind(models.TextChoices):
-        PRO_EXTENSION = 'pro_extension', 'Pro Subscription Extension'
-        DISCOUNT = 'discount', 'Discount Code'
+        PRO_EXTENSION = "pro_extension", "Pro Subscription Extension"
+        DISCOUNT = "discount", "Discount Code"
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending Grant'
-        GRANTED = 'granted', 'Granted (available to use)'
-        USED = 'used', 'Used'
-        EXPIRED = 'expired', 'Expired'
+        PENDING = "pending", "Pending Grant"
+        GRANTED = "granted", "Granted (available to use)"
+        USED = "used", "Used"
+        EXPIRED = "expired", "Expired"
 
     referral = models.ForeignKey(
         Referral,
         on_delete=models.CASCADE,
-        related_name='rewards',
+        related_name="rewards",
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='referral_rewards',
+        related_name="referral_rewards",
     )
     kind = models.CharField(max_length=20, choices=Kind.choices)
 
@@ -175,10 +176,10 @@ class ReferralReward(TimestampedModel):
     expires_at = models.DateTimeField()
 
     class Meta:
-        db_table = 'referral_rewards'
-        ordering = ['-created_at']
+        db_table = "referral_rewards"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', 'status', 'expires_at']),
+            models.Index(fields=["user", "status", "expires_at"]),
         ]
 
     def __str__(self):
@@ -191,7 +192,7 @@ class ReferralReward(TimestampedModel):
         if self.expires_at and self.expires_at < timezone.now():
             return False
         return True
-    
+
     @classmethod
     def expire_stale(cls, user=None):
         """Flip granted rewards whose expiry has passed. Returns rows updated."""

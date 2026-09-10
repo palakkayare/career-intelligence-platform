@@ -224,7 +224,9 @@ def run():
 
         print(f"  {'created' if created else 'updated'}\n")
 
-    print(f"Done. Active jobs in database: {Job.objects.filter(status=Job.Status.ACTIVE, is_deleted=False).count()}")
+    print(
+        f"Done. Active jobs in database: {Job.objects.filter(status=Job.Status.ACTIVE, is_deleted=False).count()}"
+    )
 
 
 run()

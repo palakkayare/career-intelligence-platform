@@ -5,6 +5,7 @@ An endorsement is only worth something if it is hard to manufacture, so most
 of these tests are about the two cheap ways to fake one: endorsing yourself,
 and clicking twice.
 """
+
 import pytest
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def python_skill(db):
-    return Skill.objects.create(name='Python')
+    return Skill.objects.create(name="Python")
 
 
 @pytest.fixture
@@ -27,10 +28,12 @@ def seeker_skill(seeker, python_skill):
     return SeekerSkill.objects.create(seeker=seeker, skill=python_skill)
 
 
-def make_endorser(email='endorser@test.com'):
+def make_endorser(email="endorser@test.com"):
     return User.objects.create_user(
-        email=email, password='TestPass123!',
-        role=User.Role.SEEKER, is_email_verified=True,
+        email=email,
+        password="TestPass123!",
+        role=User.Role.SEEKER,
+        is_email_verified=True,
     )
 
 
@@ -43,11 +46,13 @@ def endorser(plans):
 # Endorsing
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.regression
 def test_someone_can_endorse_a_skill(seeker_skill, endorser):
     """Regression: Feature 12 lists skill endorsements; none existed."""
     endorsement, created = SkillEndorsementService.endorse(
-        seeker_skill, endorser,
+        seeker_skill,
+        endorser,
     )
 
     seeker_skill.refresh_from_db()
@@ -67,8 +72,7 @@ def test_nobody_can_endorse_their_own_skill(seeker_skill, seeker):
 
 
 @pytest.mark.regression
-def test_one_person_counts_once_however_many_times_they_click(seeker_skill,
-                                                              endorser):
+def test_one_person_counts_once_however_many_times_they_click(seeker_skill, endorser):
     """
     An enthusiastic supporter clicking five times must not look like five
     people.
@@ -93,16 +97,16 @@ def test_a_repeat_endorsement_is_not_an_error(seeker_skill, endorser):
 def test_different_people_each_count(seeker_skill, plans):
     for index in range(3):
         SkillEndorsementService.endorse(
-            seeker_skill, make_endorser(f'e{index}@test.com'),
+            seeker_skill,
+            make_endorser(f"e{index}@test.com"),
         )
 
     seeker_skill.refresh_from_db()
     assert seeker_skill.endorsement_count == 3
 
 
-def test_endorsements_are_per_skill_not_per_person(seeker, endorser,
-                                                   python_skill):
-    django = Skill.objects.create(name='Django')
+def test_endorsements_are_per_skill_not_per_person(seeker, endorser, python_skill):
+    django = Skill.objects.create(name="Django")
     python_row = SeekerSkill.objects.create(seeker=seeker, skill=python_skill)
     django_row = SeekerSkill.objects.create(seeker=seeker, skill=django)
 
@@ -117,6 +121,7 @@ def test_endorsements_are_per_skill_not_per_person(seeker, endorser,
 # --------------------------------------------------------------------------
 # Withdrawing
 # --------------------------------------------------------------------------
+
 
 def test_an_endorsement_can_be_taken_back(seeker_skill, endorser):
     SkillEndorsementService.endorse(seeker_skill, endorser)
@@ -133,8 +138,8 @@ def test_withdrawing_what_was_never_given_reports_so(seeker_skill, endorser):
 
 
 def test_withdrawing_leaves_other_endorsements_alone(seeker_skill, plans):
-    first = make_endorser('first@test.com')
-    second = make_endorser('second@test.com')
+    first = make_endorser("first@test.com")
+    second = make_endorser("second@test.com")
     SkillEndorsementService.endorse(seeker_skill, first)
     SkillEndorsementService.endorse(seeker_skill, second)
 
@@ -145,8 +150,7 @@ def test_withdrawing_leaves_other_endorsements_alone(seeker_skill, plans):
 
 
 @pytest.mark.regression
-def test_deleting_the_skill_takes_its_endorsements_with_it(seeker_skill,
-                                                           endorser):
+def test_deleting_the_skill_takes_its_endorsements_with_it(seeker_skill, endorser):
     """An endorsement of a skill nobody claims any more means nothing."""
     SkillEndorsementService.endorse(seeker_skill, endorser)
     skill_id = seeker_skill.pk
@@ -162,8 +166,8 @@ def test_a_withdrawn_endorsement_stops_counting(seeker_skill, plans):
     account closure is a soft delete. Removing the endorsement row is the
     path that actually happens.
     """
-    first = make_endorser('first-leaver@test.com')
-    second = make_endorser('second-stays@test.com')
+    first = make_endorser("first-leaver@test.com")
+    second = make_endorser("second-stays@test.com")
     SkillEndorsementService.endorse(seeker_skill, first)
     SkillEndorsementService.endorse(seeker_skill, second)
 
@@ -176,6 +180,7 @@ def test_a_withdrawn_endorsement_stops_counting(seeker_skill, plans):
 # --------------------------------------------------------------------------
 # The counter
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_the_counter_is_rebuildable_from_the_rows(seeker_skill, endorser):
@@ -193,8 +198,7 @@ def test_the_counter_is_rebuildable_from_the_rows(seeker_skill, endorser):
     assert seeker_skill.endorsement_count == 1
 
 
-def test_endorsing_does_not_change_the_profile_strength(seeker, seeker_skill,
-                                                        endorser):
+def test_endorsing_does_not_change_the_profile_strength(seeker, seeker_skill, endorser):
     """
     Endorsements are other people's opinions. Letting them move a score the
     owner is told to improve would be a strange incentive.
@@ -212,8 +216,9 @@ def test_endorsing_does_not_change_the_profile_strength(seeker, seeker_skill,
 # Endpoints
 # --------------------------------------------------------------------------
 
+
 def endorse_url(seeker_skill):
-    return f'/api/v1/seekers/skills/{seeker_skill.pk}/endorse/'
+    return f"/api/v1/seekers/skills/{seeker_skill.pk}/endorse/"
 
 
 def test_the_endpoint_records_an_endorsement(seeker_skill, endorser):
@@ -223,8 +228,8 @@ def test_the_endpoint_records_an_endorsement(seeker_skill, endorser):
     response = client.post(endorse_url(seeker_skill))
 
     assert response.status_code == 201
-    assert response.data['endorsement_count'] == 1
-    assert response.data['endorsed'] is True
+    assert response.data["endorsement_count"] == 1
+    assert response.data["endorsed"] is True
 
 
 def test_the_endpoint_is_idempotent(seeker_skill, endorser):
@@ -235,7 +240,7 @@ def test_the_endpoint_is_idempotent(seeker_skill, endorser):
     response = client.post(endorse_url(seeker_skill))
 
     assert response.status_code == 200
-    assert response.data['endorsement_count'] == 1
+    assert response.data["endorsement_count"] == 1
 
 
 def test_the_endpoint_refuses_self_endorsement(seeker_skill, seeker):
@@ -253,8 +258,8 @@ def test_the_endpoint_can_withdraw(seeker_skill, endorser):
     response = client.delete(endorse_url(seeker_skill))
 
     assert response.status_code == 200
-    assert response.data['endorsement_count'] == 0
-    assert response.data['endorsed'] is False
+    assert response.data["endorsement_count"] == 0
+    assert response.data["endorsed"] is False
 
 
 def test_withdrawing_without_endorsing_returns_404(seeker_skill, endorser):
@@ -272,4 +277,4 @@ def test_endorsing_an_unknown_skill_returns_404(endorser):
     client = APIClient()
     client.force_authenticate(user=endorser)
 
-    assert client.post('/api/v1/seekers/skills/999999/endorse/').status_code == 404
+    assert client.post("/api/v1/seekers/skills/999999/endorse/").status_code == 404

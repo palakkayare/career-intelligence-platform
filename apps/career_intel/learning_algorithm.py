@@ -9,20 +9,20 @@ from typing import Dict, List, Optional, Set
 
 # Importance weights, kept in sync with algorithm.py (Feature 12)
 IMPORTANCE_WEIGHTS = {
-    'critical': 1.0,
-    'important': 0.7,
-    'preferred': 0.4,
-    'optional': 0.2,
+    "critical": 1.0,
+    "important": 0.7,
+    "preferred": 0.4,
+    "optional": 0.2,
 }
 
 # Which resource difficulties suit a user at a given skill level.
 # A user with no exposure should not be handed an advanced course.
 DIFFICULTY_LADDER = {
-    None: ['beginner'],
-    'beginner': ['beginner', 'intermediate'],
-    'intermediate': ['intermediate', 'advanced'],
-    'advanced': ['advanced', 'expert'],
-    'expert': ['expert'],
+    None: ["beginner"],
+    "beginner": ["beginner", "intermediate"],
+    "intermediate": ["intermediate", "advanced"],
+    "advanced": ["advanced", "expert"],
+    "expert": ["expert"],
 }
 
 
@@ -50,7 +50,7 @@ def filter_by_difficulty(resources: List, user_skill_level: Optional[str] = None
 
     user_skill_level is None when the user has no exposure to the skill at all.
     """
-    levels = DIFFICULTY_LADDER.get(user_skill_level, ['beginner'])
+    levels = DIFFICULTY_LADDER.get(user_skill_level, ["beginner"])
     return [r for r in resources if r.difficulty in levels]
 
 
@@ -63,12 +63,12 @@ def prioritize_skills(
     Order skills by importance, and by learning effort within each importance
     band, so the user always gets an achievable win before a long slog.
     """
-    difficulty_order = {'easy': 0, 'medium': 1, 'hard': 2}
+    difficulty_order = {"easy": 0, "medium": 1, "hard": 2}
 
     def sort_within(skills):
         return sorted(
             skills,
-            key=lambda s: difficulty_order.get(s.get('difficulty', 'medium'), 1),
+            key=lambda s: difficulty_order.get(s.get("difficulty", "medium"), 1),
         )
 
     ordered = []
@@ -95,11 +95,11 @@ def cap_recommendations(
         if total >= total_max:
             break
 
-        item_resources = item['resources'][:max_per_skill]
+        item_resources = item["resources"][:max_per_skill]
         if not item_resources:
             continue
 
-        capped.append({**item, 'resources': item_resources})
+        capped.append({**item, "resources": item_resources})
         total += len(item_resources)
 
     return capped

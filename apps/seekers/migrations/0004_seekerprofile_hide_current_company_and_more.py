@@ -6,23 +6,32 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('seekers', '0003_alter_seekerprofile_public_id'),
+        ("seekers", "0003_alter_seekerprofile_public_id"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='seekerprofile',
-            name='hide_current_company',
-            field=models.BooleanField(default=False, help_text='Show "Stealth" instead of the real company name'),
+            model_name="seekerprofile",
+            name="hide_current_company",
+            field=models.BooleanField(
+                default=False,
+                help_text='Show "Stealth" instead of the real company name',
+            ),
         ),
         migrations.AddField(
-            model_name='seekerprofile',
-            name='is_open_to_opportunities',
-            field=models.BooleanField(default=True, help_text='Show this profile in recruiter search results?'),
+            model_name="seekerprofile",
+            name="is_open_to_opportunities",
+            field=models.BooleanField(
+                default=True, help_text="Show this profile in recruiter search results?"
+            ),
         ),
         migrations.AddField(
-            model_name='seekerprofile',
-            name='searchable_until_date',
-            field=models.DateField(blank=True, help_text='Automatically hide from search after this date. Leave empty to stay searchable indefinitely.', null=True),
+            model_name="seekerprofile",
+            name="searchable_until_date",
+            field=models.DateField(
+                blank=True,
+                help_text="Automatically hide from search after this date. Leave empty to stay searchable indefinitely.",
+                null=True,
+            ),
         ),
     ]

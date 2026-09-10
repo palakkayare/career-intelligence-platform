@@ -6,6 +6,7 @@ automatically by signals. The point is to be able to answer "who changed this
 row, when, from what, to what, and from which IP" months after the fact -
 which is both an operational need and a PDPB accountability requirement.
 """
+
 from django.conf import settings
 from django.db import models
 
@@ -14,9 +15,9 @@ class AuditLog(models.Model):
     """One row per audited change. Append-only: never updated, never deleted."""
 
     class Action(models.TextChoices):
-        CREATE = 'CREATE', 'Create'
-        UPDATE = 'UPDATE', 'Update'
-        DELETE = 'DELETE', 'Delete'
+        CREATE = "CREATE", "Create"
+        UPDATE = "UPDATE", "Update"
+        DELETE = "DELETE", "Delete"
 
     # Who. Null covers system actions (Celery tasks, management commands) and
     # survives the actor's own account being removed.
@@ -25,11 +26,11 @@ class AuditLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='audit_logs',
+        related_name="audit_logs",
     )
     user_email = models.EmailField(
         blank=True,
-        help_text='Copied at write time so the trail survives user deletion.',
+        help_text="Copied at write time so the trail survives user deletion.",
     )
 
     # What
@@ -37,13 +38,13 @@ class AuditLog(models.Model):
     model_name = models.CharField(
         max_length=100,
         db_index=True,
-        help_text='app_label.ModelName, e.g. jobs.Job',
+        help_text="app_label.ModelName, e.g. jobs.Job",
     )
     object_id = models.CharField(max_length=64, db_index=True)
     object_repr = models.CharField(
         max_length=255,
         blank=True,
-        help_text='str() of the object at write time, for readable listings.',
+        help_text="str() of the object at write time, for readable listings.",
     )
 
     # Change detail. Only fields that actually differ are stored, so an update
@@ -58,19 +59,19 @@ class AuditLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        db_table = 'audit_logs'
-        ordering = ['-created_at']
+        db_table = "audit_logs"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['model_name', 'object_id']),
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['action', '-created_at']),
+            models.Index(fields=["model_name", "object_id"]),
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["action", "-created_at"]),
         ]
-        verbose_name = 'Audit log entry'
-        verbose_name_plural = 'Audit log'
+        verbose_name = "Audit log entry"
+        verbose_name_plural = "Audit log"
 
     def __str__(self):
-        who = self.user_email or 'system'
-        return f'{who} {self.action} {self.model_name}#{self.object_id}'
+        who = self.user_email or "system"
+        return f"{who} {self.action} {self.model_name}#{self.object_id}"
 
     @property
     def changed_fields(self):

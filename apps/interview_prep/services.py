@@ -1,6 +1,7 @@
 """
 Interview preparation services.
 """
+
 from django.db.models import Q
 
 from .models import (
@@ -17,8 +18,7 @@ class InterviewPrepService:
     """Assembling prep material for a seeker."""
 
     @classmethod
-    def questions_for(cls, target_role=None, category=None, difficulty=None,
-                      limit=20):
+    def questions_for(cls, target_role=None, category=None, difficulty=None, limit=20):
         """
         Questions for a role, with general ones mixed in.
 
@@ -41,7 +41,7 @@ class InterviewPrepService:
         if difficulty:
             qs = qs.filter(difficulty=difficulty)
 
-        return qs.select_related('target_role')[:limit]
+        return qs.select_related("target_role")[:limit]
 
     @classmethod
     def star_templates(cls):
@@ -49,10 +49,8 @@ class InterviewPrepService:
 
     @classmethod
     def tips_for_company(cls, company):
-        return (
-            CompanyInterviewTip.objects
-            .filter(company=company, is_active=True)
-            .order_by('category')
+        return CompanyInterviewTip.objects.filter(company=company, is_active=True).order_by(
+            "category"
         )
 
     @classmethod
@@ -76,54 +74,60 @@ class InterviewPrepService:
         done_ids = set()
         if user is not None and interview_label:
             done_ids = set(
-                ChecklistProgress.objects
-                .filter(user=user, interview_label=interview_label)
-                .values_list('item_id', flat=True)
+                ChecklistProgress.objects.filter(
+                    user=user, interview_label=interview_label
+                ).values_list("item_id", flat=True)
             )
 
         grouped = {}
         for item in items:
-            grouped.setdefault(item.phase, []).append({
-                'id': item.id,
-                'text': item.text,
-                'detail': item.detail,
-                'done': item.id in done_ids,
-            })
+            grouped.setdefault(item.phase, []).append(
+                {
+                    "id": item.id,
+                    "text": item.text,
+                    "detail": item.detail,
+                    "done": item.id in done_ids,
+                }
+            )
 
         phases = [
             {
-                'phase': phase,
-                'label': dict(InterviewChecklistItem.Phase.choices)[phase],
-                'items': grouped.get(phase, []),
-                'done_count': sum(1 for i in grouped.get(phase, []) if i['done']),
-                'total': len(grouped.get(phase, [])),
+                "phase": phase,
+                "label": dict(InterviewChecklistItem.Phase.choices)[phase],
+                "items": grouped.get(phase, []),
+                "done_count": sum(1 for i in grouped.get(phase, []) if i["done"]),
+                "total": len(grouped.get(phase, [])),
             }
             for phase, _ in InterviewChecklistItem.Phase.choices
         ]
 
-        total = sum(p['total'] for p in phases)
-        done = sum(p['done_count'] for p in phases)
+        total = sum(p["total"] for p in phases)
+        done = sum(p["done_count"] for p in phases)
 
         return {
-            'interview_label': interview_label,
-            'phases': phases,
-            'total_items': total,
-            'completed_items': done,
-            'progress_pct': round(done / total * 100, 1) if total else 0.0,
+            "interview_label": interview_label,
+            "phases": phases,
+            "total_items": total,
+            "completed_items": done,
+            "progress_pct": round(done / total * 100, 1) if total else 0.0,
         }
 
     @classmethod
     def tick(cls, user, item, interview_label):
         """Mark an item done. Idempotent."""
         progress, created = ChecklistProgress.objects.get_or_create(
-            user=user, item=item, interview_label=interview_label,
+            user=user,
+            item=item,
+            interview_label=interview_label,
         )
         return progress, created
 
     @classmethod
     def untick(cls, user, item, interview_label):
         deleted, _ = ChecklistProgress.objects.filter(
-            user=user, item=item, interview_label=interview_label,
+            user=user,
+            item=item,
+            interview_label=interview_label,
         ).delete()
         return bool(deleted)
 
@@ -136,8 +140,7 @@ class InterviewPrepService:
         needing a separate Interview model.
         """
         return list(
-            ChecklistProgress.objects
-            .filter(user=user)
-            .values_list('interview_label', flat=True)
+            ChecklistProgress.objects.filter(user=user)
+            .values_list("interview_label", flat=True)
             .distinct()
         )

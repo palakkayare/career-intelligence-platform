@@ -7,19 +7,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('applications', '0002_alter_application_unique_together_and_more'),
-        ('resumes', '0003_resume_advanced_ats_analyzed_at_and_more'),
+        ("applications", "0002_alter_application_unique_together_and_more"),
+        ("resumes", "0003_resume_advanced_ats_analyzed_at_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='application',
-            name='resume',
-            field=models.ForeignKey(blank=True, help_text="The uploaded resume sent with this application. Defaults to the seeker's primary resume at submission time.", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='applications', to='resumes.resume'),
+            model_name="application",
+            name="resume",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="The uploaded resume sent with this application. Defaults to the seeker's primary resume at submission time.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="applications",
+                to="resumes.resume",
+            ),
         ),
         migrations.AlterField(
-            model_name='application',
-            name='resume_url',
-            field=models.URLField(blank=True, help_text='Optional external resume link (Drive, GitHub, personal site) for seekers who have not uploaded a file.'),
+            model_name="application",
+            name="resume_url",
+            field=models.URLField(
+                blank=True,
+                help_text="Optional external resume link (Drive, GitHub, personal site) for seekers who have not uploaded a file.",
+            ),
         ),
     ]

@@ -1,28 +1,31 @@
+from datetime import date, timedelta
+
 from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
-from apps.core.models import TimestampedModel, SoftDeleteModel
+from apps.core.models import SoftDeleteModel, TimestampedModel
 from apps.industries.models import Industry
-from datetime import date, timedelta
+
+
 class Company(TimestampedModel, SoftDeleteModel):
     """
     A company entity. Recruiters belong to a company.
     """
 
     class Size(models.TextChoices):
-        STARTUP = 'startup', '1-10 employees'
-        SMALL = 'small', '11-50 employees'
-        MEDIUM = 'medium', '51-200 employees'
-        LARGE = 'large', '201-1000 employees'
-        ENTERPRISE = 'enterprise', '1000+ employees'
+        STARTUP = "startup", "1-10 employees"
+        SMALL = "small", "11-50 employees"
+        MEDIUM = "medium", "51-200 employees"
+        LARGE = "large", "201-1000 employees"
+        ENTERPRISE = "enterprise", "1000+ employees"
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
     slug = models.SlugField(max_length=280, unique=True, blank=True)
 
     # Branding
     logo = models.ImageField(
-        upload_to='company_logos/%Y/%m/',
+        upload_to="company_logos/%Y/%m/",
         null=True,
         blank=True,
     )
@@ -33,7 +36,7 @@ class Company(TimestampedModel, SoftDeleteModel):
     industry = models.ForeignKey(
         Industry,
         on_delete=models.PROTECT,
-        related_name='companies',
+        related_name="companies",
         null=True,
         blank=True,
     )
@@ -51,20 +54,20 @@ class Company(TimestampedModel, SoftDeleteModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='companies_created',
+        related_name="companies_created",
     )
 
     class Meta:
-        db_table = 'companies'
-        ordering = ['name']
+        db_table = "companies"
+        ordering = ["name"]
         indexes = [
-            models.Index(fields=['is_verified', 'is_deleted']),
-            models.Index(fields=['industry', 'is_verified']),
+            models.Index(fields=["is_verified", "is_deleted"]),
+            models.Index(fields=["industry", "is_verified"]),
         ]
-        verbose_name_plural = 'Companies'
+        verbose_name_plural = "Companies"
 
     def __str__(self):
-        verified = ' ✓' if self.is_verified else ''
+        verified = " ✓" if self.is_verified else ""
         return f"{self.name}{verified}"
 
     def save(self, *args, **kwargs):
@@ -72,14 +75,16 @@ class Company(TimestampedModel, SoftDeleteModel):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
-    def verify(self, notes=''):
+    def verify(self, notes=""):
         """Admin action — mark verified."""
         from django.utils import timezone
+
         self.is_verified = True
         self.verified_at = timezone.now()
         if notes:
             self.verification_notes = notes
-        self.save(update_fields=['is_verified', 'verified_at', 'verification_notes'])
+        self.save(update_fields=["is_verified", "verified_at", "verification_notes"])
+
 
 class RecruiterProfile(TimestampedModel, SoftDeleteModel):
     """
@@ -88,14 +93,14 @@ class RecruiterProfile(TimestampedModel, SoftDeleteModel):
     """
 
     class ContactVisibility(models.TextChoices):
-        PUBLIC = 'public', 'Public'
-        CONNECTED = 'connected', 'Connected (Applied Candidates Only)'
-        PRIVATE = 'private', 'Private'
+        PUBLIC = "public", "Public"
+        CONNECTED = "connected", "Connected (Applied Candidates Only)"
+        PRIVATE = "private", "Private"
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='recruiter_profile',
+        related_name="recruiter_profile",
     )
 
     # Company link
@@ -104,7 +109,7 @@ class RecruiterProfile(TimestampedModel, SoftDeleteModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='recruiters',
+        related_name="recruiters",
     )
     is_company_admin = models.BooleanField(
         default=False,
@@ -120,7 +125,7 @@ class RecruiterProfile(TimestampedModel, SoftDeleteModel):
     )
     bio = models.TextField(blank=True, max_length=500)
     profile_photo = models.ImageField(
-        upload_to='recruiter_photos/%Y/%m/',
+        upload_to="recruiter_photos/%Y/%m/",
         null=True,
         blank=True,
     )
@@ -135,19 +140,20 @@ class RecruiterProfile(TimestampedModel, SoftDeleteModel):
     )
 
     class Meta:
-        db_table = 'recruiter_profiles'
+        db_table = "recruiter_profiles"
         indexes = [
-            models.Index(fields=['company', 'is_company_admin']),
+            models.Index(fields=["company", "is_company_admin"]),
         ]
 
     def __str__(self):
-        company_str = self.company.name if self.company else 'No Company'
+        company_str = self.company.name if self.company else "No Company"
         return f"{self.full_name or self.user.email} ({company_str})"
 
     def can_edit_company(self):
         """Only company admins can edit company info."""
         return self.is_company_admin and self.company_id is not None
-    
+
+
 class RecruiterCredits(TimestampedModel):
     """
     Monthly contact-reveal credits for a recruiter.
@@ -156,9 +162,9 @@ class RecruiterCredits(TimestampedModel):
     """
 
     recruiter = models.OneToOneField(
-        'recruiters.RecruiterProfile',
+        "recruiters.RecruiterProfile",
         on_delete=models.CASCADE,
-        related_name='credits',
+        related_name="credits",
     )
 
     # Allocation — synced from the plan on subscription activation
@@ -169,13 +175,13 @@ class RecruiterCredits(TimestampedModel):
     cycle_starts_on = models.DateField(default=date.today)
 
     class Meta:
-        db_table = 'recruiter_credits'
-        verbose_name_plural = 'Recruiter credits'
+        db_table = "recruiter_credits"
+        verbose_name_plural = "Recruiter credits"
 
     def __str__(self):
         return (
-            f'{self.recruiter.full_name}: '
-            f'{self.reveals_used_this_month}/{self.monthly_reveal_limit}'
+            f"{self.recruiter.full_name}: "
+            f"{self.reveals_used_this_month}/{self.monthly_reveal_limit}"
         )
 
     @property
@@ -194,7 +200,7 @@ class RecruiterCredits(TimestampedModel):
         """Start a fresh 30-day cycle with a zeroed counter."""
         self.reveals_used_this_month = 0
         self.cycle_starts_on = date.today()
-        self.save(update_fields=['reveals_used_this_month', 'cycle_starts_on'])
+        self.save(update_fields=["reveals_used_this_month", "cycle_starts_on"])
 
 
 class CandidateView(TimestampedModel):
@@ -204,19 +210,19 @@ class CandidateView(TimestampedModel):
     """
 
     class ViewKind(models.TextChoices):
-        SEARCH_RESULT = 'search_result', 'Search Result'
-        DETAIL = 'detail', 'Detail View'
-        SAVED_LIST = 'saved_list', 'Saved Candidates List'
+        SEARCH_RESULT = "search_result", "Search Result"
+        DETAIL = "detail", "Detail View"
+        SAVED_LIST = "saved_list", "Saved Candidates List"
 
     recruiter = models.ForeignKey(
-        'recruiters.RecruiterProfile',
+        "recruiters.RecruiterProfile",
         on_delete=models.CASCADE,
-        related_name='candidate_views',
+        related_name="candidate_views",
     )
     seeker = models.ForeignKey(
-        'seekers.SeekerProfile',
+        "seekers.SeekerProfile",
         on_delete=models.CASCADE,
-        related_name='profile_views',
+        related_name="profile_views",
     )
     view_kind = models.CharField(max_length=20, choices=ViewKind.choices)
 
@@ -226,29 +232,27 @@ class CandidateView(TimestampedModel):
 
     # Optional context: which job the recruiter was hiring for
     target_job = models.ForeignKey(
-        'jobs.Job',
+        "jobs.Job",
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='candidate_views',
-        help_text='Job the recruiter was searching for, if any',
+        null=True,
+        blank=True,
+        related_name="candidate_views",
+        help_text="Job the recruiter was searching for, if any",
     )
 
     class Meta:
-        db_table = 'candidate_views'
-        ordering = ['-created_at']
+        db_table = "candidate_views"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['recruiter', '-created_at']),
-            models.Index(fields=['seeker', '-created_at']),
-            models.Index(fields=['contact_revealed', '-revealed_at']),
+            models.Index(fields=["recruiter", "-created_at"]),
+            models.Index(fields=["seeker", "-created_at"]),
+            models.Index(fields=["contact_revealed", "-revealed_at"]),
             # Speeds up the "was this contact already revealed?" check
-            models.Index(fields=['recruiter', 'seeker', 'contact_revealed']),
+            models.Index(fields=["recruiter", "seeker", "contact_revealed"]),
         ]
 
     def __str__(self):
-        return (
-            f'{self.recruiter.full_name} viewed '
-            f'{self.seeker.user.email} ({self.view_kind})'
-        )
+        return f"{self.recruiter.full_name} viewed " f"{self.seeker.user.email} ({self.view_kind})"
 
 
 class TalentPool(TimestampedModel):
@@ -264,10 +268,11 @@ class TalentPool(TimestampedModel):
     Only the filters are stored. Results are computed on read, so a pool can
     never go stale or hold on to a seeker who has since gone private.
     """
+
     recruiter = models.ForeignKey(
-        'RecruiterProfile',
+        "RecruiterProfile",
         on_delete=models.CASCADE,
-        related_name='talent_pools',
+        related_name="talent_pools",
     )
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=300, blank=True)
@@ -278,19 +283,19 @@ class TalentPool(TimestampedModel):
 
     notify_on_new = models.BooleanField(
         default=True,
-        help_text='Email the recruiter when new candidates enter this pool.',
+        help_text="Email the recruiter when new candidates enter this pool.",
     )
     # Everything newer than this is "new" on the next sweep. Not a cache of
     # results - just a marker of how far the last notification got.
     last_checked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'talent_pools'
-        ordering = ['-created_at']
-        unique_together = ('recruiter', 'name')
+        db_table = "talent_pools"
+        ordering = ["-created_at"]
+        unique_together = ("recruiter", "name")
         indexes = [
-            models.Index(fields=['recruiter', '-created_at']),
+            models.Index(fields=["recruiter", "-created_at"]),
         ]
 
     def __str__(self):
-        return f'{self.name} ({self.recruiter.full_name})'
+        return f"{self.name} ({self.recruiter.full_name})"

@@ -6,31 +6,37 @@ from apps.core.models import TimestampedModel
 
 class NotificationKind(models.TextChoices):
     # Application events
-    APPLICATION_RECEIVED = 'application_received', 'Application Received (Recruiter)'
-    APPLICATION_STATUS_CHANGE = 'app_status_change', 'Application Status Changed (Seeker)'
-    APPLICATION_WITHDRAWN = 'app_withdrawn', 'Application Withdrawn (Recruiter)'
+    APPLICATION_RECEIVED = "application_received", "Application Received (Recruiter)"
+    APPLICATION_STATUS_CHANGE = (
+        "app_status_change",
+        "Application Status Changed (Seeker)",
+    )
+    APPLICATION_WITHDRAWN = "app_withdrawn", "Application Withdrawn (Recruiter)"
 
     # Matching
-    NEW_MATCHING_JOB = 'new_matching_job', 'New Matching Job (Seeker)'
-    NEW_MATCHING_CANDIDATE = 'new_matching_candidate', 'New Matching Candidate (Recruiter)'
+    NEW_MATCHING_JOB = "new_matching_job", "New Matching Job (Seeker)"
+    NEW_MATCHING_CANDIDATE = (
+        "new_matching_candidate",
+        "New Matching Candidate (Recruiter)",
+    )
 
     # Payments
-    PAYMENT_SUCCESS = 'payment_success', 'Payment Successful'
-    PAYMENT_FAILED = 'payment_failed', 'Payment Failed'
-    SUBSCRIPTION_EXPIRING = 'sub_expiring', 'Subscription Expiring Soon'
-    SUBSCRIPTION_EXPIRED = 'sub_expired', 'Subscription Expired'
+    PAYMENT_SUCCESS = "payment_success", "Payment Successful"
+    PAYMENT_FAILED = "payment_failed", "Payment Failed"
+    SUBSCRIPTION_EXPIRING = "sub_expiring", "Subscription Expiring Soon"
+    SUBSCRIPTION_EXPIRED = "sub_expired", "Subscription Expired"
 
     # System
-    RESUME_ANALYSIS_COMPLETE = 'resume_analysed', 'Resume Analysis Complete (Seeker)'
-    PROFILE_VIEWED = 'profile_viewed', 'Profile Viewed (Seeker)'
-    JOB_APPROVED = 'job_approved', 'Job Approved (Recruiter)'
-    JOB_REJECTED = 'job_rejected', 'Job Rejected (Recruiter)'
+    RESUME_ANALYSIS_COMPLETE = "resume_analysed", "Resume Analysis Complete (Seeker)"
+    PROFILE_VIEWED = "profile_viewed", "Profile Viewed (Seeker)"
+    JOB_APPROVED = "job_approved", "Job Approved (Recruiter)"
+    JOB_REJECTED = "job_rejected", "Job Rejected (Recruiter)"
 
 
 class DeliveryPriority(models.TextChoices):
-    INSTANT = 'instant', 'Instant'      # Email sent immediately via Celery
-    DIGEST = 'digest', 'Daily Digest'   # Batched into the daily digest email
-    NONE = 'none', 'In-App Only'        # Never emailed
+    INSTANT = "instant", "Instant"  # Email sent immediately via Celery
+    DIGEST = "digest", "Daily Digest"  # Batched into the daily digest email
+    NONE = "none", "In-App Only"  # Never emailed
 
 
 class Notification(TimestampedModel):
@@ -42,7 +48,7 @@ class Notification(TimestampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='notifications',
+        related_name="notifications",
     )
     kind = models.CharField(
         max_length=50,
@@ -71,13 +77,13 @@ class Notification(TimestampedModel):
     email_failure = models.TextField(blank=True)  # Last error message, if sending failed
 
     class Meta:
-        db_table = 'notifications'
-        ordering = ['-created_at']
+        db_table = "notifications"
+        ordering = ["-created_at"]
         indexes = [
             # Fast lookup for the user's notification list / unread count
-            models.Index(fields=['user', 'is_read', '-created_at']),
+            models.Index(fields=["user", "is_read", "-created_at"]),
             # Fast lookup for the daily digest task
-            models.Index(fields=['delivery_priority', 'is_emailed']),
+            models.Index(fields=["delivery_priority", "is_emailed"]),
         ]
 
     def __str__(self):
@@ -90,7 +96,7 @@ class NotificationPreferences(TimestampedModel):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='notification_preferences',
+        related_name="notification_preferences",
     )
 
     # Email opt-ins (default ON)
@@ -117,7 +123,7 @@ class NotificationPreferences(TimestampedModel):
     unsubscribe_token = models.CharField(max_length=64, unique=True)
 
     class Meta:
-        db_table = 'notification_preferences'
+        db_table = "notification_preferences"
 
     def __str__(self):
         return f"Prefs for {self.user.email}"
@@ -125,19 +131,19 @@ class NotificationPreferences(TimestampedModel):
     def is_kind_enabled(self, kind):
         """Return True if the user wants email for this notification kind."""
         kind_map = {
-            NotificationKind.APPLICATION_STATUS_CHANGE: 'email_application_updates',
-            NotificationKind.APPLICATION_RECEIVED: 'email_application_updates',
-            NotificationKind.APPLICATION_WITHDRAWN: 'email_application_updates',
-            NotificationKind.NEW_MATCHING_JOB: 'email_new_matches_digest',
-            NotificationKind.NEW_MATCHING_CANDIDATE: 'email_new_matches_digest',
-            NotificationKind.PAYMENT_SUCCESS: 'email_payment_events',
-            NotificationKind.PAYMENT_FAILED: 'email_payment_events',
-            NotificationKind.SUBSCRIPTION_EXPIRING: 'email_subscription_alerts',
-            NotificationKind.SUBSCRIPTION_EXPIRED: 'email_subscription_alerts',
-            NotificationKind.RESUME_ANALYSIS_COMPLETE: 'email_application_updates',
-            NotificationKind.PROFILE_VIEWED: 'email_profile_views',
-            NotificationKind.JOB_APPROVED: 'email_application_updates',
-            NotificationKind.JOB_REJECTED: 'email_application_updates',
+            NotificationKind.APPLICATION_STATUS_CHANGE: "email_application_updates",
+            NotificationKind.APPLICATION_RECEIVED: "email_application_updates",
+            NotificationKind.APPLICATION_WITHDRAWN: "email_application_updates",
+            NotificationKind.NEW_MATCHING_JOB: "email_new_matches_digest",
+            NotificationKind.NEW_MATCHING_CANDIDATE: "email_new_matches_digest",
+            NotificationKind.PAYMENT_SUCCESS: "email_payment_events",
+            NotificationKind.PAYMENT_FAILED: "email_payment_events",
+            NotificationKind.SUBSCRIPTION_EXPIRING: "email_subscription_alerts",
+            NotificationKind.SUBSCRIPTION_EXPIRED: "email_subscription_alerts",
+            NotificationKind.RESUME_ANALYSIS_COMPLETE: "email_application_updates",
+            NotificationKind.PROFILE_VIEWED: "email_profile_views",
+            NotificationKind.JOB_APPROVED: "email_application_updates",
+            NotificationKind.JOB_REJECTED: "email_application_updates",
         }
         attr = kind_map.get(kind)
         # Unknown kinds default to enabled

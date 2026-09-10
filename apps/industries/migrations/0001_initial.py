@@ -7,26 +7,33 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Industry',
+            name="Industry",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(db_index=True, max_length=100, unique=True)),
-                ('slug', models.SlugField(blank=True, max_length=120, unique=True)),
-                ('aliases', models.JSONField(blank=True, default=list)),
-                ('sort_order', models.PositiveSmallIntegerField(default=100)),
-                ('is_active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(db_index=True, max_length=100, unique=True)),
+                ("slug", models.SlugField(blank=True, max_length=120, unique=True)),
+                ("aliases", models.JSONField(blank=True, default=list)),
+                ("sort_order", models.PositiveSmallIntegerField(default=100)),
+                ("is_active", models.BooleanField(default=True)),
             ],
             options={
-                'verbose_name_plural': 'Industries',
-                'db_table': 'industries',
-                'ordering': ['sort_order', 'name'],
+                "verbose_name_plural": "Industries",
+                "db_table": "industries",
+                "ordering": ["sort_order", "name"],
             },
         ),
     ]

@@ -4,6 +4,7 @@ Throttles for expensive or abuse-prone endpoints.
 Auth-specific throttles live in apps.accounts.throttles; these cover the
 platform-wide limits the blueprint sets out in Phase 3.
 """
+
 from rest_framework.throttling import UserRateThrottle
 
 
@@ -15,7 +16,8 @@ class SearchThrottle(UserRateThrottle):
     much about protecting the database as about abuse. Generous enough that a
     person typing quickly never notices it.
     """
-    scope = 'search'
+
+    scope = "search"
 
 
 class ApplyThrottle(UserRateThrottle):
@@ -26,4 +28,5 @@ class ApplyThrottle(UserRateThrottle):
     burst limit: it stops scripted mass-applying without touching what a
     legitimate Pro subscriber does in an afternoon.
     """
-    scope = 'apply'
+
+    scope = "apply"

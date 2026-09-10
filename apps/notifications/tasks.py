@@ -2,6 +2,7 @@
 Celery tasks for email delivery.
 Keeping email out of the request cycle keeps API responses fast.
 """
+
 import logging
 
 from celery import shared_task
@@ -10,26 +11,26 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import Notification, NotificationPreferences, DeliveryPriority
+from .models import DeliveryPriority, Notification, NotificationPreferences
 
 logger = logging.getLogger(__name__)
 
 
 # Maps a notification kind to its template directory under templates/emails/
 KIND_TEMPLATES = {
-    'app_status_change': 'application_status_change',
-    'application_received': 'application_received',
-    'payment_success': 'payment_success',
-    'payment_failed': 'payment_failed',
-    'sub_expiring': 'subscription_expiring',
-    'sub_expired': 'subscription_expired',
-    'job_approved': 'job_approved',
-    'job_rejected': 'job_rejected',
-    'app_withdrawn': 'application_withdrawn',
-    'resume_analysed': 'resume_analysis_complete',
+    "app_status_change": "application_status_change",
+    "application_received": "application_received",
+    "payment_success": "payment_success",
+    "payment_failed": "payment_failed",
+    "sub_expiring": "subscription_expiring",
+    "sub_expired": "subscription_expired",
+    "job_approved": "job_approved",
+    "job_rejected": "job_rejected",
+    "app_withdrawn": "application_withdrawn",
+    "resume_analysed": "resume_analysis_complete",
     # These two are only ever sent as part of the daily digest
-    'new_matching_job': 'new_matching_jobs_digest',
-    'new_matching_candidate': 'new_matching_candidates_digest',
+    "new_matching_job": "new_matching_jobs_digest",
+    "new_matching_candidate": "new_matching_candidates_digest",
 }
 
 
@@ -40,22 +41,21 @@ def _build_context(notif):
     try:
         unsubscribe_token = user.notification_preferences.unsubscribe_token
     except NotificationPreferences.DoesNotExist:
-        unsubscribe_token = ''
+        unsubscribe_token = ""
 
     context = {
-        'user': user,
-        'user_name': getattr(user, 'full_name', '') or user.email,
-        'notification': notif,
-        'title': notif.title,
-        'message': notif.message,
+        "user": user,
+        "user_name": getattr(user, "full_name", "") or user.email,
+        "notification": notif,
+        "title": notif.title,
+        "message": notif.message,
         # Turn the relative deep link into an absolute URL for the email
-        'link': f"{settings.FRONTEND_URL}{notif.link}" if notif.link else '',
-        'frontend_url': settings.FRONTEND_URL,
-        'unsubscribe_url': (
-            f"{settings.FRONTEND_URL}/unsubscribe/{unsubscribe_token}"
-            if unsubscribe_token else ''
+        "link": f"{settings.FRONTEND_URL}{notif.link}" if notif.link else "",
+        "frontend_url": settings.FRONTEND_URL,
+        "unsubscribe_url": (
+            f"{settings.FRONTEND_URL}/unsubscribe/{unsubscribe_token}" if unsubscribe_token else ""
         ),
-        'support_email': settings.SUPPORT_EMAIL,
+        "support_email": settings.SUPPORT_EMAIL,
         # Custom values passed in by the trigger override the defaults above
         **notif.context,
     }
@@ -70,10 +70,10 @@ def _build_attachments(notif):
     need for their own books. The import is local so the notifications app
     does not depend on payments at module level.
     """
-    if notif.kind != 'payment_success':
+    if notif.kind != "payment_success":
         return []
 
-    transaction_id = notif.context.get('transaction_id')
+    transaction_id = notif.context.get("transaction_id")
     if not transaction_id:
         return []
 
@@ -95,7 +95,7 @@ def send_notification_email(self, notification_id):
     Retries up to 3 times on network issues or SendGrid errors.
     """
     try:
-        notif = Notification.objects.select_related('user').get(pk=notification_id)
+        notif = Notification.objects.select_related("user").get(pk=notification_id)
     except Notification.DoesNotExist:
         logger.error("Notification %s not found", notification_id)
         return
@@ -114,13 +114,16 @@ def send_notification_email(self, notification_id):
 
     try:
         subject = render_to_string(
-            f'emails/{template_dir}/subject.txt', context,
+            f"emails/{template_dir}/subject.txt",
+            context,
         ).strip()
         body_text = render_to_string(
-            f'emails/{template_dir}/body.txt', context,
+            f"emails/{template_dir}/body.txt",
+            context,
         )
         body_html = render_to_string(
-            f'emails/{template_dir}/body.html', context,
+            f"emails/{template_dir}/body.html",
+            context,
         )
 
         # Multipart email: plain text body + HTML alternative.
@@ -140,18 +143,19 @@ def send_notification_email(self, notification_id):
 
         notif.is_emailed = True
         notif.emailed_at = timezone.now()
-        notif.email_failure = ''
-        notif.save(update_fields=['is_emailed', 'emailed_at', 'email_failure'])
+        notif.email_failure = ""
+        notif.save(update_fields=["is_emailed", "emailed_at", "email_failure"])
 
         logger.info("Email sent to %s: %s", notif.user.email, subject)
 
     except Exception as exc:
         logger.exception(
-            "Failed to send email for notification %s", notification_id,
+            "Failed to send email for notification %s",
+            notification_id,
         )
         # Store a truncated error so it can be inspected from the admin later
         notif.email_failure = str(exc)[:500]
-        notif.save(update_fields=['email_failure'])
+        notif.save(update_fields=["email_failure"])
 
         if self.request.retries < self.max_retries:
             raise self.retry(exc=exc)
@@ -164,6 +168,7 @@ def send_daily_digest():
     send a single email that summarizes all of them.
     """
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
 
     # Users who have at least one unsent digest notification
@@ -195,7 +200,9 @@ def _send_user_digest(user):
             user=user,
             delivery_priority=DeliveryPriority.DIGEST,
             is_emailed=False,
-        ).order_by('-created_at')[:50]  # Cap so one email cannot get huge
+        ).order_by("-created_at")[
+            :50
+        ]  # Cap so one email cannot get huge
     )
 
     if not digest_notifs:
@@ -213,7 +220,7 @@ def _send_user_digest(user):
             return False
         unsubscribe_token = prefs.unsubscribe_token
     except NotificationPreferences.DoesNotExist:
-        unsubscribe_token = ''
+        unsubscribe_token = ""
 
     # Group notifications by kind so the email can show them under headings
     grouped = {}
@@ -221,21 +228,20 @@ def _send_user_digest(user):
         grouped.setdefault(n.get_kind_display(), []).append(n)
 
     context = {
-        'user': user,
-        'user_name': getattr(user, 'full_name', '') or user.email,
-        'grouped_notifs': grouped,
-        'total_count': len(digest_notifs),
-        'frontend_url': settings.FRONTEND_URL,
-        'support_email': settings.SUPPORT_EMAIL,
-        'unsubscribe_url': (
-            f"{settings.FRONTEND_URL}/unsubscribe/{unsubscribe_token}"
-            if unsubscribe_token else ''
+        "user": user,
+        "user_name": getattr(user, "full_name", "") or user.email,
+        "grouped_notifs": grouped,
+        "total_count": len(digest_notifs),
+        "frontend_url": settings.FRONTEND_URL,
+        "support_email": settings.SUPPORT_EMAIL,
+        "unsubscribe_url": (
+            f"{settings.FRONTEND_URL}/unsubscribe/{unsubscribe_token}" if unsubscribe_token else ""
         ),
     }
 
-    subject = render_to_string('emails/daily_digest/subject.txt', context).strip()
-    body_text = render_to_string('emails/daily_digest/body.txt', context)
-    body_html = render_to_string('emails/daily_digest/body.html', context)
+    subject = render_to_string("emails/daily_digest/subject.txt", context).strip()
+    body_text = render_to_string("emails/daily_digest/body.txt", context)
+    body_html = render_to_string("emails/daily_digest/body.html", context)
 
     msg = EmailMultiAlternatives(
         subject=subject,
@@ -253,6 +259,7 @@ def _send_user_digest(user):
     )
     logger.info("Digest sent to %s (%s items)", user.email, len(digest_notifs))
     return True
+
 
 @shared_task
 def check_expiring_subscriptions():

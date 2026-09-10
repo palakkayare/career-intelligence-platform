@@ -8,26 +8,60 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('jobs', '0002_savedsearch_searchhistory_job_search_vector_and_more'),
+        ("jobs", "0002_savedsearch_searchhistory_job_search_vector_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SavedJob',
+            name="SavedJob",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('note', models.CharField(blank=True, help_text="Seeker's private note. Never visible to the recruiter.", max_length=500)),
-                ('job', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_by', to='jobs.job')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_jobs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "note",
+                    models.CharField(
+                        blank=True,
+                        help_text="Seeker's private note. Never visible to the recruiter.",
+                        max_length=500,
+                    ),
+                ),
+                (
+                    "job",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_by",
+                        to="jobs.job",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="saved_jobs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'saved_jobs',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', '-created_at'], name='saved_jobs_user_id_08012b_idx')],
-                'unique_together': {('user', 'job')},
+                "db_table": "saved_jobs",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-created_at"],
+                        name="saved_jobs_user_id_08012b_idx",
+                    )
+                ],
+                "unique_together": {("user", "job")},
             },
         ),
     ]

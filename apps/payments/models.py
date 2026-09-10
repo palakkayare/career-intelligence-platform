@@ -1,5 +1,4 @@
 import uuid
-from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -16,13 +15,13 @@ class Plan(TimestampedModel):
     """
 
     class Tier(models.TextChoices):
-        FREE = 'free', 'Free'
-        PRO = 'pro', 'Pro (Seeker)'
-        BUSINESS = 'business', 'Business (Recruiter)'
+        FREE = "free", "Free"
+        PRO = "pro", "Pro (Seeker)"
+        BUSINESS = "business", "Business (Recruiter)"
 
     class BillingPeriod(models.TextChoices):
-        MONTHLY = 'monthly', 'Monthly'
-        YEARLY = 'yearly', 'Yearly'
+        MONTHLY = "monthly", "Monthly"
+        YEARLY = "yearly", "Yearly"
 
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, unique=True)
@@ -34,7 +33,7 @@ class Plan(TimestampedModel):
         null=True,
         blank=True,
     )
-    price_inr = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
+    price_inr = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
 
     # Display features (for plan listing UI)
     features = models.JSONField(default=list, blank=True)
@@ -44,22 +43,22 @@ class Plan(TimestampedModel):
 
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveSmallIntegerField(default=100)
-    
-        # ─── Quotas (null = unlimited) ───
+
+    # ─── Quotas (null = unlimited) ───
     max_applications_per_month = models.IntegerField(
         null=True,
         blank=True,
-        help_text='Null means unlimited',
+        help_text="Null means unlimited",
     )
     max_active_jobs = models.IntegerField(
         null=True,
         blank=True,
-        help_text='Max jobs a recruiter can have open at once. Null means unlimited',
+        help_text="Max jobs a recruiter can have open at once. Null means unlimited",
     )
     max_applicants_view_per_job = models.IntegerField(
         null=True,
         blank=True,
-        help_text='How many applicants a recruiter can see per job. Null means unlimited',
+        help_text="How many applicants a recruiter can see per job. Null means unlimited",
     )
     max_resumes = models.IntegerField(null=True, blank=True)
     max_team_members = models.IntegerField(null=True, blank=True)
@@ -78,8 +77,8 @@ class Plan(TimestampedModel):
     has_salary_insights = models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'plans'
-        ordering = ['sort_order', 'price_inr']
+        db_table = "plans"
+        ordering = ["sort_order", "price_inr"]
 
     def __str__(self):
         period = f" ({self.billing_period})" if self.billing_period else ""
@@ -97,31 +96,31 @@ class Plan(TimestampedModel):
     @property
     def is_paid(self):
         return self.tier != self.Tier.FREE
-    
-    
+
+
 class Subscription(TimestampedModel):
     """
     A user's subscription. Lifecycle: TRIALING → ACTIVE → CANCELLED/EXPIRED
     """
 
     class Status(models.TextChoices):
-        TRIALING = 'trialing', 'Trialing'          # Free trial in progress
-        ACTIVE = 'active', 'Active'                  # Paid + within period
-        CANCELLED = 'cancelled', 'Cancelled'         # User cancelled, may still have access
-        EXPIRED = 'expired', 'Expired'               # Period ended, no renewal
-        PAYMENT_FAILED = 'payment_failed', 'Payment Failed'
+        TRIALING = "trialing", "Trialing"  # Free trial in progress
+        ACTIVE = "active", "Active"  # Paid + within period
+        CANCELLED = "cancelled", "Cancelled"  # User cancelled, may still have access
+        EXPIRED = "expired", "Expired"  # Period ended, no renewal
+        PAYMENT_FAILED = "payment_failed", "Payment Failed"
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='subscriptions',
+        related_name="subscriptions",
     )
     plan = models.ForeignKey(
         Plan,
         on_delete=models.PROTECT,
-        related_name='subscriptions',
+        related_name="subscriptions",
     )
     status = models.CharField(
         max_length=30,
@@ -145,11 +144,11 @@ class Subscription(TimestampedModel):
     razorpay_subscription_id = models.CharField(max_length=100, blank=True)
 
     class Meta:
-        db_table = 'subscriptions'
-        ordering = ['-created_at']
+        db_table = "subscriptions"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', 'status']),
-            models.Index(fields=['status', 'current_period_end']),
+            models.Index(fields=["user", "status"]),
+            models.Index(fields=["status", "current_period_end"]),
         ]
 
     def __str__(self):
@@ -167,40 +166,38 @@ class Subscription(TimestampedModel):
 
     def days_remaining(self):
         """How many days of access left."""
-        end = (
-            self.trial_ends_at if self.status == self.Status.TRIALING
-            else self.current_period_end
-        )
+        end = self.trial_ends_at if self.status == self.Status.TRIALING else self.current_period_end
         if not end:
             return 0
         delta = end - timezone.now()
         return max(0, delta.days)
-    
+
+
 class PaymentTransaction(TimestampedModel):
     """Audit log of all payment attempts."""
 
     class Status(models.TextChoices):
-        CREATED = 'created', 'Order Created'
-        SUCCESS = 'success', 'Payment Successful'
-        FAILED = 'failed', 'Payment Failed'
-        REFUNDED = 'refunded', 'Refunded'
+        CREATED = "created", "Order Created"
+        SUCCESS = "success", "Payment Successful"
+        FAILED = "failed", "Payment Failed"
+        REFUNDED = "refunded", "Refunded"
 
     subscription = models.ForeignKey(
         Subscription,
         on_delete=models.PROTECT,
-        related_name='transactions',
+        related_name="transactions",
         null=True,
         blank=True,  # Failed orders may not have sub
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='payment_transactions',
+        related_name="payment_transactions",
     )
     plan = models.ForeignKey(
         Plan,
         on_delete=models.PROTECT,
-        related_name='+',  # Don't need reverse
+        related_name="+",  # Don't need reverse
     )
     amount_inr = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CREATED)
@@ -214,16 +211,17 @@ class PaymentTransaction(TimestampedModel):
     failure_reason = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'payment_transactions'
-        ordering = ['-created_at']
+        db_table = "payment_transactions"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['razorpay_payment_id']),
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["razorpay_payment_id"]),
         ]
 
     def __str__(self):
         return f"₹{self.amount_inr} [{self.status}] - {self.razorpay_order_id}"
-    
+
+
 class Refund(TimestampedModel):
     """
     An admin-issued refund against a successful payment.
@@ -234,50 +232,54 @@ class Refund(TimestampedModel):
     """
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending at gateway'
-        PROCESSED = 'processed', 'Processed'
-        FAILED = 'failed', 'Failed'
+        PENDING = "pending", "Pending at gateway"
+        PROCESSED = "processed", "Processed"
+        FAILED = "failed", "Failed"
 
     transaction = models.ForeignKey(
         PaymentTransaction,
         on_delete=models.PROTECT,
-        related_name='refunds',
+        related_name="refunds",
     )
     amount_inr = models.DecimalField(max_digits=10, decimal_places=2)
     reason = models.TextField(
         max_length=500,
-        help_text='Why this refund was issued. Required for accountability.',
+        help_text="Why this refund was issued. Required for accountability.",
     )
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='refunds_issued',
-        help_text='Admin who authorised the refund. Null for system refunds.',
+        related_name="refunds_issued",
+        help_text="Admin who authorised the refund. Null for system refunds.",
     )
     access_revoked = models.BooleanField(
         default=False,
-        help_text='Whether the paid subscription was ended alongside this refund.',
+        help_text="Whether the paid subscription was ended alongside this refund.",
     )
 
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PENDING,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
         db_index=True,
     )
     razorpay_refund_id = models.CharField(max_length=100, blank=True, db_index=True)
     failure_reason = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'refunds'
-        ordering = ['-created_at']
+        db_table = "refunds"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['transaction', '-created_at']),
-            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=["transaction", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
         ]
 
     def __str__(self):
-        return f"Refund Rs.{self.amount_inr} [{self.status}] - {self.razorpay_refund_id or 'pending'}"
+        return (
+            f"Refund Rs.{self.amount_inr} [{self.status}] - {self.razorpay_refund_id or 'pending'}"
+        )
 
 
 class WebhookEvent(TimestampedModel):
@@ -286,10 +288,10 @@ class WebhookEvent(TimestampedModel):
     """
 
     class ProcessingStatus(models.TextChoices):
-        RECEIVED = 'received', 'Received'
-        PROCESSED = 'processed', 'Processed Successfully'
-        FAILED = 'failed', 'Processing Failed'
-        SKIPPED = 'skipped', 'Skipped (Duplicate)'
+        RECEIVED = "received", "Received"
+        PROCESSED = "processed", "Processed Successfully"
+        FAILED = "failed", "Processing Failed"
+        SKIPPED = "skipped", "Skipped (Duplicate)"
 
     # Razorpay's unique event ID — used for idempotency
     razorpay_event_id = models.CharField(
@@ -316,11 +318,11 @@ class WebhookEvent(TimestampedModel):
     received_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        db_table = 'webhook_events'
-        ordering = ['-received_at']
+        db_table = "webhook_events"
+        ordering = ["-received_at"]
         indexes = [
-            models.Index(fields=['event_type', 'processing_status']),
-            models.Index(fields=['-received_at']),
+            models.Index(fields=["event_type", "processing_status"]),
+            models.Index(fields=["-received_at"]),
         ]
 
     def __str__(self):

@@ -2,16 +2,15 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
 
-from apps.core.models import TimestampedModel, SoftDeleteModel
+from apps.core.models import SoftDeleteModel, TimestampedModel
 
 
 def resume_upload_path(instance, filename):
     """
     Generate S3 path: resumes/<user_id>/<uuid>.<ext>
     """
-    ext = filename.split('.')[-1].lower()
+    ext = filename.split(".")[-1].lower()
     new_name = f"{uuid.uuid4()}.{ext}"
     return f"resumes/{instance.user.id}/{new_name}"
 
@@ -22,16 +21,16 @@ class Resume(TimestampedModel, SoftDeleteModel):
     """
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        PARSING = 'parsing', 'Parsing'
-        PARSED = 'parsed', 'Parsed'
-        FAILED = 'failed', 'Failed'
+        PENDING = "pending", "Pending"
+        PARSING = "parsing", "Parsing"
+        PARSED = "parsed", "Parsed"
+        FAILED = "failed", "Failed"
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='resumes',
+        related_name="resumes",
     )
     name = models.CharField(
         max_length=200,
@@ -59,39 +58,41 @@ class Resume(TimestampedModel, SoftDeleteModel):
     parse_attempts = models.PositiveSmallIntegerField(default=0)
     parsed_at = models.DateTimeField(null=True, blank=True)
     extracted_skills = models.ManyToManyField(
-        'skills.Skill',
-        through='ResumeSkill',
-        related_name='resumes',
+        "skills.Skill",
+        through="ResumeSkill",
+        related_name="resumes",
     )
     ats_score = models.PositiveSmallIntegerField(null=True, blank=True)
     ats_breakdown = models.JSONField(default=dict, blank=True)
-    
+
     advanced_ats_score = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text='Advanced ATS score, normalized to 0-100',
+        null=True,
+        blank=True,
+        help_text="Advanced ATS score, normalized to 0-100",
     )
     advanced_ats_breakdown = models.JSONField(default=dict, blank=True)
     advanced_ats_analyzed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'resumes'
-        ordering = ['-is_primary', '-created_at']
+        db_table = "resumes"
+        ordering = ["-is_primary", "-created_at"]
         indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['user', 'is_primary']),
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "is_primary"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user'],
+                fields=["user"],
                 condition=models.Q(is_primary=True, is_deleted=False),
-                name='one_primary_resume_per_user',
+                name="one_primary_resume_per_user",
             ),
         ]
 
     def __str__(self):
-        primary = ' ⭐' if self.is_primary else ''
+        primary = " ⭐" if self.is_primary else ""
         return f"{self.name}{primary} ({self.user.email})"
-        
+
+
 class ResumeSkill(TimestampedModel):
     """
     Through model for Resume <-> Skill M2M.
@@ -99,21 +100,21 @@ class ResumeSkill(TimestampedModel):
     """
 
     class Source(models.TextChoices):
-        SKILLS_SECTION = 'skills_section', 'Skills Section'
-        EXPERIENCE = 'experience', 'Experience Section'
-        EDUCATION = 'education', 'Education Section'
-        GENERAL = 'general', 'General Text'
-        USER_ADDED = 'user_added', 'User Added'
+        SKILLS_SECTION = "skills_section", "Skills Section"
+        EXPERIENCE = "experience", "Experience Section"
+        EDUCATION = "education", "Education Section"
+        GENERAL = "general", "General Text"
+        USER_ADDED = "user_added", "User Added"
 
     resume = models.ForeignKey(
         Resume,
         on_delete=models.CASCADE,
-        related_name='resume_skills',
+        related_name="resume_skills",
     )
     skill = models.ForeignKey(
-        'skills.Skill',
+        "skills.Skill",
         on_delete=models.CASCADE,
-        related_name='resume_skills',
+        related_name="resume_skills",
     )
     confidence = models.FloatField(default=0.5)  # Range: 0.0 - 1.0
     source = models.CharField(
@@ -122,13 +123,13 @@ class ResumeSkill(TimestampedModel):
         default=Source.GENERAL,
     )
     mention_count = models.PositiveSmallIntegerField(default=1)
-    is_confirmed = models.BooleanField(default=False)   # Manually verified by user
+    is_confirmed = models.BooleanField(default=False)  # Manually verified by user
     is_user_added = models.BooleanField(default=False)  # Added by user, not extracted by AI
 
     class Meta:
-        db_table = 'resume_skills'
-        unique_together = ('resume', 'skill')
-        ordering = ['-confidence', 'skill__name']
+        db_table = "resume_skills"
+        unique_together = ("resume", "skill")
+        ordering = ["-confidence", "skill__name"]
 
     def __str__(self):
         return f"{self.skill.name} ({self.confidence:.0%}) - {self.source}"

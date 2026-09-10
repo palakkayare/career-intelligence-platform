@@ -5,12 +5,12 @@ Only models listed in settings.AUDITED_MODELS are watched. Auditing every
 model would double the write load and bury the interesting rows, so the list
 is deliberately short and explicit.
 """
+
 import logging
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from django.apps import apps as django_apps
 from django.conf import settings
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
@@ -22,12 +22,18 @@ logger = logging.getLogger(__name__)
 
 # Never recorded, whatever model they appear on.
 SENSITIVE_FIELDS = {
-    'password', 'secret', 'token', 'code_hash', 'razorpay_signature',
-    'signature', 'fcm_token', 'google_sub',
+    "password",
+    "secret",
+    "token",
+    "code_hash",
+    "razorpay_signature",
+    "signature",
+    "fcm_token",
+    "google_sub",
 }
 
 # Noise: these change on nearly every save and say nothing useful.
-IGNORED_FIELDS = {'updated_at', 'last_login', 'search_vector'}
+IGNORED_FIELDS = {"updated_at", "last_login", "search_vector"}
 
 
 def _serialise(value):
@@ -53,11 +59,11 @@ def _snapshot(instance):
 
 
 def _label(instance):
-    return f'{instance._meta.app_label}.{instance._meta.object_name}'
+    return f"{instance._meta.app_label}.{instance._meta.object_name}"
 
 
 def _is_audited(instance):
-    return _label(instance) in set(getattr(settings, 'AUDITED_MODELS', []))
+    return _label(instance) in set(getattr(settings, "AUDITED_MODELS", []))
 
 
 def _write(instance, action, old_value=None, new_value=None):
@@ -66,22 +72,22 @@ def _write(instance, action, old_value=None, new_value=None):
     audited, so everything is swallowed and logged.
     """
     ctx = get_context()
-    user = ctx['user']
+    user = ctx["user"]
     try:
         AuditLog.objects.create(
             user=user,
-            user_email=getattr(user, 'email', '') or '',
+            user_email=getattr(user, "email", "") or "",
             action=action,
             model_name=_label(instance),
             object_id=str(instance.pk),
             object_repr=str(instance)[:255],
             old_value=old_value or {},
             new_value=new_value or {},
-            ip_address=ctx['ip_address'],
-            user_agent=ctx['user_agent'],
+            ip_address=ctx["ip_address"],
+            user_agent=ctx["user_agent"],
         )
     except Exception:
-        logger.exception('Failed to write audit log for %s', _label(instance))
+        logger.exception("Failed to write audit log for %s", _label(instance))
 
 
 @receiver(pre_save)
@@ -93,7 +99,7 @@ def capture_previous_state(sender, instance, **kwargs):
     if not _is_audited(instance) or instance.pk is None:
         return
 
-    manager = getattr(sender, 'all_objects', sender._default_manager)
+    manager = getattr(sender, "all_objects", sender._default_manager)
     try:
         instance._audit_previous = _snapshot(manager.get(pk=instance.pk))
     except sender.DoesNotExist:
@@ -111,7 +117,7 @@ def record_create_or_update(sender, instance, created, **kwargs):
         _write(instance, AuditLog.Action.CREATE, new_value=_snapshot(instance))
         return
 
-    previous = getattr(instance, '_audit_previous', None)
+    previous = getattr(instance, "_audit_previous", None)
     if previous is None:
         return
 
@@ -123,8 +129,7 @@ def record_create_or_update(sender, instance, created, **kwargs):
     if not old_diff:
         return
 
-    _write(instance, AuditLog.Action.UPDATE,
-           old_value=old_diff, new_value=new_diff)
+    _write(instance, AuditLog.Action.UPDATE, old_value=old_diff, new_value=new_diff)
 
 
 @receiver(post_delete)

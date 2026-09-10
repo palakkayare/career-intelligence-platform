@@ -6,88 +6,98 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payments', '0002_webhookevent'),
+        ("payments", "0002_webhookevent"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='plan',
-            name='has_advanced_filters',
+            model_name="plan",
+            name="has_advanced_filters",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_analytics_dashboard',
+            model_name="plan",
+            name="has_analytics_dashboard",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_candidate_search',
+            model_name="plan",
+            name="has_candidate_search",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_career_path',
+            model_name="plan",
+            name="has_career_path",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_company_branding',
+            model_name="plan",
+            name="has_company_branding",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_match_score',
+            model_name="plan",
+            name="has_match_score",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_priority_search_visibility',
+            model_name="plan",
+            name="has_priority_search_visibility",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_resume_ai_analysis',
+            model_name="plan",
+            name="has_resume_ai_analysis",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_salary_insights',
+            model_name="plan",
+            name="has_salary_insights",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='has_skill_gap',
+            model_name="plan",
+            name="has_skill_gap",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_active_jobs',
-            field=models.IntegerField(blank=True, help_text='Max jobs a recruiter can have open at once. Null means unlimited', null=True),
+            model_name="plan",
+            name="max_active_jobs",
+            field=models.IntegerField(
+                blank=True,
+                help_text="Max jobs a recruiter can have open at once. Null means unlimited",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_applicants_view_per_job',
-            field=models.IntegerField(blank=True, help_text='How many applicants a recruiter can see per job. Null means unlimited', null=True),
+            model_name="plan",
+            name="max_applicants_view_per_job",
+            field=models.IntegerField(
+                blank=True,
+                help_text="How many applicants a recruiter can see per job. Null means unlimited",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_applications_per_month',
-            field=models.IntegerField(blank=True, help_text='Null means unlimited', null=True),
+            model_name="plan",
+            name="max_applications_per_month",
+            field=models.IntegerField(
+                blank=True, help_text="Null means unlimited", null=True
+            ),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_resumes',
+            model_name="plan",
+            name="max_resumes",
             field=models.IntegerField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_saved_searches',
+            model_name="plan",
+            name="max_saved_searches",
             field=models.IntegerField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='plan',
-            name='max_team_members',
+            model_name="plan",
+            name="max_team_members",
             field=models.IntegerField(blank=True, null=True),
         ),
     ]

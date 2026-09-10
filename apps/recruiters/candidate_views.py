@@ -14,15 +14,16 @@ from .candidate_serializers import (
     CandidateSearchInputSerializer,
     CandidateViewHistorySerializer,
     RecruiterCreditsSerializer,
-    WhoViewedMeSerializer,
     TalentPoolSerializer,
+    WhoViewedMeSerializer,
 )
 from .candidate_services import CandidateProfileService, CandidateSearchService
 from .models import CandidateView, RecruiterCredits, TalentPool
 from .permissions import IsRecruiter
 
 # Only plans that include this feature key may search candidates
-HasCandidateSearch = HasFeature.create('candidate_search')
+HasCandidateSearch = HasFeature.create("candidate_search")
+
 
 def _searchable_seeker_or_404(public_id):
     """Fetch a seeker who is currently discoverable, else 404."""
@@ -47,13 +48,14 @@ class CandidateSearchView(APIView):
 
         # Resolve the optional target job UUID to a primary key
         target_job_id = None
-        if data.get('target_job_uuid'):
+        if data.get("target_job_uuid"):
             job = Job.objects.filter(
-                public_id=data['target_job_uuid'], is_deleted=False,
+                public_id=data["target_job_uuid"],
+                is_deleted=False,
             ).first()
             if job and job.posted_by_id != recruiter.id:
                 return Response(
-                    {'detail': 'You can only rank candidates against your own jobs.'},
+                    {"detail": "You can only rank candidates against your own jobs."},
                     status=403,
                 )
             if job:
@@ -62,30 +64,32 @@ class CandidateSearchView(APIView):
         result = CandidateSearchService.search(
             recruiter=recruiter,
             filters={
-                'skill_ids': data.get('skill_ids', []),
-                'experience_years_min': data.get('experience_years_min'),
-                'experience_years_max': data.get('experience_years_max'),
-                'location_city': data.get('location_city'),
-                'q': data.get('q'),
+                "skill_ids": data.get("skill_ids", []),
+                "experience_years_min": data.get("experience_years_min"),
+                "experience_years_max": data.get("experience_years_max"),
+                "location_city": data.get("location_city"),
+                "q": data.get("q"),
             },
             target_job_id=target_job_id,
-            page=data.get('page', 1),
-            page_size=data.get('page_size', 20),
+            page=data.get("page", 1),
+            page_size=data.get("page_size", 20),
         )
 
         results = CandidatePreviewSerializer(
-            result['seekers'],
+            result["seekers"],
             many=True,
-            context={'match_scores_map': result['match_scores_map']},
+            context={"match_scores_map": result["match_scores_map"]},
         )
 
-        return Response({
-            'total': result['total'],
-            'page': result['page'],
-            'page_size': result['page_size'],
-            'has_next': result['has_next'],
-            'results': results.data,
-        })
+        return Response(
+            {
+                "total": result["total"],
+                "page": result["page"],
+                "page_size": result["page_size"],
+                "has_next": result["has_next"],
+                "results": results.data,
+            }
+        )
 
 
 class CandidateDetailView(APIView):
@@ -98,10 +102,11 @@ class CandidateDetailView(APIView):
         seeker = _searchable_seeker_or_404(public_id)
 
         target_job_id = None
-        target_job_uuid = request.query_params.get('target_job_uuid')
+        target_job_uuid = request.query_params.get("target_job_uuid")
         if target_job_uuid:
             job = Job.objects.filter(
-                public_id=target_job_uuid, posted_by=recruiter,
+                public_id=target_job_uuid,
+                posted_by=recruiter,
             ).first()
             if job:
                 target_job_id = job.id
@@ -114,7 +119,7 @@ class CandidateDetailView(APIView):
 
         serializer = CandidateDetailSerializer(
             seeker,
-            context={'contact_revealed': result['contact_revealed']},
+            context={"contact_revealed": result["contact_revealed"]},
         )
         return Response(serializer.data)
 
@@ -136,14 +141,16 @@ class RevealContactView(APIView):
         )
 
         serializer = CandidateDetailSerializer(
-            result['seeker'],
-            context={'contact_revealed': True},
+            result["seeker"],
+            context={"contact_revealed": True},
         )
-        return Response({
-            'already_revealed': result['already_revealed'],
-            'credits_remaining': result['credits_remaining'],
-            'candidate': serializer.data,
-        })
+        return Response(
+            {
+                "already_revealed": result["already_revealed"],
+                "credits_remaining": result["credits_remaining"],
+                "candidate": serializer.data,
+            }
+        )
 
 
 class MyCreditsView(APIView):
@@ -154,7 +161,7 @@ class MyCreditsView(APIView):
     def get(self, request):
         credits, _ = RecruiterCredits.objects.get_or_create(
             recruiter=request.user.recruiter_profile,
-            defaults={'monthly_reveal_limit': 0},
+            defaults={"monthly_reveal_limit": 0},
         )
 
         # Lazy reset so the balance is correct even if Beat has not run
@@ -172,10 +179,9 @@ class MyViewHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         return (
-            CandidateView.objects
-            .filter(recruiter=self.request.user.recruiter_profile)
-            .select_related('seeker__user')
-            .order_by('-created_at')[:200]
+            CandidateView.objects.filter(recruiter=self.request.user.recruiter_profile)
+            .select_related("seeker__user")
+            .order_by("-created_at")[:200]
         )
 
 
@@ -186,17 +192,17 @@ class WhoViewedMeView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if not hasattr(self.request.user, 'seeker_profile'):
+        if not hasattr(self.request.user, "seeker_profile"):
             return CandidateView.objects.none()
 
         return (
-            CandidateView.objects
-            .filter(seeker=self.request.user.seeker_profile)
+            CandidateView.objects.filter(seeker=self.request.user.seeker_profile)
             # Search-result impressions are noise for the seeker
             .exclude(view_kind=CandidateView.ViewKind.SEARCH_RESULT)
-            .select_related('recruiter__user', 'recruiter__company')
-            .order_by('-created_at')[:50]
+            .select_related("recruiter__user", "recruiter__company")
+            .order_by("-created_at")[:50]
         )
+
 
 class TalentPoolListCreateView(generics.ListCreateAPIView):
     """
@@ -204,6 +210,7 @@ class TalentPoolListCreateView(generics.ListCreateAPIView):
 
     Saved candidate searches that stay current. Blueprint Feature 15.
     """
+
     serializer_class = TalentPoolSerializer
     permission_classes = [IsRecruiter, HasCandidateSearch]
 
@@ -218,6 +225,7 @@ class TalentPoolListCreateView(generics.ListCreateAPIView):
 
 class TalentPoolDetailView(generics.RetrieveUpdateDestroyAPIView):
     """GET/PATCH/DELETE /api/v1/candidates/pools/<int:pk>/"""
+
     serializer_class = TalentPoolSerializer
     permission_classes = [IsRecruiter, HasCandidateSearch]
 
@@ -234,26 +242,32 @@ class TalentPoolMembersView(APIView):
     Runs the saved filters now. Nothing is cached, so a seeker who has gone
     private since the pool was created will not appear.
     """
+
     permission_classes = [IsRecruiter, HasCandidateSearch]
 
     def get(self, request, pk):
         from .services import TalentPoolService
 
         pool = get_object_or_404(
-            TalentPool, pk=pk, recruiter=request.user.recruiter_profile,
+            TalentPool,
+            pk=pk,
+            recruiter=request.user.recruiter_profile,
         )
 
-        page = int(request.query_params.get('page', 1))
-        page_size = min(int(request.query_params.get('page_size', 20)), 50)
+        page = int(request.query_params.get("page", 1))
+        page_size = min(int(request.query_params.get("page_size", 20)), 50)
 
         result = TalentPoolService.members(pool, page=page, page_size=page_size)
 
-        return Response({
-            'pool': TalentPoolSerializer(pool).data,
-            'total': result['total'],
-            'page': result['page'],
-            'has_next': result['has_next'],
-            'candidates': CandidatePreviewSerializer(
-                result['seekers'], many=True,
-            ).data,
-        })
+        return Response(
+            {
+                "pool": TalentPoolSerializer(pool).data,
+                "total": result["total"],
+                "page": result["page"],
+                "has_next": result["has_next"],
+                "candidates": CandidatePreviewSerializer(
+                    result["seekers"],
+                    many=True,
+                ).data,
+            }
+        )

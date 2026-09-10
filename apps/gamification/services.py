@@ -1,6 +1,7 @@
 """
 Gamification services.
 """
+
 import logging
 from datetime import timedelta
 
@@ -9,14 +10,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import (
-    ApplicationStreak,
-    Badge,
-    EarnedBadge,
-    PerkRedemption,
-    PointsLedger,
-    WeeklyGoal,
-)
+from .models import ApplicationStreak, Badge, EarnedBadge, PerkRedemption, PointsLedger, WeeklyGoal
 
 logger = logging.getLogger(__name__)
 
@@ -42,26 +36,32 @@ class PointsService:
 
     @classmethod
     def balance(cls, user):
-        return PointsLedger.objects.filter(user=user).aggregate(
-            total=Sum('delta'),
-        )['total'] or 0
+        return (
+            PointsLedger.objects.filter(user=user).aggregate(
+                total=Sum("delta"),
+            )["total"]
+            or 0
+        )
 
     @classmethod
-    def award(cls, user, amount, reason, detail=''):
+    def award(cls, user, amount, reason, detail=""):
         """
         Add points. Refuses zero or negative amounts - spending goes through
         `spend`, so a bug cannot quietly hand someone a negative award.
         """
         if amount <= 0:
-            raise ValidationError({'detail': 'Award amount must be positive.'})
+            raise ValidationError({"detail": "Award amount must be positive."})
 
         return PointsLedger.objects.create(
-            user=user, delta=amount, reason=reason, detail=detail,
+            user=user,
+            delta=amount,
+            reason=reason,
+            detail=detail,
         )
 
     @classmethod
     @transaction.atomic
-    def spend(cls, user, amount, reason, detail=''):
+    def spend(cls, user, amount, reason, detail=""):
         """
         Deduct points, refusing to go below zero.
 
@@ -70,20 +70,29 @@ class PointsService:
         the check.
         """
         if amount <= 0:
-            raise ValidationError({'detail': 'Spend amount must be positive.'})
+            raise ValidationError({"detail": "Spend amount must be positive."})
 
-        current = PointsLedger.objects.select_for_update().filter(
-            user=user,
-        ).aggregate(total=Sum('delta'))['total'] or 0
+        current = (
+            PointsLedger.objects.select_for_update()
+            .filter(
+                user=user,
+            )
+            .aggregate(total=Sum("delta"))["total"]
+            or 0
+        )
 
         if current < amount:
-            raise ValidationError({
-                'detail': f'Not enough points. You have {current}, '
-                          f'this costs {amount}.',
-            })
+            raise ValidationError(
+                {
+                    "detail": f"Not enough points. You have {current}, " f"this costs {amount}.",
+                }
+            )
 
         return PointsLedger.objects.create(
-            user=user, delta=-amount, reason=reason, detail=detail,
+            user=user,
+            delta=-amount,
+            reason=reason,
+            detail=detail,
         )
 
     @classmethod
@@ -107,12 +116,15 @@ class BadgeService:
             return None, False
 
         earned, created = EarnedBadge.objects.get_or_create(
-            user=user, badge=badge,
+            user=user,
+            badge=badge,
         )
 
         if created and badge.points:
             PointsService.award(
-                user, badge.points, PointsLedger.Reason.BADGE,
+                user,
+                badge.points,
+                PointsLedger.Reason.BADGE,
                 detail=badge.name,
             )
 
@@ -147,21 +159,21 @@ class BadgeService:
         from apps.applications.models import Application
 
         codes = []
-        profile = getattr(user, 'seeker_profile', None)
+        profile = getattr(user, "seeker_profile", None)
         if profile is None:
             return codes
 
         strength = profile.profile_strength
         for code, floor in (
-            ('profile-started', 25),
-            ('profile-half', 50),
-            ('profile-complete', 100),
+            ("profile-started", 25),
+            ("profile-half", 50),
+            ("profile-complete", 100),
         ):
             if strength >= floor:
                 codes.append(code)
 
         skill_count = profile.seeker_skills.count()
-        for code, floor in (('skills-5', 5), ('skills-10', 10)):
+        for code, floor in (("skills-5", 5), ("skills-10", 10)):
             if skill_count >= floor:
                 codes.append(code)
 
@@ -169,9 +181,9 @@ class BadgeService:
         # badge marks the act of applying, not the outcome.
         application_count = Application.all_objects.filter(seeker=profile).count()
         for code, floor in (
-            ('first-application', 1),
-            ('applications-10', 10),
-            ('applications-25', 25),
+            ("first-application", 1),
+            ("applications-10", 10),
+            ("applications-25", 25),
         ):
             if application_count >= floor:
                 codes.append(code)
@@ -219,8 +231,10 @@ class StreakService:
         points = STREAK_MILESTONES.get(weeks)
         if points:
             PointsService.award(
-                user, points, PointsLedger.Reason.STREAK,
-                detail=f'{weeks}-week application streak',
+                user,
+                points,
+                PointsLedger.Reason.STREAK,
+                detail=f"{weeks}-week application streak",
             )
 
     @classmethod
@@ -234,7 +248,7 @@ class StreakService:
         """
         streak = ApplicationStreak.objects.filter(user=user).first()
         if streak is None or streak.last_active_week is None:
-            return {'current_weeks': 0, 'longest_weeks': 0, 'is_live': False}
+            return {"current_weeks": 0, "longest_weeks": 0, "is_live": False}
 
         this_week = week_start()
         gap = (this_week - streak.last_active_week).days // 7
@@ -244,10 +258,10 @@ class StreakService:
         is_live = gap <= 1
 
         return {
-            'current_weeks': streak.current_weeks if is_live else 0,
-            'longest_weeks': streak.longest_weeks,
-            'is_live': is_live,
-            'last_active_week': streak.last_active_week,
+            "current_weeks": streak.current_weeks if is_live else 0,
+            "longest_weeks": streak.longest_weeks,
+            "is_live": is_live,
+            "last_active_week": streak.last_active_week,
         }
 
 
@@ -267,13 +281,17 @@ class GoalService:
         opposite of useful.
         """
         if target < 1 or target > cls.MAX_TARGET:
-            raise ValidationError({
-                'target': f'Pick a target between 1 and {cls.MAX_TARGET}.',
-            })
+            raise ValidationError(
+                {
+                    "target": f"Pick a target between 1 and {cls.MAX_TARGET}.",
+                }
+            )
 
         goal, _ = WeeklyGoal.objects.update_or_create(
-            user=user, kind=kind, week_start=week_start(when),
-            defaults={'target': target},
+            user=user,
+            kind=kind,
+            week_start=week_start(when),
+            defaults={"target": target},
         )
         return goal
 
@@ -285,12 +303,12 @@ class GoalService:
 
         return [
             {
-                'id': goal.id,
-                'kind': goal.kind,
-                'label': goal.get_kind_display(),
-                'target': goal.target,
-                'current': cls._count(user, goal.kind, start),
-                'achieved': goal.achieved_at is not None,
+                "id": goal.id,
+                "kind": goal.kind,
+                "label": goal.get_kind_display(),
+                "target": goal.target,
+                "current": cls._count(user, goal.kind, start),
+                "achieved": goal.achieved_at is not None,
             }
             for goal in goals
         ]
@@ -301,23 +319,26 @@ class GoalService:
         from apps.career_intel.models import UserLearning
         from apps.seekers.models import SeekerSkill
 
-        profile = getattr(user, 'seeker_profile', None)
+        profile = getattr(user, "seeker_profile", None)
         if profile is None:
             return 0
 
         if kind == WeeklyGoal.Kind.APPLICATIONS:
             return Application.all_objects.filter(
-                seeker=profile, submitted_at__date__gte=start,
+                seeker=profile,
+                submitted_at__date__gte=start,
             ).count()
 
         if kind == WeeklyGoal.Kind.SKILLS_ADDED:
             return SeekerSkill.objects.filter(
-                seeker=profile, created_at__date__gte=start,
+                seeker=profile,
+                created_at__date__gte=start,
             ).count()
 
         if kind == WeeklyGoal.Kind.COURSES_STARTED:
             return UserLearning.objects.filter(
-                user=user, started_at__date__gte=start,
+                user=user,
+                started_at__date__gte=start,
             ).count()
 
         return 0
@@ -334,18 +355,22 @@ class GoalService:
         awarded = []
 
         goals = WeeklyGoal.objects.filter(
-            user=user, week_start=start, achieved_at__isnull=True,
+            user=user,
+            week_start=start,
+            achieved_at__isnull=True,
         )
 
         for goal in goals:
             if cls._count(user, goal.kind, start) >= goal.target:
                 goal.achieved_at = timezone.now()
                 goal.points_awarded = cls.GOAL_POINTS
-                goal.save(update_fields=['achieved_at', 'points_awarded'])
+                goal.save(update_fields=["achieved_at", "points_awarded"])
 
                 PointsService.award(
-                    user, cls.GOAL_POINTS, PointsLedger.Reason.GOAL,
-                    detail=f'{goal.target} {goal.get_kind_display().lower()}',
+                    user,
+                    cls.GOAL_POINTS,
+                    PointsLedger.Reason.GOAL,
+                    detail=f"{goal.target} {goal.get_kind_display().lower()}",
                 )
                 awarded.append(goal.kind)
 
@@ -368,28 +393,35 @@ class PerkService:
         """
         cost = cls.cost(perk)
         if cost is None:
-            raise ValidationError({'perk': 'Unknown perk.'})
+            raise ValidationError({"perk": "Unknown perk."})
 
         if cls.active_perk(user, perk) is not None:
-            raise ValidationError({
-                'detail': 'You already have this unlocked. '
-                          'Redeem again once it expires.',
-            })
+            raise ValidationError(
+                {
+                    "detail": "You already have this unlocked. " "Redeem again once it expires.",
+                }
+            )
 
         PointsService.spend(
-            user, cost, PointsLedger.Reason.REDEMPTION,
+            user,
+            cost,
+            PointsLedger.Reason.REDEMPTION,
             detail=dict(PerkRedemption.Perk.choices)[perk],
         )
 
         return PerkRedemption.objects.create(
-            user=user, perk=perk, points_spent=cost,
+            user=user,
+            perk=perk,
+            points_spent=cost,
             expires_at=timezone.now() + timedelta(hours=PERK_DURATION_HOURS),
         )
 
     @classmethod
     def active_perk(cls, user, perk):
         return PerkRedemption.objects.filter(
-            user=user, perk=perk, expires_at__gt=timezone.now(),
+            user=user,
+            perk=perk,
+            expires_at__gt=timezone.now(),
         ).first()
 
     @classmethod
@@ -409,13 +441,12 @@ class PerkService:
 
         return [
             {
-                'perk': perk,
-                'label': label,
-                'cost': PERK_COSTS[perk],
-                'affordable': balance >= PERK_COSTS[perk],
-                'active_until': (
-                    active.expires_at if (active := cls.active_perk(user, perk))
-                    else None
+                "perk": perk,
+                "label": label,
+                "cost": PERK_COSTS[perk],
+                "affordable": balance >= PERK_COSTS[perk],
+                "active_until": (
+                    active.expires_at if (active := cls.active_perk(user, perk)) else None
                 ),
             }
             for perk, label in PerkRedemption.Perk.choices

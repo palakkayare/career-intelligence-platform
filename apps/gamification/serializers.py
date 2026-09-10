@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Badge, EarnedBadge, PerkRedemption, PointsLedger, WeeklyGoal
+from .models import Badge, PerkRedemption, PointsLedger, WeeklyGoal
 
 
 class BadgeSerializer(serializers.ModelSerializer):
@@ -10,21 +10,28 @@ class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
         fields = (
-            'id', 'code', 'name', 'description', 'category',
-            'points', 'icon', 'earned', 'earned_at',
+            "id",
+            "code",
+            "name",
+            "description",
+            "category",
+            "points",
+            "icon",
+            "earned",
+            "earned_at",
         )
 
     def get_earned(self, obj):
-        return obj.code in self.context.get('earned_codes', set())
+        return obj.code in self.context.get("earned_codes", set())
 
     def get_earned_at(self, obj):
-        return self.context.get('earned_dates', {}).get(obj.code)
+        return self.context.get("earned_dates", {}).get(obj.code)
 
 
 class PointsLedgerSerializer(serializers.ModelSerializer):
     class Meta:
         model = PointsLedger
-        fields = ('id', 'delta', 'reason', 'detail', 'created_at')
+        fields = ("id", "delta", "reason", "detail", "created_at")
 
 
 class SetGoalSerializer(serializers.Serializer):

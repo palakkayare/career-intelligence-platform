@@ -6,18 +6,18 @@ Withdrawing is a soft delete (is_deleted flips to True) rather than a row
 deletion, which means post_delete never fires — the change has to be caught
 on save by comparing against the previous state.
 """
+
 from django.db.models import F
 from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 
 from apps.jobs.models import Job
+
 from .models import Application
 
 
 def _shift(job_id, delta):
-    Job.objects.filter(pk=job_id).update(
-        application_count=F('application_count') + delta
-    )
+    Job.objects.filter(pk=job_id).update(application_count=F("application_count") + delta)
 
 
 @receiver(post_init, sender=Application)
@@ -32,10 +32,10 @@ def sync_job_application_count(sender, instance, created, **kwargs):
         if not instance.is_deleted:
             _shift(instance.job_id, 1)
     else:
-        was_deleted = getattr(instance, '_was_deleted', instance.is_deleted)
+        was_deleted = getattr(instance, "_was_deleted", instance.is_deleted)
         if not was_deleted and instance.is_deleted:
-            _shift(instance.job_id, -1)      # withdrawn
+            _shift(instance.job_id, -1)  # withdrawn
         elif was_deleted and not instance.is_deleted:
-            _shift(instance.job_id, 1)       # restored
+            _shift(instance.job_id, 1)  # restored
 
     instance._was_deleted = instance.is_deleted

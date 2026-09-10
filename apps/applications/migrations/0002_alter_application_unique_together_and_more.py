@@ -6,18 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('applications', '0001_initial'),
-        ('jobs', '0002_savedsearch_searchhistory_job_search_vector_and_more'),
-        ('seekers', '0004_seekerprofile_hide_current_company_and_more'),
+        ("applications", "0001_initial"),
+        ("jobs", "0002_savedsearch_searchhistory_job_search_vector_and_more"),
+        ("seekers", "0004_seekerprofile_hide_current_company_and_more"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='application',
+            name="application",
             unique_together=set(),
         ),
         migrations.AddConstraint(
-            model_name='application',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_deleted', False)), fields=('seeker', 'job'), name='one_active_application_per_seeker_job'),
+            model_name="application",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_deleted", False)),
+                fields=("seeker", "job"),
+                name="one_active_application_per_seeker_job",
+            ),
         ),
     ]

@@ -10,122 +10,335 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('career_intel', '0006_salarysubmission_submitter_ip_hash'),
-        ('recruiters', '0003_talentpool'),
+        ("career_intel", "0006_salarysubmission_submitter_ip_hash"),
+        ("recruiters", "0003_talentpool"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='InterviewChecklistItem',
+            name="InterviewChecklistItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('phase', models.CharField(choices=[('preparation', 'Before The Interview'), ('day_of', 'On The Day'), ('follow_up', 'Afterwards')], max_length=20)),
-                ('text', models.CharField(max_length=300)),
-                ('detail', models.TextField(blank=True, max_length=600)),
-                ('order', models.PositiveSmallIntegerField(default=0)),
-                ('is_active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "phase",
+                    models.CharField(
+                        choices=[
+                            ("preparation", "Before The Interview"),
+                            ("day_of", "On The Day"),
+                            ("follow_up", "Afterwards"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("text", models.CharField(max_length=300)),
+                ("detail", models.TextField(blank=True, max_length=600)),
+                ("order", models.PositiveSmallIntegerField(default=0)),
+                ("is_active", models.BooleanField(default=True)),
             ],
             options={
-                'db_table': 'interview_checklist_items',
-                'ordering': ['phase', 'order', 'id'],
+                "db_table": "interview_checklist_items",
+                "ordering": ["phase", "order", "id"],
             },
         ),
         migrations.CreateModel(
-            name='NegotiationScript',
+            name="NegotiationScript",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('scenario', models.CharField(choices=[('first_number', 'Asked For Your Number First'), ('lowball', 'Offer Below Expectation'), ('counter', 'Making A Counter-Offer'), ('competing', 'You Have A Competing Offer'), ('non_salary', 'Negotiating Beyond Salary'), ('accepting', 'Accepting Or Declining')], max_length=20, unique=True)),
-                ('title', models.CharField(max_length=150)),
-                ('situation', models.TextField(max_length=500)),
-                ('script', models.TextField(help_text='Suggested wording. Meant to be adapted, not recited.', max_length=1500)),
-                ('tactics', models.JSONField(blank=True, default=list, help_text='The reasoning behind the wording, as a list of points.')),
-                ('mistakes', models.JSONField(blank=True, default=list, help_text='Common ways this conversation goes wrong.')),
-                ('is_active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "scenario",
+                    models.CharField(
+                        choices=[
+                            ("first_number", "Asked For Your Number First"),
+                            ("lowball", "Offer Below Expectation"),
+                            ("counter", "Making A Counter-Offer"),
+                            ("competing", "You Have A Competing Offer"),
+                            ("non_salary", "Negotiating Beyond Salary"),
+                            ("accepting", "Accepting Or Declining"),
+                        ],
+                        max_length=20,
+                        unique=True,
+                    ),
+                ),
+                ("title", models.CharField(max_length=150)),
+                ("situation", models.TextField(max_length=500)),
+                (
+                    "script",
+                    models.TextField(
+                        help_text="Suggested wording. Meant to be adapted, not recited.",
+                        max_length=1500,
+                    ),
+                ),
+                (
+                    "tactics",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="The reasoning behind the wording, as a list of points.",
+                    ),
+                ),
+                (
+                    "mistakes",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="Common ways this conversation goes wrong.",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
             ],
             options={
-                'db_table': 'negotiation_scripts',
-                'ordering': ['scenario'],
+                "db_table": "negotiation_scripts",
+                "ordering": ["scenario"],
             },
         ),
         migrations.CreateModel(
-            name='StarTemplate',
+            name="StarTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('competency', models.CharField(help_text='e.g. Conflict resolution, Leading without authority', max_length=100, unique=True)),
-                ('description', models.CharField(blank=True, max_length=300)),
-                ('situation_prompt', models.TextField(max_length=400)),
-                ('task_prompt', models.TextField(max_length=400)),
-                ('action_prompt', models.TextField(max_length=400)),
-                ('result_prompt', models.TextField(max_length=400)),
-                ('worked_example', models.TextField(blank=True, max_length=1500)),
-                ('is_active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "competency",
+                    models.CharField(
+                        help_text="e.g. Conflict resolution, Leading without authority",
+                        max_length=100,
+                        unique=True,
+                    ),
+                ),
+                ("description", models.CharField(blank=True, max_length=300)),
+                ("situation_prompt", models.TextField(max_length=400)),
+                ("task_prompt", models.TextField(max_length=400)),
+                ("action_prompt", models.TextField(max_length=400)),
+                ("result_prompt", models.TextField(max_length=400)),
+                ("worked_example", models.TextField(blank=True, max_length=1500)),
+                ("is_active", models.BooleanField(default=True)),
             ],
             options={
-                'db_table': 'star_templates',
-                'ordering': ['competency'],
+                "db_table": "star_templates",
+                "ordering": ["competency"],
             },
         ),
         migrations.CreateModel(
-            name='CompanyInterviewTip',
+            name="CompanyInterviewTip",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('category', models.CharField(choices=[('process', 'Process & Rounds'), ('looks_for', 'What They Look For'), ('preparation', 'How To Prepare'), ('logistics', 'Logistics')], max_length=20)),
-                ('tip', models.TextField(max_length=800)),
-                ('source', models.CharField(blank=True, help_text='Where this came from. Unsourced tips are rumour.', max_length=200)),
-                ('is_active', models.BooleanField(default=True)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interview_tips', to='recruiters.company')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("process", "Process & Rounds"),
+                            ("looks_for", "What They Look For"),
+                            ("preparation", "How To Prepare"),
+                            ("logistics", "Logistics"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("tip", models.TextField(max_length=800)),
+                (
+                    "source",
+                    models.CharField(
+                        blank=True,
+                        help_text="Where this came from. Unsourced tips are rumour.",
+                        max_length=200,
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="interview_tips",
+                        to="recruiters.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'company_interview_tips',
-                'ordering': ['company', 'category'],
-                'indexes': [models.Index(fields=['company', 'category'], name='company_int_company_ad4185_idx')],
+                "db_table": "company_interview_tips",
+                "ordering": ["company", "category"],
+                "indexes": [
+                    models.Index(
+                        fields=["company", "category"],
+                        name="company_int_company_ad4185_idx",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='ChecklistProgress',
+            name="ChecklistProgress",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('interview_label', models.CharField(help_text='Which interview this is for, e.g. "Test Corp - round 2".', max_length=150)),
-                ('completed_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='checklist_progress', to=settings.AUTH_USER_MODEL)),
-                ('item', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='progress', to='interview_prep.interviewchecklistitem')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "interview_label",
+                    models.CharField(
+                        help_text='Which interview this is for, e.g. "Test Corp - round 2".',
+                        max_length=150,
+                    ),
+                ),
+                ("completed_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="checklist_progress",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "item",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="progress",
+                        to="interview_prep.interviewchecklistitem",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'checklist_progress',
-                'ordering': ['-completed_at'],
-                'indexes': [models.Index(fields=['user', 'interview_label'], name='checklist_p_user_id_603567_idx')],
-                'constraints': [models.UniqueConstraint(fields=('user', 'item', 'interview_label'), name='one_tick_per_item_per_interview')],
+                "db_table": "checklist_progress",
+                "ordering": ["-completed_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "interview_label"],
+                        name="checklist_p_user_id_603567_idx",
+                    )
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("user", "item", "interview_label"),
+                        name="one_tick_per_item_per_interview",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='InterviewQuestion',
+            name="InterviewQuestion",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('category', models.CharField(choices=[('behavioural', 'Behavioural'), ('technical', 'Technical'), ('situational', 'Situational'), ('culture', 'Culture Fit'), ('closing', 'Questions To Ask Them')], max_length=20)),
-                ('difficulty', models.CharField(choices=[('entry', 'Entry'), ('mid', 'Mid'), ('senior', 'Senior')], default='mid', max_length=10)),
-                ('question', models.TextField(max_length=500)),
-                ('guidance', models.TextField(blank=True, help_text='What a strong answer covers. Not a model answer.', max_length=1000)),
-                ('asked_frequency', models.PositiveSmallIntegerField(default=50, help_text='0-100. Higher means more commonly asked; drives ordering.')),
-                ('is_active', models.BooleanField(default=True)),
-                ('target_role', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='interview_questions', to='career_intel.targetrole')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("behavioural", "Behavioural"),
+                            ("technical", "Technical"),
+                            ("situational", "Situational"),
+                            ("culture", "Culture Fit"),
+                            ("closing", "Questions To Ask Them"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "difficulty",
+                    models.CharField(
+                        choices=[
+                            ("entry", "Entry"),
+                            ("mid", "Mid"),
+                            ("senior", "Senior"),
+                        ],
+                        default="mid",
+                        max_length=10,
+                    ),
+                ),
+                ("question", models.TextField(max_length=500)),
+                (
+                    "guidance",
+                    models.TextField(
+                        blank=True,
+                        help_text="What a strong answer covers. Not a model answer.",
+                        max_length=1000,
+                    ),
+                ),
+                (
+                    "asked_frequency",
+                    models.PositiveSmallIntegerField(
+                        default=50,
+                        help_text="0-100. Higher means more commonly asked; drives ordering.",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "target_role",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="interview_questions",
+                        to="career_intel.targetrole",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'interview_questions',
-                'ordering': ['-asked_frequency', 'id'],
-                'indexes': [models.Index(fields=['target_role', 'category'], name='interview_q_target__06f097_idx'), models.Index(fields=['category', '-asked_frequency'], name='interview_q_categor_7cd05f_idx')],
+                "db_table": "interview_questions",
+                "ordering": ["-asked_frequency", "id"],
+                "indexes": [
+                    models.Index(
+                        fields=["target_role", "category"],
+                        name="interview_q_target__06f097_idx",
+                    ),
+                    models.Index(
+                        fields=["category", "-asked_frequency"],
+                        name="interview_q_categor_7cd05f_idx",
+                    ),
+                ],
             },
         ),
     ]

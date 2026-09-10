@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 100
+target-version = ['py312']
+extend-exclude = '''
+/(
+    migrations
+  | staticfiles
+  | venv
+  | docker_setup
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["apps", "config"]
+skip_glob = ["*/migrations/*", "venv/*"]

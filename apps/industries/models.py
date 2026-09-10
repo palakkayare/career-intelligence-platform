@@ -8,6 +8,7 @@ class Industry(TimestampedModel):
     """
     Master industry taxonomy. Companies link to this.
     """
+
     name = models.CharField(max_length=100, unique=True, db_index=True)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     aliases = models.JSONField(default=list, blank=True)
@@ -17,9 +18,9 @@ class Industry(TimestampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'industries'
-        ordering = ['sort_order', 'name']
-        verbose_name_plural = 'Industries'
+        db_table = "industries"
+        ordering = ["sort_order", "name"]
+        verbose_name_plural = "Industries"
 
     def __str__(self):
         return self.name

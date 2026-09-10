@@ -2,6 +2,7 @@
 Resume parsing service.
 Coordinates section detection, skill extraction, contact extraction, and ATS scoring.
 """
+
 import logging
 import re
 from collections import defaultdict
@@ -11,6 +12,7 @@ from typing import Dict, List, Optional
 from django.db import transaction
 
 from apps.skills.models import Skill
+
 from .models import Resume, ResumeSkill
 from .nlp import get_nlp
 
@@ -18,36 +20,35 @@ logger = logging.getLogger(__name__)
 
 # ─── Section header detection patterns ───
 SECTION_PATTERNS = {
-    'experience': re.compile(
-        r'(?im)^\s*(work\s+experience|professional\s+experience|employment|experience)\s*$',
+    "experience": re.compile(
+        r"(?im)^\s*(work\s+experience|professional\s+experience|employment|experience)\s*$",
         re.MULTILINE,
     ),
-    'education': re.compile(
-        r'(?im)^\s*(education|academic\s+(qualifications?|background)|qualifications?)\s*$',
+    "education": re.compile(
+        r"(?im)^\s*(education|academic\s+(qualifications?|background)|qualifications?)\s*$",
         re.MULTILINE,
     ),
-    'skills': re.compile(
-        r'(?im)^\s*(technical\s+skills|skills?(\s*&\s*expertise)?|technologies|expertise)\s*$',
+    "skills": re.compile(
+        r"(?im)^\s*(technical\s+skills|skills?(\s*&\s*expertise)?|technologies|expertise)\s*$",
         re.MULTILINE,
     ),
-    'projects': re.compile(
-        r'(?im)^\s*(projects|personal\s+projects|side\s+projects)\s*$',
+    "projects": re.compile(
+        r"(?im)^\s*(projects|personal\s+projects|side\s+projects)\s*$",
         re.MULTILINE,
     ),
 }
 
 # ─── Contact info detection patterns ───
-EMAIL_PATTERN = re.compile(r'[\w\.-]+@[\w\.-]+\.\w+')
-PHONE_PATTERN = re.compile(
-    r'(?:\+?\d{1,3}[\s-]?)?\(?\d{2,5}\)?(?:[\s-]?\d{2,5}){1,3}'
-)
-LINKEDIN_PATTERN = re.compile(r'(?i)linkedin\.com/in/[\w-]+')
-GITHUB_PATTERN = re.compile(r'(?i)github\.com/[\w-]+')
+EMAIL_PATTERN = re.compile(r"[\w\.-]+@[\w\.-]+\.\w+")
+PHONE_PATTERN = re.compile(r"(?:\+?\d{1,3}[\s-]?)?\(?\d{2,5}\)?(?:[\s-]?\d{2,5}){1,3}")
+LINKEDIN_PATTERN = re.compile(r"(?i)linkedin\.com/in/[\w-]+")
+GITHUB_PATTERN = re.compile(r"(?i)github\.com/[\w-]+")
 
 
 @dataclass
 class ParseResult:
     """Structured result returned after parsing a resume."""
+
     sections: Dict[str, str] = field(default_factory=dict)
     contact: Dict[str, Optional[str]] = field(default_factory=dict)
     extracted_skills: List[dict] = field(default_factory=list)
@@ -90,6 +91,7 @@ class ResumeParserService:
 
         return result
         # ─── Section Detection ───
+
     @classmethod
     def _detect_sections(cls, text: str) -> Dict[str, str]:
         """
@@ -110,11 +112,7 @@ class ResumeParserService:
         # Extract each section's content (from end of this header to start of next header)
         for i, (start, end, section_name) in enumerate(header_positions):
             content_start = end
-            content_end = (
-                header_positions[i + 1][0]
-                if i + 1 < len(header_positions)
-                else len(text)
-            )
+            content_end = header_positions[i + 1][0] if i + 1 < len(header_positions) else len(text)
             section_text = text[content_start:content_end].strip()
             sections[section_name] = section_text
 
@@ -128,34 +126,35 @@ class ResumeParserService:
         header_text = text[:1500]
 
         contact = {
-            'email': None,
-            'phone': None,
-            'linkedin': None,
-            'github': None,
+            "email": None,
+            "phone": None,
+            "linkedin": None,
+            "github": None,
         }
 
         email_match = EMAIL_PATTERN.search(header_text)
         if email_match:
-            contact['email'] = email_match.group(0)
+            contact["email"] = email_match.group(0)
 
         phone_match = PHONE_PATTERN.search(header_text)
         if phone_match:
             phone = phone_match.group(0).strip()
             # Filter out things like years/dates that look like phone numbers
-            if len(re.sub(r'\D', '', phone)) >= 8:
-                contact['phone'] = phone
+            if len(re.sub(r"\D", "", phone)) >= 8:
+                contact["phone"] = phone
 
         linkedin_match = LINKEDIN_PATTERN.search(text)
         if linkedin_match:
-            contact['linkedin'] = 'https://' + linkedin_match.group(0)
+            contact["linkedin"] = "https://" + linkedin_match.group(0)
 
         github_match = GITHUB_PATTERN.search(text)
         if github_match:
-            contact['github'] = 'https://' + github_match.group(0)
+            contact["github"] = "https://" + github_match.group(0)
 
         return contact
-    
+
         # ─── Skill Extraction (spaCy) ───
+
     @classmethod
     def _extract_skills(cls, text: str, sections: Dict[str, str]) -> List[dict]:
         """
@@ -176,18 +175,18 @@ class ResumeParserService:
             for alias in skill.aliases or []:
                 alias_to_skill[alias.lower()] = skill
 
-        matcher = PhraseMatcher(nlp.vocab, attr='LOWER')  # case-insensitive matching
+        matcher = PhraseMatcher(nlp.vocab, attr="LOWER")  # case-insensitive matching
         patterns = [nlp.make_doc(name) for name in skill_map.keys()]
         if alias_to_skill:
             patterns.extend([nlp.make_doc(alias) for alias in alias_to_skill.keys()])
-        matcher.add('SKILLS', patterns)
+        matcher.add("SKILLS", patterns)
 
         # Run the matcher on the full resume text
         doc = nlp(text)
         matches = matcher(doc)
 
         # Collect: skill_id -> {count, sections it appeared in}
-        skill_data = defaultdict(lambda: {'count': 0, 'sections': set()})
+        skill_data = defaultdict(lambda: {"count": 0, "sections": set()})
 
         for match_id, start, end in matches:
             span = doc[start:end]
@@ -198,29 +197,31 @@ class ResumeParserService:
             if not skill:
                 continue
 
-            skill_data[skill.id]['count'] += 1
+            skill_data[skill.id]["count"] += 1
 
             # Determine which section this match falls in
             char_offset = span.start_char
             section = cls._find_section_for_offset(char_offset, text, sections)
-            skill_data[skill.id]['sections'].add(section)
+            skill_data[skill.id]["sections"].add(section)
 
         # Compute confidence score + primary source for each matched skill
         results = []
         for skill_id, data in skill_data.items():
             confidence, source = cls._compute_confidence(
-                count=data['count'],
-                sections=data['sections'],
+                count=data["count"],
+                sections=data["sections"],
             )
-            results.append({
-                'skill_id': skill_id,
-                'confidence': confidence,
-                'source': source,
-                'mention_count': data['count'],
-            })
+            results.append(
+                {
+                    "skill_id": skill_id,
+                    "confidence": confidence,
+                    "source": source,
+                    "mention_count": data["count"],
+                }
+            )
 
         # Sort by confidence, highest first
-        return sorted(results, key=lambda x: x['confidence'], reverse=True)
+        return sorted(results, key=lambda x: x["confidence"], reverse=True)
 
     @staticmethod
     def _find_section_for_offset(char_offset: int, text: str, sections: Dict[str, str]) -> str:
@@ -236,7 +237,7 @@ class ResumeParserService:
         section_starts.sort()
 
         # Find the latest section whose start position is <= the offset
-        current_section = 'general'
+        current_section = "general"
         for start, name in section_starts:
             if start <= char_offset:
                 current_section = name
@@ -249,16 +250,16 @@ class ResumeParserService:
     def _compute_confidence(count: int, sections: set) -> tuple:
         """Compute a confidence score (0.0-1.0) and the primary source for a skill match."""
         # Priority order — if a skill appears in multiple sections, pick the highest-priority one
-        priority = ['skills', 'experience', 'projects', 'education', 'general']
-        primary_source = next((s for s in priority if s in sections), 'general')
+        priority = ["skills", "experience", "projects", "education", "general"]
+        primary_source = next((s for s in priority if s in sections), "general")
 
         # Base confidence score depending on which section the skill was found in
         source_scores = {
-            'skills': 0.85,
-            'experience': 0.75,
-            'projects': 0.70,
-            'education': 0.55,
-            'general': 0.40,
+            "skills": 0.85,
+            "experience": 0.75,
+            "projects": 0.70,
+            "education": 0.55,
+            "general": 0.40,
         }
         confidence = source_scores.get(primary_source, 0.40)
 
@@ -270,16 +271,17 @@ class ResumeParserService:
 
         # Map our internal section names to the ResumeSkill.Source choices
         source_map = {
-            'skills': ResumeSkill.Source.SKILLS_SECTION,
-            'experience': ResumeSkill.Source.EXPERIENCE,
-            'education': ResumeSkill.Source.EDUCATION,
-            'projects': ResumeSkill.Source.GENERAL,
-            'general': ResumeSkill.Source.GENERAL,
+            "skills": ResumeSkill.Source.SKILLS_SECTION,
+            "experience": ResumeSkill.Source.EXPERIENCE,
+            "education": ResumeSkill.Source.EDUCATION,
+            "projects": ResumeSkill.Source.GENERAL,
+            "general": ResumeSkill.Source.GENERAL,
         }
 
         return min(1.0, confidence), source_map[primary_source]
-    
+
         # ─── ATS Scoring ───
+
     @classmethod
     def _calculate_ats_score(cls, text, sections, contact, extracted_skills) -> tuple:
         """Calculate ATS compatibility score (0-100) with a detailed breakdown."""
@@ -288,57 +290,67 @@ class ResumeParserService:
 
         # Check 1: Is text actually extractable (not an image-based PDF)? — 40 pts
         if text and len(text.strip()) > 100:
-            breakdown['text_extractable'] = {'score': 40, 'max': 40, 'passed': True}
+            breakdown["text_extractable"] = {"score": 40, "max": 40, "passed": True}
             score += 40
         else:
-            breakdown['text_extractable'] = {
-                'score': 0,
-                'max': 40,
-                'passed': False,
-                'reason': 'PDF appears to be image-based or empty. ATS will reject.',
+            breakdown["text_extractable"] = {
+                "score": 0,
+                "max": 40,
+                "passed": False,
+                "reason": "PDF appears to be image-based or empty. ATS will reject.",
             }
 
         # Check 2: Word count in a reasonable range — 15 pts
         word_count = len(text.split())
         if 200 <= word_count <= 2500:
-            breakdown['word_count'] = {'score': 15, 'max': 15, 'passed': True, 'value': word_count}
+            breakdown["word_count"] = {
+                "score": 15,
+                "max": 15,
+                "passed": True,
+                "value": word_count,
+            }
             score += 15
         elif word_count < 200:
-            breakdown['word_count'] = {
-                'score': 5, 'max': 15, 'passed': False,
-                'value': word_count,
-                'reason': 'Resume is too short. Aim for 400-1500 words.',
+            breakdown["word_count"] = {
+                "score": 5,
+                "max": 15,
+                "passed": False,
+                "value": word_count,
+                "reason": "Resume is too short. Aim for 400-1500 words.",
             }
             score += 5
         else:
-            breakdown['word_count'] = {
-                'score': 5, 'max': 15, 'passed': False,
-                'value': word_count,
-                'reason': 'Resume is too long. Keep under 2500 words.',
+            breakdown["word_count"] = {
+                "score": 5,
+                "max": 15,
+                "passed": False,
+                "value": word_count,
+                "reason": "Resume is too long. Keep under 2500 words.",
             }
             score += 5
 
         # Check 3: Key sections detected — 20 pts
-        section_count = sum(1 for s in ['experience', 'education', 'skills'] if s in sections)
+        section_count = sum(1 for s in ["experience", "education", "skills"] if s in sections)
         section_pts = min(20, section_count * 7)
-        breakdown['sections'] = {
-            'score': section_pts,
-            'max': 20,
-            'passed': section_count >= 2,
-            'detected': list(sections.keys()),
+        breakdown["sections"] = {
+            "score": section_pts,
+            "max": 20,
+            "passed": section_count >= 2,
+            "detected": list(sections.keys()),
         }
         score += section_pts
 
         # Check 4: Contact info present — 10 pts
         contact_pts = 0
-        if contact.get('email'):
+        if contact.get("email"):
             contact_pts += 7
-        if contact.get('phone'):
+        if contact.get("phone"):
             contact_pts += 3
-        breakdown['contact'] = {
-            'score': contact_pts, 'max': 10,
-            'passed': contact_pts >= 7,
-            'detected': {k: v for k, v in contact.items() if v},
+        breakdown["contact"] = {
+            "score": contact_pts,
+            "max": 10,
+            "passed": contact_pts >= 7,
+            "detected": {k: v for k, v in contact.items() if v},
         }
         score += contact_pts
 
@@ -352,17 +364,18 @@ class ResumeParserService:
             skill_pts = 4
         else:
             skill_pts = 0
-        breakdown['skills_detected'] = {
-            'score': skill_pts, 'max': 10,
-            'passed': skill_count >= 3,
-            'count': skill_count,
+        breakdown["skills_detected"] = {
+            "score": skill_pts,
+            "max": 10,
+            "passed": skill_count >= 3,
+            "count": skill_count,
         }
         score += skill_pts
 
         # Check 6: No obvious format flags — 5 pts (simple proxy for now)
         # Advanced checks (action verbs, quantifiable achievements, etc.) come in Phase 3
         format_pts = 5 if len(text) > 100 else 0
-        breakdown['format'] = {'score': format_pts, 'max': 5, 'passed': format_pts > 0}
+        breakdown["format"] = {"score": format_pts, "max": 5, "passed": format_pts > 0}
         score += format_pts
 
         return score, breakdown
@@ -374,9 +387,9 @@ class ResumeParserService:
         """Save the parsed results into the Resume and ResumeSkill tables."""
         # Update the Resume record
         resume.parsed_data = {
-            'sections': {k: v[:1000] for k, v in result.sections.items()},  # truncate for storage
-            'contact': result.contact,
-            'word_count': len(resume.extracted_text.split()),
+            "sections": {k: v[:1000] for k, v in result.sections.items()},  # truncate for storage
+            "contact": result.contact,
+            "word_count": len(resume.extracted_text.split()),
         }
         resume.ats_score = result.ats_score
         resume.ats_breakdown = result.ats_breakdown
@@ -393,12 +406,12 @@ class ResumeParserService:
         for skill_data in result.extracted_skills:
             ResumeSkill.objects.update_or_create(
                 resume=resume,
-                skill_id=skill_data['skill_id'],
+                skill_id=skill_data["skill_id"],
                 defaults={
-                    'confidence': skill_data['confidence'],
-                    'source': skill_data['source'],
-                    'mention_count': skill_data['mention_count'],
-                    'is_confirmed': False,
-                    'is_user_added': False,
+                    "confidence": skill_data["confidence"],
+                    "source": skill_data["source"],
+                    "mention_count": skill_data["mention_count"],
+                    "is_confirmed": False,
+                    "is_user_added": False,
                 },
             )

@@ -15,74 +15,191 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='ReferralCode',
+            name="ReferralCode",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('code', models.CharField(db_index=True, max_length=20, unique=True)),
-                ('click_count', models.PositiveIntegerField(default=0)),
-                ('signup_count', models.PositiveIntegerField(default=0)),
-                ('paid_count', models.PositiveIntegerField(default=0)),
-                ('is_active', models.BooleanField(default=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='referral_code', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("code", models.CharField(db_index=True, max_length=20, unique=True)),
+                ("click_count", models.PositiveIntegerField(default=0)),
+                ("signup_count", models.PositiveIntegerField(default=0)),
+                ("paid_count", models.PositiveIntegerField(default=0)),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="referral_code",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'referral_codes',
+                "db_table": "referral_codes",
             },
         ),
         migrations.CreateModel(
-            name='Referral',
+            name="Referral",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending (signed up)'), ('converted', 'Converted (paid)'), ('expired', 'Expired'), ('flagged', 'Flagged (abuse review)')], db_index=True, default='pending', max_length=20)),
-                ('signup_at', models.DateTimeField(auto_now_add=True)),
-                ('converted_at', models.DateTimeField(blank=True, null=True)),
-                ('converted_amount_inr', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('referee_signup_ip', models.GenericIPAddressField(blank=True, null=True)),
-                ('is_flagged', models.BooleanField(default=False)),
-                ('flag_reason', models.TextField(blank=True)),
-                ('referee', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='referral_received', to=settings.AUTH_USER_MODEL)),
-                ('referrer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='referrals_made', to=settings.AUTH_USER_MODEL)),
-                ('code_used', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='referrals', to='referrals.referralcode')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending (signed up)"),
+                            ("converted", "Converted (paid)"),
+                            ("expired", "Expired"),
+                            ("flagged", "Flagged (abuse review)"),
+                        ],
+                        db_index=True,
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("signup_at", models.DateTimeField(auto_now_add=True)),
+                ("converted_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "converted_amount_inr",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=10, null=True
+                    ),
+                ),
+                (
+                    "referee_signup_ip",
+                    models.GenericIPAddressField(blank=True, null=True),
+                ),
+                ("is_flagged", models.BooleanField(default=False)),
+                ("flag_reason", models.TextField(blank=True)),
+                (
+                    "referee",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="referral_received",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "referrer",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="referrals_made",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "code_used",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="referrals",
+                        to="referrals.referralcode",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'referrals',
-                'ordering': ['-created_at'],
+                "db_table": "referrals",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ReferralReward',
+            name="ReferralReward",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('kind', models.CharField(choices=[('pro_extension', 'Pro Subscription Extension'), ('discount', 'Discount Code')], max_length=20)),
-                ('value', models.JSONField(default=dict)),
-                ('status', models.CharField(choices=[('pending', 'Pending Grant'), ('granted', 'Granted (available to use)'), ('used', 'Used'), ('expired', 'Expired')], db_index=True, default='pending', max_length=20)),
-                ('granted_at', models.DateTimeField(blank=True, null=True)),
-                ('used_at', models.DateTimeField(blank=True, null=True)),
-                ('expires_at', models.DateTimeField()),
-                ('referral', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rewards', to='referrals.referral')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='referral_rewards', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[
+                            ("pro_extension", "Pro Subscription Extension"),
+                            ("discount", "Discount Code"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("value", models.JSONField(default=dict)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending Grant"),
+                            ("granted", "Granted (available to use)"),
+                            ("used", "Used"),
+                            ("expired", "Expired"),
+                        ],
+                        db_index=True,
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("granted_at", models.DateTimeField(blank=True, null=True)),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
+                ("expires_at", models.DateTimeField()),
+                (
+                    "referral",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="rewards",
+                        to="referrals.referral",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="referral_rewards",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'referral_rewards',
-                'ordering': ['-created_at'],
+                "db_table": "referral_rewards",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='referral',
-            index=models.Index(fields=['referrer', 'status'], name='referrals_referre_cefb5c_idx'),
+            model_name="referral",
+            index=models.Index(
+                fields=["referrer", "status"], name="referrals_referre_cefb5c_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='referral',
-            index=models.Index(fields=['-created_at'], name='referrals_created_c89401_idx'),
+            model_name="referral",
+            index=models.Index(
+                fields=["-created_at"], name="referrals_created_c89401_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='referralreward',
-            index=models.Index(fields=['user', 'status', 'expires_at'], name='referral_re_user_id_f9e37a_idx'),
+            model_name="referralreward",
+            index=models.Index(
+                fields=["user", "status", "expires_at"],
+                name="referral_re_user_id_f9e37a_idx",
+            ),
         ),
     ]

@@ -10,70 +10,100 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('jobs', '0001_initial'),
-        ('recruiters', '0001_initial'),
-        ('skills', '0001_initial'),
+        ("jobs", "0001_initial"),
+        ("recruiters", "0001_initial"),
+        ("skills", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SavedSearch',
+            name="SavedSearch",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('query_text', models.CharField(blank=True, max_length=500)),
-                ('filters', models.JSONField(blank=True, default=dict)),
-                ('notify_new_matches', models.BooleanField(default=False)),
-                ('last_executed_at', models.DateTimeField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("query_text", models.CharField(blank=True, max_length=500)),
+                ("filters", models.JSONField(blank=True, default=dict)),
+                ("notify_new_matches", models.BooleanField(default=False)),
+                ("last_executed_at", models.DateTimeField(blank=True, null=True)),
             ],
             options={
-                'db_table': 'saved_searches',
-                'ordering': ['-created_at'],
+                "db_table": "saved_searches",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='SearchHistory',
+            name="SearchHistory",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('query_text', models.CharField(blank=True, max_length=500)),
-                ('filters', models.JSONField(blank=True, default=dict)),
-                ('result_count', models.PositiveIntegerField(default=0)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("query_text", models.CharField(blank=True, max_length=500)),
+                ("filters", models.JSONField(blank=True, default=dict)),
+                ("result_count", models.PositiveIntegerField(default=0)),
             ],
             options={
-                'db_table': 'search_history',
-                'ordering': ['-created_at'],
+                "db_table": "search_history",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.AddField(
-            model_name='job',
-            name='search_vector',
-            field=django.contrib.postgres.search.SearchVectorField(blank=True, null=True),
+            model_name="job",
+            name="search_vector",
+            field=django.contrib.postgres.search.SearchVectorField(
+                blank=True, null=True
+            ),
         ),
         migrations.AddIndex(
-            model_name='job',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['search_vector'], name='jobs_search__ee9a96_gin'),
+            model_name="job",
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=["search_vector"], name="jobs_search__ee9a96_gin"
+            ),
         ),
         migrations.AddField(
-            model_name='savedsearch',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='saved_searches', to=settings.AUTH_USER_MODEL),
+            model_name="savedsearch",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="saved_searches",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='searchhistory',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='search_history', to=settings.AUTH_USER_MODEL),
+            model_name="searchhistory",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="search_history",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='savedsearch',
-            unique_together={('user', 'name')},
+            name="savedsearch",
+            unique_together={("user", "name")},
         ),
         migrations.AddIndex(
-            model_name='searchhistory',
-            index=models.Index(fields=['user', '-created_at'], name='search_hist_user_id_3ea0ad_idx'),
+            model_name="searchhistory",
+            index=models.Index(
+                fields=["user", "-created_at"], name="search_hist_user_id_3ea0ad_idx"
+            ),
         ),
     ]

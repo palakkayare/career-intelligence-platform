@@ -2,6 +2,7 @@
 Profile strength score calculation.
 Out of 100, weighted by section importance.
 """
+
 from rest_framework.exceptions import ValidationError
 
 
@@ -18,21 +19,21 @@ class ProfileStrengthService:
         }
         """
         breakdown = {
-            'basic_info': cls._score_basic_info(profile),
-            'career_goals': cls._score_career_goals(profile),
-            'skills': cls._score_skills(profile),
-            'experience': cls._score_experience(profile),
-            'education': cls._score_education(profile),
-            'portfolio': cls._score_portfolio(profile),
+            "basic_info": cls._score_basic_info(profile),
+            "career_goals": cls._score_career_goals(profile),
+            "skills": cls._score_skills(profile),
+            "experience": cls._score_experience(profile),
+            "education": cls._score_education(profile),
+            "portfolio": cls._score_portfolio(profile),
         }
         total = sum(breakdown.values())
 
         return {
-            'score': total,
-            'breakdown': breakdown,
-            'next_step': cls._suggest_next_step(breakdown),
+            "score": total,
+            "breakdown": breakdown,
+            "next_step": cls._suggest_next_step(breakdown),
         }
-        
+
     @classmethod
     def refresh(cls, profile) -> int:
         """
@@ -43,7 +44,7 @@ class ProfileStrengthService:
         """
         from .models import SeekerProfile
 
-        score = cls.calculate(profile)['score']
+        score = cls.calculate(profile)["score"]
 
         if profile.profile_strength != score:
             SeekerProfile.objects.filter(pk=profile.pk).update(
@@ -110,26 +111,23 @@ class ProfileStrengthService:
     def _suggest_next_step(breakdown):
         """Find the section with biggest gap → suggest action."""
         max_scores = {
-            'basic_info': 20,
-            'career_goals': 15,
-            'skills': 25,
-            'experience': 20,
-            'education': 10,
-            'portfolio': 10,
+            "basic_info": 20,
+            "career_goals": 15,
+            "skills": 25,
+            "experience": 20,
+            "education": 10,
+            "portfolio": 10,
         }
         suggestions = {
-            'basic_info': 'Complete your basic info (name, bio, location, photo).',
-            'career_goals': 'Add your current title and target role.',
-            'skills': 'Add more skills to your profile (aim for at least 5).',
-            'experience': 'Add your work experience.',
-            'education': 'Add your education details.',
-            'portfolio': 'Add portfolio links (GitHub, LinkedIn, etc.).',
+            "basic_info": "Complete your basic info (name, bio, location, photo).",
+            "career_goals": "Add your current title and target role.",
+            "skills": "Add more skills to your profile (aim for at least 5).",
+            "experience": "Add your work experience.",
+            "education": "Add your education details.",
+            "portfolio": "Add portfolio links (GitHub, LinkedIn, etc.).",
         }
 
-        gaps = {
-            section: max_scores[section] - breakdown[section]
-            for section in breakdown
-        }
+        gaps = {section: max_scores[section] - breakdown[section] for section in breakdown}
 
         if not any(gaps.values()):
             return "Profile complete! 🎉"
@@ -156,9 +154,11 @@ class SkillEndorsementService:
         from .models import SkillEndorsement
 
         if seeker_skill.seeker.user_id == endorsed_by.id:
-            raise ValidationError({
-                'detail': 'You cannot endorse your own skills.',
-            })
+            raise ValidationError(
+                {
+                    "detail": "You cannot endorse your own skills.",
+                }
+            )
 
         endorsement, created = SkillEndorsement.objects.get_or_create(
             seeker_skill=seeker_skill,

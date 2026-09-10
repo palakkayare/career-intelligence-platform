@@ -2,19 +2,21 @@
 Replay a webhook event by ID. Useful for debugging.
 Usage: python manage.py replay_webhook <event_id>
 """
+
 from django.core.management.base import BaseCommand
+
 from apps.payments.models import WebhookEvent
 from apps.payments.webhook_handlers import process_event
 
 
 class Command(BaseCommand):
-    help = 'Replay processing of a webhook event'
+    help = "Replay processing of a webhook event"
 
     def add_arguments(self, parser):
-        parser.add_argument('event_id', type=str, help='Razorpay event ID')
+        parser.add_argument("event_id", type=str, help="Razorpay event ID")
 
     def handle(self, *args, **options):
-        event_id = options['event_id']
+        event_id = options["event_id"]
         try:
             event = WebhookEvent.objects.get(razorpay_event_id=event_id)
         except WebhookEvent.DoesNotExist:
@@ -33,8 +35,9 @@ class Command(BaseCommand):
             return
 
         from django.utils import timezone
+
         event.processing_status = WebhookEvent.ProcessingStatus.PROCESSED
         event.processed_at = timezone.now()
-        event.error_message = ''
+        event.error_message = ""
         event.save()
         self.stdout.write(self.style.SUCCESS("Success!"))

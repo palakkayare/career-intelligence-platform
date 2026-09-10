@@ -1,6 +1,7 @@
 """
 Review endpoints.
 """
+
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -11,7 +12,7 @@ from apps.recruiters.models import Company
 from apps.recruiters.permissions import IsRecruiter
 from apps.seekers.permissions import IsSeeker
 
-from .models import CompanyReview, InterviewExperience
+from .models import CompanyReview
 from .serializers import (
     CompanyResponseWriteSerializer,
     CompanyReviewSerializer,
@@ -20,12 +21,7 @@ from .serializers import (
     InterviewExperienceWriteSerializer,
     ReportSerializer,
 )
-from .services import (
-    InterviewExperienceService,
-    ModerationService,
-    ResponseService,
-    ReviewService,
-)
+from .services import InterviewExperienceService, ModerationService, ResponseService, ReviewService
 
 
 def get_company(company_id):
@@ -39,6 +35,7 @@ class CompanyReviewListCreateView(APIView):
     GET  /api/v1/reviews/companies/<uuid:public_id>/
     POST /api/v1/reviews/companies/<uuid:public_id>/
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, company_id):
@@ -50,7 +47,9 @@ class CompanyReviewListCreateView(APIView):
 
         return paginator.get_paginated_response(
             CompanyReviewSerializer(
-                page, many=True, context={'request': request},
+                page,
+                many=True,
+                context={"request": request},
             ).data,
         )
 
@@ -59,7 +58,7 @@ class CompanyReviewListCreateView(APIView):
         # not the signal this feature is for.
         if not request.user.is_seeker:
             return Response(
-                {'detail': 'Only job seekers can review companies.'},
+                {"detail": "Only job seekers can review companies."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -68,27 +67,32 @@ class CompanyReviewListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         review = ReviewService.create(
-            request.user, company, serializer.validated_data,
+            request.user,
+            company,
+            serializer.validated_data,
         )
 
         return Response(
-            CompanyReviewSerializer(review, context={'request': request}).data,
+            CompanyReviewSerializer(review, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
 
 
 class CompanyReviewSummaryView(APIView):
     """GET /api/v1/reviews/companies/<uuid:public_id>/summary/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, company_id):
         company = get_company(company_id)
 
-        return Response({
-            'company': company.name,
-            'reviews': ReviewService.summary(company),
-            'interviews': InterviewExperienceService.summary(company),
-        })
+        return Response(
+            {
+                "company": company.name,
+                "reviews": ReviewService.summary(company),
+                "interviews": InterviewExperienceService.summary(company),
+            }
+        )
 
 
 class ReviewDetailView(APIView):
@@ -96,6 +100,7 @@ class ReviewDetailView(APIView):
     PATCH  /api/v1/reviews/<int:pk>/  - edit, within the window
     DELETE /api/v1/reviews/<int:pk>/  - withdraw
     """
+
     permission_classes = [IsSeeker]
 
     def get_object(self, pk):
@@ -104,14 +109,16 @@ class ReviewDetailView(APIView):
     def patch(self, request, pk):
         review = self.get_object(pk)
         serializer = CompanyReviewWriteSerializer(
-            review, data=request.data, partial=True,
+            review,
+            data=request.data,
+            partial=True,
         )
         serializer.is_valid(raise_exception=True)
 
         ReviewService.update(review, request.user, serializer.validated_data)
 
         return Response(
-            CompanyReviewSerializer(review, context={'request': request}).data,
+            CompanyReviewSerializer(review, context={"request": request}).data,
         )
 
     def delete(self, request, pk):
@@ -121,6 +128,7 @@ class ReviewDetailView(APIView):
 
 class ReviewHelpfulView(APIView):
     """POST /api/v1/reviews/<int:pk>/helpful/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -128,13 +136,14 @@ class ReviewHelpfulView(APIView):
         review, created = ReviewService.mark_helpful(review, request.user)
 
         return Response(
-            {'helpful_count': review.helpful_count},
+            {"helpful_count": review.helpful_count},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 
 class ReviewReportView(APIView):
     """POST /api/v1/reviews/<int:pk>/report/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -143,22 +152,24 @@ class ReviewReportView(APIView):
         serializer.is_valid(raise_exception=True)
 
         ModerationService.report(
-            review, request.user,
-            reason=serializer.validated_data['reason'],
-            detail=serializer.validated_data.get('detail', ''),
+            review,
+            request.user,
+            reason=serializer.validated_data["reason"],
+            detail=serializer.validated_data.get("detail", ""),
         )
 
         # The response says nothing about whether the review was hidden.
         # Telling a reporter how close they are to the threshold is an
         # invitation to organise the remaining reports.
         return Response(
-            {'detail': 'Thank you. A moderator will look at this.'},
+            {"detail": "Thank you. A moderator will look at this."},
             status=status.HTTP_201_CREATED,
         )
 
 
 class CompanyResponseView(APIView):
     """POST /api/v1/reviews/<int:pk>/respond/"""
+
     permission_classes = [IsRecruiter]
 
     def post(self, request, pk):
@@ -167,12 +178,13 @@ class CompanyResponseView(APIView):
         serializer.is_valid(raise_exception=True)
 
         ResponseService.respond(
-            review, request.user.recruiter_profile,
-            serializer.validated_data['response'],
+            review,
+            request.user.recruiter_profile,
+            serializer.validated_data["response"],
         )
 
         return Response(
-            CompanyReviewSerializer(review, context={'request': request}).data,
+            CompanyReviewSerializer(review, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -182,6 +194,7 @@ class InterviewExperienceListCreateView(APIView):
     GET  /api/v1/reviews/companies/<uuid:public_id>/interviews/
     POST /api/v1/reviews/companies/<uuid:public_id>/interviews/
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, company_id):
@@ -193,14 +206,16 @@ class InterviewExperienceListCreateView(APIView):
 
         return paginator.get_paginated_response(
             InterviewExperienceSerializer(
-                page, many=True, context={'request': request},
+                page,
+                many=True,
+                context={"request": request},
             ).data,
         )
 
     def post(self, request, company_id):
         if not request.user.is_seeker:
             return Response(
-                {'detail': 'Only job seekers can share interview experiences.'},
+                {"detail": "Only job seekers can share interview experiences."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -209,12 +224,15 @@ class InterviewExperienceListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         experience = InterviewExperienceService.create(
-            request.user, company, serializer.validated_data,
+            request.user,
+            company,
+            serializer.validated_data,
         )
 
         return Response(
             InterviewExperienceSerializer(
-                experience, context={'request': request},
+                experience,
+                context={"request": request},
             ).data,
             status=status.HTTP_201_CREATED,
         )
@@ -226,29 +244,32 @@ class ModerationQueueView(APIView):
 
     Admin only. Reviews hidden by reports, waiting on a decision.
     """
+
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
         queue = ModerationService.queue()
 
-        return Response({
-            'count': queue.count(),
-            'reviews': [
-                {
-                    'id': review.id,
-                    'company': review.company.name,
-                    'headline': review.headline,
-                    'pros': review.pros,
-                    'cons': review.cons,
-                    'report_count': review.report_count,
-                    'reasons': list(
-                        review.reports.values_list('reason', flat=True),
-                    ),
-                    'created_at': review.created_at,
-                }
-                for review in queue
-            ],
-        })
+        return Response(
+            {
+                "count": queue.count(),
+                "reviews": [
+                    {
+                        "id": review.id,
+                        "company": review.company.name,
+                        "headline": review.headline,
+                        "pros": review.pros,
+                        "cons": review.cons,
+                        "report_count": review.report_count,
+                        "reasons": list(
+                            review.reports.values_list("reason", flat=True),
+                        ),
+                        "created_at": review.created_at,
+                    }
+                    for review in queue
+                ],
+            }
+        )
 
 
 class ModerationDecisionView(APIView):
@@ -257,20 +278,21 @@ class ModerationDecisionView(APIView):
 
     decision is 'restore' or 'remove'.
     """
+
     permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, pk, decision):
         review = get_object_or_404(CompanyReview, pk=pk)
-        notes = request.data.get('notes', '')
+        notes = request.data.get("notes", "")
 
-        if decision == 'restore':
+        if decision == "restore":
             ModerationService.restore(review, notes)
-        elif decision == 'remove':
+        elif decision == "remove":
             ModerationService.remove(review, notes)
         else:
             return Response(
-                {'detail': "Decision must be 'restore' or 'remove'."},
+                {"detail": "Decision must be 'restore' or 'remove'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response({'id': review.id, 'status': review.status})
+        return Response({"id": review.id, "status": review.status})

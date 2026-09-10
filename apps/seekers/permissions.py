@@ -5,10 +5,7 @@ class IsSeeker(permissions.BasePermission):
     """User must have role='seeker'."""
 
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated
-            and request.user.role == 'seeker'
-        )
+        return request.user.is_authenticated and request.user.role == "seeker"
 
 
 class CanViewProfile(permissions.BasePermission):
@@ -24,11 +21,11 @@ class CanViewProfile(permissions.BasePermission):
         if obj.user_id == request.user.id:
             return True
 
-        if obj.visibility == 'public':
+        if obj.visibility == "public":
             return request.user.is_authenticated
 
-        if obj.visibility == 'recruiters_only':
-            return request.user.role == 'recruiter'
+        if obj.visibility == "recruiters_only":
+            return request.user.role == "recruiter"
 
         # private
         return False

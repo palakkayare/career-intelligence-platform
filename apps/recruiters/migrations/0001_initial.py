@@ -10,73 +10,178 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('industries', '0001_initial'),
+        ("industries", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Company',
+            name="Company",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('name', models.CharField(db_index=True, max_length=255, unique=True)),
-                ('slug', models.SlugField(blank=True, max_length=280, unique=True)),
-                ('logo', models.ImageField(blank=True, null=True, upload_to='company_logos/%Y/%m/')),
-                ('description', models.TextField(blank=True, max_length=2000)),
-                ('culture_statement', models.TextField(blank=True, max_length=1000)),
-                ('size', models.CharField(blank=True, choices=[('startup', '1-10 employees'), ('small', '11-50 employees'), ('medium', '51-200 employees'), ('large', '201-1000 employees'), ('enterprise', '1000+ employees')], max_length=20)),
-                ('founded_year', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('website', models.URLField(blank=True)),
-                ('headquarters_location', models.CharField(blank=True, max_length=200)),
-                ('is_verified', models.BooleanField(default=False)),
-                ('verified_at', models.DateTimeField(blank=True, null=True)),
-                ('verification_notes', models.TextField(blank=True)),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='companies_created', to=settings.AUTH_USER_MODEL)),
-                ('industry', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='companies', to='industries.industry')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("name", models.CharField(db_index=True, max_length=255, unique=True)),
+                ("slug", models.SlugField(blank=True, max_length=280, unique=True)),
+                (
+                    "logo",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="company_logos/%Y/%m/"
+                    ),
+                ),
+                ("description", models.TextField(blank=True, max_length=2000)),
+                ("culture_statement", models.TextField(blank=True, max_length=1000)),
+                (
+                    "size",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("startup", "1-10 employees"),
+                            ("small", "11-50 employees"),
+                            ("medium", "51-200 employees"),
+                            ("large", "201-1000 employees"),
+                            ("enterprise", "1000+ employees"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "founded_year",
+                    models.PositiveSmallIntegerField(blank=True, null=True),
+                ),
+                ("website", models.URLField(blank=True)),
+                ("headquarters_location", models.CharField(blank=True, max_length=200)),
+                ("is_verified", models.BooleanField(default=False)),
+                ("verified_at", models.DateTimeField(blank=True, null=True)),
+                ("verification_notes", models.TextField(blank=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="companies_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "industry",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="companies",
+                        to="industries.industry",
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'Companies',
-                'db_table': 'companies',
-                'ordering': ['name'],
+                "verbose_name_plural": "Companies",
+                "db_table": "companies",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='RecruiterProfile',
+            name="RecruiterProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('is_company_admin', models.BooleanField(default=False, help_text='Can edit company info and manage team')),
-                ('full_name', models.CharField(blank=True, max_length=255)),
-                ('position', models.CharField(blank=True, help_text="e.g., 'Senior Talent Acquisition Manager'", max_length=200)),
-                ('bio', models.TextField(blank=True, max_length=500)),
-                ('profile_photo', models.ImageField(blank=True, null=True, upload_to='recruiter_photos/%Y/%m/')),
-                ('phone', models.CharField(blank=True, max_length=20)),
-                ('linkedin_url', models.URLField(blank=True)),
-                ('contact_visibility', models.CharField(choices=[('public', 'Public'), ('connected', 'Connected (Applied Candidates Only)'), ('private', 'Private')], default='connected', max_length=20)),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='recruiters', to='recruiters.company')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='recruiter_profile', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "is_company_admin",
+                    models.BooleanField(
+                        default=False, help_text="Can edit company info and manage team"
+                    ),
+                ),
+                ("full_name", models.CharField(blank=True, max_length=255)),
+                (
+                    "position",
+                    models.CharField(
+                        blank=True,
+                        help_text="e.g., 'Senior Talent Acquisition Manager'",
+                        max_length=200,
+                    ),
+                ),
+                ("bio", models.TextField(blank=True, max_length=500)),
+                (
+                    "profile_photo",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="recruiter_photos/%Y/%m/"
+                    ),
+                ),
+                ("phone", models.CharField(blank=True, max_length=20)),
+                ("linkedin_url", models.URLField(blank=True)),
+                (
+                    "contact_visibility",
+                    models.CharField(
+                        choices=[
+                            ("public", "Public"),
+                            ("connected", "Connected (Applied Candidates Only)"),
+                            ("private", "Private"),
+                        ],
+                        default="connected",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "company",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="recruiters",
+                        to="recruiters.company",
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="recruiter_profile",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'recruiter_profiles',
+                "db_table": "recruiter_profiles",
             },
         ),
         migrations.AddIndex(
-            model_name='company',
-            index=models.Index(fields=['is_verified', 'is_deleted'], name='companies_is_veri_193464_idx'),
+            model_name="company",
+            index=models.Index(
+                fields=["is_verified", "is_deleted"],
+                name="companies_is_veri_193464_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='company',
-            index=models.Index(fields=['industry', 'is_verified'], name='companies_industr_d50b42_idx'),
+            model_name="company",
+            index=models.Index(
+                fields=["industry", "is_verified"], name="companies_industr_d50b42_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='recruiterprofile',
-            index=models.Index(fields=['company', 'is_company_admin'], name='recruiter_p_company_e6ee56_idx'),
+            model_name="recruiterprofile",
+            index=models.Index(
+                fields=["company", "is_company_admin"],
+                name="recruiter_p_company_e6ee56_idx",
+            ),
         ),
     ]

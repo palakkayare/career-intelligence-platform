@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 100
+
+# E203 and W503 disagree with black about slices and line breaks before
+# operators. Black wins - it is the formatter, flake8 is the linter.
+extend-ignore = E203, W503
+
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    migrations,
+    staticfiles,
+    media,
+    docker_setup
+
+per-file-ignores =
+    __init__.py:F401
+    config/settings/*.py:F403,F405
+    apps/*/tests.py:E501,E402,F811
+    apps/*/test_*.py:E501,E402
+    seed_jobs.py:E501

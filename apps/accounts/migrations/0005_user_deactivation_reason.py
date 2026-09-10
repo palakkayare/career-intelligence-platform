@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0004_twofactorauth_backupcode'),
+        ("accounts", "0004_twofactorauth_backupcode"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='deactivation_reason',
-            field=models.TextField(blank=True, help_text='Why the user closed their account. Optional, self-reported.', max_length=500),
+            model_name="user",
+            name="deactivation_reason",
+            field=models.TextField(
+                blank=True,
+                help_text="Why the user closed their account. Optional, self-reported.",
+                max_length=500,
+            ),
         ),
     ]

@@ -1,6 +1,7 @@
 """
 Review services.
 """
+
 import logging
 
 from django.db import transaction
@@ -41,10 +42,12 @@ class ReviewService:
         an is_verified badge the submitter controls is worth nothing.
         """
         if CompanyReview.objects.filter(company=company, author=author).exists():
-            raise ValidationError({
-                'detail': 'You have already reviewed this company. '
-                          'You can edit your existing review instead.',
-            })
+            raise ValidationError(
+                {
+                    "detail": "You have already reviewed this company. "
+                    "You can edit your existing review instead.",
+                }
+            )
 
         return CompanyReview.objects.create(
             company=company,
@@ -65,26 +68,29 @@ class ReviewService:
         """
         from apps.applications.models import Application
 
-        profile = getattr(author, 'seeker_profile', None)
+        profile = getattr(author, "seeker_profile", None)
         if profile is None:
             return False
 
         return Application.all_objects.filter(
-            seeker=profile, job__company=company,
+            seeker=profile,
+            job__company=company,
         ).exists()
 
     @classmethod
     def update(cls, review, author, data):
         """Edit within the window. Only the author, only for a while."""
         if review.author_id != author.id:
-            raise PermissionDenied('This is not your review.')
+            raise PermissionDenied("This is not your review.")
 
         age_hours = (timezone.now() - review.created_at).total_seconds() / 3600
         if age_hours > EDIT_WINDOW_HOURS:
-            raise ValidationError({
-                'detail': f'Reviews can only be edited within '
-                          f'{EDIT_WINDOW_HOURS} hours of posting.',
-            })
+            raise ValidationError(
+                {
+                    "detail": f"Reviews can only be edited within "
+                    f"{EDIT_WINDOW_HOURS} hours of posting.",
+                }
+            )
 
         for field, value in data.items():
             setattr(review, field, value)
@@ -98,7 +104,7 @@ class ReviewService:
         up orphaned and the moderation history survives.
         """
         if review.author_id != author.id:
-            raise PermissionDenied('This is not your review.')
+            raise PermissionDenied("This is not your review.")
 
         review.soft_delete()
         return review
@@ -106,14 +112,13 @@ class ReviewService:
     @classmethod
     def published_for(cls, company):
         return (
-            CompanyReview.objects
-            .filter(
+            CompanyReview.objects.filter(
                 company=company,
                 status=CompanyReview.Status.PUBLISHED,
                 is_deleted=False,
             )
-            .select_related('company')
-            .prefetch_related('company_response')
+            .select_related("company")
+            .prefetch_related("company_response")
         )
 
     @classmethod
@@ -128,35 +133,36 @@ class ReviewService:
         reviews = cls.published_for(company)
 
         aggregates = reviews.aggregate(
-            count=Count('id'),
-            culture=Avg('rating_culture'),
-            management=Avg('rating_management'),
-            growth=Avg('rating_growth'),
-            salary=Avg('rating_salary'),
-            recommend=Count('id', filter=Q(would_recommend=True)),
+            count=Count("id"),
+            culture=Avg("rating_culture"),
+            management=Avg("rating_management"),
+            growth=Avg("rating_growth"),
+            salary=Avg("rating_salary"),
+            recommend=Count("id", filter=Q(would_recommend=True)),
         )
 
-        if not aggregates['count']:
-            return {'has_reviews': False, 'review_count': 0}
+        if not aggregates["count"]:
+            return {"has_reviews": False, "review_count": 0}
 
         dimensions = {
-            'culture': round(aggregates['culture'], 1),
-            'management': round(aggregates['management'], 1),
-            'growth': round(aggregates['growth'], 1),
-            'salary': round(aggregates['salary'], 1),
+            "culture": round(aggregates["culture"], 1),
+            "management": round(aggregates["management"], 1),
+            "growth": round(aggregates["growth"], 1),
+            "salary": round(aggregates["salary"], 1),
         }
 
         return {
-            'has_reviews': True,
-            'review_count': aggregates['count'],
-            'overall': round(sum(dimensions.values()) / 4, 1),
-            'ratings': dimensions,
-            'recommend_pct': round(
-                aggregates['recommend'] / aggregates['count'] * 100, 1,
+            "has_reviews": True,
+            "review_count": aggregates["count"],
+            "overall": round(sum(dimensions.values()) / 4, 1),
+            "ratings": dimensions,
+            "recommend_pct": round(
+                aggregates["recommend"] / aggregates["count"] * 100,
+                1,
             ),
-            'verified_pct': round(
-                reviews.filter(is_verified_employee=True).count()
-                / aggregates['count'] * 100, 1,
+            "verified_pct": round(
+                reviews.filter(is_verified_employee=True).count() / aggregates["count"] * 100,
+                1,
             ),
         }
 
@@ -166,19 +172,22 @@ class ReviewService:
         Vote a review useful. Idempotent, and never by its own author.
         """
         if review.author_id == user.id:
-            raise ValidationError({
-                'detail': 'You cannot mark your own review helpful.',
-            })
+            raise ValidationError(
+                {
+                    "detail": "You cannot mark your own review helpful.",
+                }
+            )
 
         _, created = ReviewHelpfulVote.objects.get_or_create(
-            review=review, user=user,
+            review=review,
+            user=user,
         )
 
         if created:
             CompanyReview.objects.filter(pk=review.pk).update(
-                helpful_count=F('helpful_count') + 1,
+                helpful_count=F("helpful_count") + 1,
             )
-            review.refresh_from_db(fields=['helpful_count'])
+            review.refresh_from_db(fields=["helpful_count"])
 
         return review, created
 
@@ -188,7 +197,7 @@ class ModerationService:
 
     @classmethod
     @transaction.atomic
-    def report(cls, review, reporter, reason, detail=''):
+    def report(cls, review, reporter, reason, detail=""):
         """
         Flag a review.
 
@@ -196,49 +205,52 @@ class ModerationService:
         hiding content would let a company bury anything it disliked.
         """
         if review.author_id == reporter.id:
-            raise ValidationError({
-                'detail': 'You cannot report your own review. '
-                          'Delete it instead.',
-            })
+            raise ValidationError(
+                {
+                    "detail": "You cannot report your own review. " "Delete it instead.",
+                }
+            )
 
         _, created = ReviewReport.objects.get_or_create(
-            review=review, reported_by=reporter,
-            defaults={'reason': reason, 'detail': detail},
+            review=review,
+            reported_by=reporter,
+            defaults={"reason": reason, "detail": detail},
         )
 
         if not created:
             return review, False
 
         CompanyReview.objects.filter(pk=review.pk).update(
-            report_count=F('report_count') + 1,
+            report_count=F("report_count") + 1,
         )
-        review.refresh_from_db(fields=['report_count'])
+        review.refresh_from_db(fields=["report_count"])
 
         if review.report_count >= REPORT_HIDE_THRESHOLD:
             review.status = CompanyReview.Status.UNDER_REVIEW
-            review.save(update_fields=['status'])
+            review.save(update_fields=["status"])
             logger.info(
-                'Review %s hidden after %s reports',
-                review.pk, review.report_count,
+                "Review %s hidden after %s reports",
+                review.pk,
+                review.report_count,
             )
 
         return review, True
 
     @classmethod
-    def restore(cls, review, admin_notes=''):
+    def restore(cls, review, admin_notes=""):
         """Moderator decided the review is fine. Report count resets."""
         review.status = CompanyReview.Status.PUBLISHED
         review.report_count = 0
-        review.save(update_fields=['status', 'report_count'])
+        review.save(update_fields=["status", "report_count"])
 
         review.reports.update(reviewed_by_admin=True, admin_notes=admin_notes)
         return review
 
     @classmethod
-    def remove(cls, review, admin_notes=''):
+    def remove(cls, review, admin_notes=""):
         """Moderator agreed with the reports."""
         review.status = CompanyReview.Status.REMOVED
-        review.save(update_fields=['status'])
+        review.save(update_fields=["status"])
 
         review.reports.update(reviewed_by_admin=True, admin_notes=admin_notes)
         return review
@@ -247,10 +259,9 @@ class ModerationService:
     def queue(cls):
         """Reviews waiting on a moderator, most-reported first."""
         return (
-            CompanyReview.objects
-            .filter(status=CompanyReview.Status.UNDER_REVIEW, is_deleted=False)
-            .select_related('company')
-            .order_by('-report_count', 'created_at')
+            CompanyReview.objects.filter(status=CompanyReview.Status.UNDER_REVIEW, is_deleted=False)
+            .select_related("company")
+            .order_by("-report_count", "created_at")
         )
 
 
@@ -267,13 +278,15 @@ class ResponseService:
         """
         if recruiter.company_id != review.company_id:
             raise PermissionDenied(
-                'You can only respond to reviews of your own company.',
+                "You can only respond to reviews of your own company.",
             )
 
-        if hasattr(review, 'company_response'):
-            raise ValidationError({
-                'detail': 'This review already has a company response.',
-            })
+        if hasattr(review, "company_response"):
+            raise ValidationError(
+                {
+                    "detail": "This review already has a company response.",
+                }
+            )
 
         return CompanyResponse.objects.create(
             review=review,
@@ -297,7 +310,9 @@ class InterviewExperienceService:
         experiences and both are worth reading.
         """
         return InterviewExperience.objects.create(
-            company=company, author=author, **data,
+            company=company,
+            author=author,
+            **data,
         )
 
     @classmethod
@@ -314,28 +329,32 @@ class InterviewExperienceService:
         total = experiences.count()
 
         if not total:
-            return {'has_experiences': False, 'count': 0}
+            return {"has_experiences": False, "count": 0}
 
         difficulty_counts = dict(
-            experiences.values_list('difficulty')
-            .annotate(n=Count('id'))
-            .values_list('difficulty', 'n')
+            experiences.values_list("difficulty")
+            .annotate(n=Count("id"))
+            .values_list("difficulty", "n")
         )
 
         return {
-            'has_experiences': True,
-            'count': total,
-            'positive_pct': round(
-                experiences.filter(was_experience_positive=True).count()
-                / total * 100, 1,
+            "has_experiences": True,
+            "count": total,
+            "positive_pct": round(
+                experiences.filter(was_experience_positive=True).count() / total * 100,
+                1,
             ),
-            'offer_pct': round(
+            "offer_pct": round(
                 experiences.filter(
                     outcome=InterviewExperience.Outcome.OFFER,
-                ).count() / total * 100, 1,
+                ).count()
+                / total
+                * 100,
+                1,
             ),
-            'avg_rounds': round(
-                experiences.aggregate(n=Avg('rounds'))['n'] or 0, 1,
+            "avg_rounds": round(
+                experiences.aggregate(n=Avg("rounds"))["n"] or 0,
+                1,
             ),
-            'difficulty_breakdown': difficulty_counts,
+            "difficulty_breakdown": difficulty_counts,
         }

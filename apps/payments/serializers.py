@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Plan, Subscription, PaymentTransaction
+from .models import PaymentTransaction, Plan, Subscription
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -10,10 +10,16 @@ class PlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = (
-            'id', 'name', 'slug', 'description',
-            'tier', 'billing_period',
-            'price_inr', 'features',
-            'period_days', 'is_paid',
+            "id",
+            "name",
+            "slug",
+            "description",
+            "tier",
+            "billing_period",
+            "price_inr",
+            "features",
+            "period_days",
+            "is_paid",
         )
         read_only_fields = fields
 
@@ -26,11 +32,17 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = (
-            'public_id', 'plan', 'status',
-            'trial_ends_at', 'current_period_start', 'current_period_end',
-            'cancelled_at', 'auto_renew',
-            'is_active', 'days_remaining',
-            'created_at',
+            "public_id",
+            "plan",
+            "status",
+            "trial_ends_at",
+            "current_period_start",
+            "current_period_end",
+            "cancelled_at",
+            "auto_renew",
+            "is_active",
+            "days_remaining",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -50,13 +62,18 @@ class VerifyPaymentSerializer(serializers.Serializer):
 
 
 class PaymentTransactionSerializer(serializers.ModelSerializer):
-    plan_name = serializers.CharField(source='plan.name', read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
 
     class Meta:
         model = PaymentTransaction
         fields = (
-            'id', 'plan_name', 'amount_inr', 'status',
-            'razorpay_order_id', 'razorpay_payment_id',
-            'failure_reason', 'created_at',
+            "id",
+            "plan_name",
+            "amount_inr",
+            "status",
+            "razorpay_order_id",
+            "razorpay_payment_id",
+            "failure_reason",
+            "created_at",
         )
         read_only_fields = fields

@@ -11,138 +11,386 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('recruiters', '0003_talentpool'),
+        ("recruiters", "0003_talentpool"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CompanyReview',
+            name="CompanyReview",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('job_title', models.CharField(max_length=120)),
-                ('employment_status', models.CharField(choices=[('current', 'Current employee'), ('former', 'Former employee')], max_length=10)),
-                ('employment_years', models.PositiveSmallIntegerField(default=0, help_text='Years spent at the company.')),
-                ('rating_culture', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('rating_management', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('rating_growth', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('rating_salary', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('headline', models.CharField(max_length=150)),
-                ('pros', models.TextField(max_length=1500)),
-                ('cons', models.TextField(max_length=1500)),
-                ('advice_to_management', models.TextField(blank=True, max_length=1000)),
-                ('would_recommend', models.BooleanField(default=True)),
-                ('is_verified_employee', models.BooleanField(default=False)),
-                ('status', models.CharField(choices=[('published', 'Published'), ('under_review', 'Hidden pending review'), ('removed', 'Removed by moderator')], db_index=True, default='published', max_length=20)),
-                ('report_count', models.PositiveSmallIntegerField(default=0)),
-                ('helpful_count', models.PositiveIntegerField(default=0)),
-                ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='company_reviews', to=settings.AUTH_USER_MODEL)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='recruiters.company')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("job_title", models.CharField(max_length=120)),
+                (
+                    "employment_status",
+                    models.CharField(
+                        choices=[
+                            ("current", "Current employee"),
+                            ("former", "Former employee"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "employment_years",
+                    models.PositiveSmallIntegerField(
+                        default=0, help_text="Years spent at the company."
+                    ),
+                ),
+                (
+                    "rating_culture",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ]
+                    ),
+                ),
+                (
+                    "rating_management",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ]
+                    ),
+                ),
+                (
+                    "rating_growth",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ]
+                    ),
+                ),
+                (
+                    "rating_salary",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ]
+                    ),
+                ),
+                ("headline", models.CharField(max_length=150)),
+                ("pros", models.TextField(max_length=1500)),
+                ("cons", models.TextField(max_length=1500)),
+                ("advice_to_management", models.TextField(blank=True, max_length=1000)),
+                ("would_recommend", models.BooleanField(default=True)),
+                ("is_verified_employee", models.BooleanField(default=False)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("published", "Published"),
+                            ("under_review", "Hidden pending review"),
+                            ("removed", "Removed by moderator"),
+                        ],
+                        db_index=True,
+                        default="published",
+                        max_length=20,
+                    ),
+                ),
+                ("report_count", models.PositiveSmallIntegerField(default=0)),
+                ("helpful_count", models.PositiveIntegerField(default=0)),
+                (
+                    "author",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="company_reviews",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="reviews",
+                        to="recruiters.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'company_reviews',
-                'ordering': ['-created_at'],
+                "db_table": "company_reviews",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='CompanyResponse',
+            name="CompanyResponse",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('responder_name', models.CharField(blank=True, max_length=120)),
-                ('responder_title', models.CharField(blank=True, max_length=120)),
-                ('response', models.TextField(max_length=2000)),
-                ('responder', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_responses', to='recruiters.recruiterprofile')),
-                ('review', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='company_response', to='reviews.companyreview')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("responder_name", models.CharField(blank=True, max_length=120)),
+                ("responder_title", models.CharField(blank=True, max_length=120)),
+                ("response", models.TextField(max_length=2000)),
+                (
+                    "responder",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="review_responses",
+                        to="recruiters.recruiterprofile",
+                    ),
+                ),
+                (
+                    "review",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="company_response",
+                        to="reviews.companyreview",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'company_review_responses',
+                "db_table": "company_review_responses",
             },
         ),
         migrations.CreateModel(
-            name='InterviewExperience',
+            name="InterviewExperience",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('role_applied', models.CharField(max_length=120)),
-                ('outcome', models.CharField(choices=[('offer', 'Received an offer'), ('rejected', 'Rejected'), ('withdrew', 'Withdrew'), ('pending', 'Still waiting')], max_length=10)),
-                ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('moderate', 'Moderate'), ('hard', 'Hard')], max_length=10)),
-                ('rounds', models.PositiveSmallIntegerField(default=1)),
-                ('weeks_to_decision', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('process', models.TextField(help_text='What the rounds were and how they ran.', max_length=2000)),
-                ('questions_asked', models.JSONField(blank=True, default=list, help_text='Questions remembered from the interview.')),
-                ('was_experience_positive', models.BooleanField(default=True)),
-                ('status', models.CharField(choices=[('published', 'Published'), ('under_review', 'Hidden pending review'), ('removed', 'Removed by moderator')], db_index=True, default='published', max_length=20)),
-                ('report_count', models.PositiveSmallIntegerField(default=0)),
-                ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interview_experiences', to=settings.AUTH_USER_MODEL)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interview_experiences', to='recruiters.company')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("role_applied", models.CharField(max_length=120)),
+                (
+                    "outcome",
+                    models.CharField(
+                        choices=[
+                            ("offer", "Received an offer"),
+                            ("rejected", "Rejected"),
+                            ("withdrew", "Withdrew"),
+                            ("pending", "Still waiting"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "difficulty",
+                    models.CharField(
+                        choices=[
+                            ("easy", "Easy"),
+                            ("moderate", "Moderate"),
+                            ("hard", "Hard"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                ("rounds", models.PositiveSmallIntegerField(default=1)),
+                (
+                    "weeks_to_decision",
+                    models.PositiveSmallIntegerField(blank=True, null=True),
+                ),
+                (
+                    "process",
+                    models.TextField(
+                        help_text="What the rounds were and how they ran.",
+                        max_length=2000,
+                    ),
+                ),
+                (
+                    "questions_asked",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="Questions remembered from the interview.",
+                    ),
+                ),
+                ("was_experience_positive", models.BooleanField(default=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("published", "Published"),
+                            ("under_review", "Hidden pending review"),
+                            ("removed", "Removed by moderator"),
+                        ],
+                        db_index=True,
+                        default="published",
+                        max_length=20,
+                    ),
+                ),
+                ("report_count", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "author",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="interview_experiences",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="interview_experiences",
+                        to="recruiters.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'interview_experiences',
-                'ordering': ['-created_at'],
+                "db_table": "interview_experiences",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ReviewHelpfulVote',
+            name="ReviewHelpfulVote",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('review', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='helpful_votes', to='reviews.companyreview')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='helpful_votes', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "review",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="helpful_votes",
+                        to="reviews.companyreview",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="helpful_votes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'review_helpful_votes',
+                "db_table": "review_helpful_votes",
             },
         ),
         migrations.CreateModel(
-            name='ReviewReport',
+            name="ReviewReport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('reason', models.CharField(choices=[('false', 'Factually untrue'), ('abusive', 'Abusive or harassing'), ('identifying', 'Identifies an individual'), ('spam', 'Spam or promotional'), ('other', 'Something else')], max_length=20)),
-                ('detail', models.TextField(blank=True, max_length=500)),
-                ('reviewed_by_admin', models.BooleanField(default=False)),
-                ('admin_notes', models.TextField(blank=True, max_length=500)),
-                ('reported_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='review_reports', to=settings.AUTH_USER_MODEL)),
-                ('review', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reports', to='reviews.companyreview')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "reason",
+                    models.CharField(
+                        choices=[
+                            ("false", "Factually untrue"),
+                            ("abusive", "Abusive or harassing"),
+                            ("identifying", "Identifies an individual"),
+                            ("spam", "Spam or promotional"),
+                            ("other", "Something else"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("detail", models.TextField(blank=True, max_length=500)),
+                ("reviewed_by_admin", models.BooleanField(default=False)),
+                ("admin_notes", models.TextField(blank=True, max_length=500)),
+                (
+                    "reported_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="review_reports",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "review",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="reports",
+                        to="reviews.companyreview",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'review_reports',
-                'ordering': ['-created_at'],
+                "db_table": "review_reports",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='companyreview',
-            index=models.Index(fields=['company', 'status', '-created_at'], name='company_rev_company_9970be_idx'),
+            model_name="companyreview",
+            index=models.Index(
+                fields=["company", "status", "-created_at"],
+                name="company_rev_company_9970be_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='companyreview',
-            index=models.Index(fields=['status', '-helpful_count'], name='company_rev_status_cd2b97_idx'),
+            model_name="companyreview",
+            index=models.Index(
+                fields=["status", "-helpful_count"],
+                name="company_rev_status_cd2b97_idx",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='companyreview',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_deleted', False)), fields=('company', 'author'), name='one_review_per_person_per_company'),
+            model_name="companyreview",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_deleted", False)),
+                fields=("company", "author"),
+                name="one_review_per_person_per_company",
+            ),
         ),
         migrations.AddIndex(
-            model_name='interviewexperience',
-            index=models.Index(fields=['company', 'status', '-created_at'], name='interview_e_company_17bced_idx'),
+            model_name="interviewexperience",
+            index=models.Index(
+                fields=["company", "status", "-created_at"],
+                name="interview_e_company_17bced_idx",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='reviewhelpfulvote',
-            constraint=models.UniqueConstraint(fields=('review', 'user'), name='one_helpful_vote_per_person'),
+            model_name="reviewhelpfulvote",
+            constraint=models.UniqueConstraint(
+                fields=("review", "user"), name="one_helpful_vote_per_person"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='reviewreport',
-            constraint=models.UniqueConstraint(fields=('review', 'reported_by'), name='one_report_per_person_per_review'),
+            model_name="reviewreport",
+            constraint=models.UniqueConstraint(
+                fields=("review", "reported_by"),
+                name="one_report_per_person_per_review",
+            ),
         ),
     ]

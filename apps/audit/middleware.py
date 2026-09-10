@@ -1,6 +1,7 @@
 """
 Populates the audit thread-local for the duration of a request.
 """
+
 from .context import clear_context, set_context
 
 
@@ -9,10 +10,10 @@ def _client_ip(request):
     Prefer the left-most X-Forwarded-For entry, which is the original client
     when the app sits behind Nginx or a load balancer.
     """
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
     if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        return forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 class AuditContextMiddleware:
@@ -28,9 +29,9 @@ class AuditContextMiddleware:
 
     def __call__(self, request):
         set_context(
-            user=getattr(request, 'user', None),
+            user=getattr(request, "user", None),
             ip_address=_client_ip(request),
-            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
         )
         try:
             return self.get_response(request)

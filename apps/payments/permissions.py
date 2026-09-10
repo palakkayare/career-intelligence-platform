@@ -6,6 +6,7 @@ match-score endpoint. For quota checks (applications, job posts)
 prefer service-level validation instead — a quota is a business
 rule, not a permission, and deserves a 400 with a clear message.
 """
+
 from rest_framework import permissions
 
 from .services import FeatureGateService
@@ -14,7 +15,7 @@ from .services import FeatureGateService
 class HasProAccess(permissions.BasePermission):
     """Allow only users on any paid plan (Pro or Business)."""
 
-    message = 'This feature requires a Pro or Business subscription.'
+    message = "This feature requires a Pro or Business subscription."
 
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
@@ -43,14 +44,14 @@ class HasFeature(permissions.BasePermission):
             f'Has{feature.title().replace("_", "")}',
             (cls,),
             {
-                'feature_name': feature,
-                'message': f'Your current plan does not include the {feature} feature.',
+                "feature_name": feature,
+                "message": f"Your current plan does not include the {feature} feature.",
             },
         )
 
 
 # Pre-built gates for the features we know are coming (Steps 17+)
-HasMatchScore = HasFeature.create('match_score')
-HasSkillGap = HasFeature.create('skill_gap')
-HasCareerPath = HasFeature.create('career_path')
-HasCandidateSearch = HasFeature.create('candidate_search')
+HasMatchScore = HasFeature.create("match_score")
+HasSkillGap = HasFeature.create("skill_gap")
+HasCareerPath = HasFeature.create("career_path")
+HasCandidateSearch = HasFeature.create("candidate_search")

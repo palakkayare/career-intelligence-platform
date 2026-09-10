@@ -2,13 +2,14 @@
 Event-specific handlers.
 Router dispatches to appropriate function based on event type.
 """
+
 import logging
 from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Plan, Subscription, PaymentTransaction, WebhookEvent
+from .models import PaymentTransaction, Subscription, WebhookEvent
 from .services import SubscriptionService
 
 logger = logging.getLogger(__name__)
@@ -19,12 +20,12 @@ def process_event(event: WebhookEvent):
     Route event to appropriate handler based on event_type.
     """
     handlers = {
-        'payment.captured': handle_payment_captured,
-        'payment.failed': handle_payment_failed,
-        'refund.processed': handle_refund_processed,
-        'order.paid': handle_order_paid,
-        'subscription.cancelled': handle_subscription_cancelled,
-        'subscription.charged': handle_subscription_charged,
+        "payment.captured": handle_payment_captured,
+        "payment.failed": handle_payment_failed,
+        "refund.processed": handle_refund_processed,
+        "order.paid": handle_order_paid,
+        "subscription.cancelled": handle_subscription_cancelled,
+        "subscription.charged": handle_subscription_charged,
     }
 
     handler = handlers.get(event.event_type)
@@ -37,27 +38,32 @@ def process_event(event: WebhookEvent):
 
 # ─── Handlers ──────────────────────────────────────────────
 
+
 @transaction.atomic
 def handle_payment_captured(event: WebhookEvent):
     """
     Payment was successful and captured.
     This is the most reliable signal that payment is complete.
     """
-    
-    payload = event.payload
-    payment_entity = payload.get('payload', {}).get('payment', {}).get('entity', {})
 
-    payment_id = payment_entity.get('id')
-    order_id = payment_entity.get('order_id')
-    amount_paise = payment_entity.get('amount', 0)
+    payload = event.payload
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+
+    payment_id = payment_entity.get("id")
+    order_id = payment_entity.get("order_id")
+    amount_paise = payment_entity.get("amount", 0)
 
     if not payment_id or not order_id:
         raise ValueError("Missing payment_id or order_id in payload")
 
     # Find our transaction
-    txn = PaymentTransaction.objects.select_for_update().filter(
-        razorpay_order_id=order_id,
-    ).first()
+    txn = (
+        PaymentTransaction.objects.select_for_update()
+        .filter(
+            razorpay_order_id=order_id,
+        )
+        .first()
+    )
 
     if not txn:
         logger.warning(
@@ -81,7 +87,7 @@ def handle_payment_captured(event: WebhookEvent):
     # Update transaction
     txn.razorpay_payment_id = payment_id
     txn.status = PaymentTransaction.Status.SUCCESS
-    txn.save(update_fields=['razorpay_payment_id', 'status'])
+    txn.save(update_fields=["razorpay_payment_id", "status"])
 
     # Activate subscription
     SubscriptionService.activate_paid_subscription(
@@ -90,9 +96,7 @@ def handle_payment_captured(event: WebhookEvent):
         transaction_obj=txn,
     )
 
-    logger.info(
-        f"Subscription activated via webhook for {txn.user.email} (plan: {txn.plan.slug})"
-    )
+    logger.info(f"Subscription activated via webhook for {txn.user.email} (plan: {txn.plan.slug})")
 
 
 @transaction.atomic
@@ -106,11 +110,11 @@ def handle_refund_processed(event: WebhookEvent):
     from .services import RefundService
 
     payload = event.payload
-    entity = payload.get('payload', {}).get('refund', {}).get('entity', {})
-    refund_id = entity.get('id')
+    entity = payload.get("payload", {}).get("refund", {}).get("entity", {})
+    refund_id = entity.get("id")
 
     if not refund_id:
-        logger.warning('refund.processed with no refund id in payload')
+        logger.warning("refund.processed with no refund id in payload")
         return
 
     refund = RefundService.mark_processed(refund_id)
@@ -123,11 +127,11 @@ def handle_refund_processed(event: WebhookEvent):
 def handle_payment_failed(event: WebhookEvent):
     """Payment failed. Mark transaction failed."""
     payload = event.payload
-    payment_entity = payload.get('payload', {}).get('payment', {}).get('entity', {})
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
 
-    payment_id = payment_entity.get('id')
-    order_id = payment_entity.get('order_id')
-    error_description = payment_entity.get('error_description', '')
+    payment_id = payment_entity.get("id")
+    order_id = payment_entity.get("order_id")
+    error_description = payment_entity.get("error_description", "")
 
     txn = PaymentTransaction.objects.filter(razorpay_order_id=order_id).first()
 
@@ -137,15 +141,13 @@ def handle_payment_failed(event: WebhookEvent):
 
     # Don't override already-success transactions (rare race condition)
     if txn.status == PaymentTransaction.Status.SUCCESS:
-        logger.warning(
-            f"payment.failed received for already-success txn {txn.id}. Ignoring."
-        )
+        logger.warning(f"payment.failed received for already-success txn {txn.id}. Ignoring.")
         return
 
-    txn.razorpay_payment_id = payment_id or ''
+    txn.razorpay_payment_id = payment_id or ""
     txn.status = PaymentTransaction.Status.FAILED
     txn.failure_reason = error_description[:1000]
-    txn.save(update_fields=['razorpay_payment_id', 'status', 'failure_reason'])
+    txn.save(update_fields=["razorpay_payment_id", "status", "failure_reason"])
 
     logger.info(f"Transaction {txn.id} marked failed: {error_description}")
 
@@ -157,12 +159,12 @@ def handle_order_paid(event: WebhookEvent):
     Implement for completeness.
     """
     payload = event.payload
-    order_entity = payload.get('payload', {}).get('order', {}).get('entity', {})
+    order_entity = payload.get("payload", {}).get("order", {}).get("entity", {})
 
     if not order_entity:
         return
 
-    order_id = order_entity.get('id')
+    order_id = order_entity.get("id")
     txn = PaymentTransaction.objects.filter(razorpay_order_id=order_id).first()
 
     if txn and txn.status == PaymentTransaction.Status.SUCCESS:
@@ -180,8 +182,8 @@ def handle_subscription_cancelled(event: WebhookEvent):
     For now, just log.
     """
     payload = event.payload
-    sub_entity = payload.get('payload', {}).get('subscription', {}).get('entity', {})
-    razorpay_sub_id = sub_entity.get('id')
+    sub_entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
+    razorpay_sub_id = sub_entity.get("id")
 
     sub = Subscription.objects.filter(razorpay_subscription_id=razorpay_sub_id).first()
 
@@ -194,7 +196,7 @@ def handle_subscription_cancelled(event: WebhookEvent):
 
     sub.status = Subscription.Status.CANCELLED
     sub.cancelled_at = timezone.now()
-    sub.cancellation_reason = sub_entity.get('reason', 'Cancelled by Razorpay')
+    sub.cancellation_reason = sub_entity.get("reason", "Cancelled by Razorpay")
     sub.auto_renew = False
     sub.save()
 
@@ -208,9 +210,9 @@ def handle_subscription_charged(event: WebhookEvent):
     Phase 3+ feature when we use Razorpay Subscriptions API.
     """
     payload = event.payload
-    sub_entity = payload.get('payload', {}).get('subscription', {}).get('entity', {})
-    payment_entity = payload.get('payload', {}).get('payment', {}).get('entity', {})
-    razorpay_sub_id = sub_entity.get('id')
+    sub_entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    razorpay_sub_id = sub_entity.get("id")
 
     sub = Subscription.objects.filter(razorpay_subscription_id=razorpay_sub_id).first()
 
@@ -234,8 +236,8 @@ def handle_subscription_charged(event: WebhookEvent):
         plan=sub.plan,
         amount_inr=sub.plan.price_inr,
         status=PaymentTransaction.Status.SUCCESS,
-        razorpay_order_id=sub_entity.get('current_order_id', ''),
-        razorpay_payment_id=payment_entity.get('id', ''),
+        razorpay_order_id=sub_entity.get("current_order_id", ""),
+        razorpay_payment_id=payment_entity.get("id", ""),
     )
 
     logger.info(f"Subscription {sub.id} renewed to {new_end}")

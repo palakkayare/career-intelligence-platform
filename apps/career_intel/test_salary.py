@@ -8,6 +8,7 @@ service on top of it is where the privacy promise lives - people submit
 salary data on the understanding that no aggregate can be traced back to
 them, and K-anonymity is the mechanism that keeps that promise.
 """
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -25,6 +26,7 @@ LAKH = 100_000
 # --------------------------------------------------------------------------
 # Percentiles and aggregates (no database)
 # --------------------------------------------------------------------------
+
 
 def test_an_empty_list_has_no_percentile():
     assert alg.calculate_percentile([], 50) is None
@@ -46,7 +48,7 @@ def test_the_median_of_an_even_list_is_interpolated():
 
 
 @pytest.mark.regression
-def test_percentiles_interpolate_between_ranks(): 
+def test_percentiles_interpolate_between_ranks():
     """
     Regression: the salary modules sat at ~20% coverage. Linear interpolation
     is what makes p25 and p75 meaningful on small samples, which is all this
@@ -72,12 +74,12 @@ def test_aggregates_cover_the_whole_distribution():
 
     result = alg.calculate_aggregates(salaries)
 
-    assert result['count'] == 5
-    assert result['min'] == 5 * LAKH
-    assert result['max'] == 25 * LAKH
-    assert result['median'] == 15 * LAKH
-    assert result['mean'] == 15 * LAKH
-    assert result['p25'] < result['median'] < result['p75']
+    assert result["count"] == 5
+    assert result["min"] == 5 * LAKH
+    assert result["max"] == 25 * LAKH
+    assert result["median"] == 15 * LAKH
+    assert result["mean"] == 15 * LAKH
+    assert result["p25"] < result["median"] < result["p75"]
 
 
 @pytest.mark.regression
@@ -89,7 +91,15 @@ def test_aggregates_expose_no_individual_row():
     result = alg.calculate_aggregates([Decimal(str(n * LAKH)) for n in range(1, 11)])
 
     assert set(result) == {
-        'count', 'min', 'max', 'mean', 'median', 'p10', 'p25', 'p75', 'p90',
+        "count",
+        "min",
+        "max",
+        "mean",
+        "median",
+        "p10",
+        "p25",
+        "p75",
+        "p90",
     }
 
 
@@ -97,9 +107,10 @@ def test_aggregates_expose_no_individual_row():
 # Outlier trimming
 # --------------------------------------------------------------------------
 
+
 def test_impossible_salaries_are_dropped():
     """A typo of one zero either way would drag the median badly."""
-    salaries = [Decimal('50000'), Decimal(str(10 * LAKH)), Decimal('999999999')]
+    salaries = [Decimal("50000"), Decimal(str(10 * LAKH)), Decimal("999999999")]
 
     kept = alg.trim_outliers_simple(salaries)
 
@@ -134,20 +145,26 @@ def test_iqr_trimming_leaves_tiny_samples_alone():
 # Display and positioning
 # --------------------------------------------------------------------------
 
+
 def test_rupees_render_as_lakhs():
-    assert alg.format_inr_lpa(1_850_000) == '₹18.5 LPA'
+    assert alg.format_inr_lpa(1_850_000) == "₹18.5 LPA"
     assert alg.format_inr_lpa(None) is None
 
 
-@pytest.mark.parametrize('salary,expected', [
-    (5 * LAKH, 'below_market'),
-    (15 * LAKH, 'fair_market'),
-    (28 * LAKH, 'above_market'),
-    (40 * LAKH, 'top_of_market'),
-])
+@pytest.mark.parametrize(
+    "salary,expected",
+    [
+        (5 * LAKH, "below_market"),
+        (15 * LAKH, "fair_market"),
+        (28 * LAKH, "above_market"),
+        (40 * LAKH, "top_of_market"),
+    ],
+)
 def test_market_position_bands(salary, expected):
     percentiles = {
-        'p25': 10 * LAKH, 'p75': 25 * LAKH, 'p90': 35 * LAKH,
+        "p25": 10 * LAKH,
+        "p75": 25 * LAKH,
+        "p90": 35 * LAKH,
     }
 
     assert alg.determine_market_position(salary, percentiles) == expected
@@ -162,11 +179,11 @@ pytestmark_db = pytest.mark.django_db
 
 def submission_data(**overrides):
     data = {
-        'role_title': 'Backend Developer',
-        'location_city': 'Bangalore',
-        'experience_years_bucket': '2-5',
-        'salary_inr': Decimal(str(15 * LAKH)),
-        'effective_year': datetime.now().year,
+        "role_title": "Backend Developer",
+        "location_city": "Bangalore",
+        "experience_years_bucket": "2-5",
+        "salary_inr": Decimal(str(15 * LAKH)),
+        "effective_year": datetime.now().year,
     }
     data.update(overrides)
     return data
@@ -183,14 +200,15 @@ def test_a_valid_submission_is_stored(seeker_user):
 @pytest.mark.django_db
 def test_an_absurdly_low_salary_is_rejected(seeker_user):
     with pytest.raises(ValidationError):
-        SalaryService.submit(seeker_user, submission_data(salary_inr=Decimal('5000')))
+        SalaryService.submit(seeker_user, submission_data(salary_inr=Decimal("5000")))
 
 
 @pytest.mark.django_db
 def test_an_absurdly_high_salary_is_rejected(seeker_user):
     with pytest.raises(ValidationError):
         SalaryService.submit(
-            seeker_user, submission_data(salary_inr=Decimal('999999999')),
+            seeker_user,
+            submission_data(salary_inr=Decimal("999999999")),
         )
 
 
@@ -213,7 +231,8 @@ def test_the_same_role_in_a_different_year_is_allowed(seeker_user):
     SalaryService.submit(seeker_user, submission_data(effective_year=year))
 
     second = SalaryService.submit(
-        seeker_user, submission_data(effective_year=year - 1),
+        seeker_user,
+        submission_data(effective_year=year - 1),
     )
 
     assert second.pk
@@ -221,11 +240,12 @@ def test_the_same_role_in_a_different_year_is_allowed(seeker_user):
 
 @pytest.mark.django_db
 def test_duplicate_detection_ignores_case(seeker_user):
-    SalaryService.submit(seeker_user, submission_data(role_title='Backend Developer'))
+    SalaryService.submit(seeker_user, submission_data(role_title="Backend Developer"))
 
     with pytest.raises(ValidationError):
         SalaryService.submit(
-            seeker_user, submission_data(role_title='backend developer'),
+            seeker_user,
+            submission_data(role_title="backend developer"),
         )
 
 
@@ -233,15 +253,17 @@ def test_duplicate_detection_ignores_case(seeker_user):
 # K-anonymity
 # --------------------------------------------------------------------------
 
+
 def seed_submissions(count, **overrides):
     """Raw rows, bypassing the service so per-user limits do not apply."""
     year = datetime.now().year
     for index in range(count):
         data = submission_data(**overrides)
-        data['salary_inr'] = data['salary_inr'] + Decimal(str(index * 10_000))
-        SalarySubmission.objects.create(effective_year=year, **{
-            key: value for key, value in data.items() if key != 'effective_year'
-        })
+        data["salary_inr"] = data["salary_inr"] + Decimal(str(index * 10_000))
+        SalarySubmission.objects.create(
+            effective_year=year,
+            **{key: value for key, value in data.items() if key != "effective_year"},
+        )
 
 
 @pytest.mark.django_db
@@ -253,23 +275,23 @@ def test_a_thin_sample_returns_no_numbers_at_all():
     """
     seed_submissions(4)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is False
-    assert 'salary_range_inr' not in result
-    assert result['k_threshold'] == 5
+    assert result["has_data"] is False
+    assert "salary_range_inr" not in result
+    assert result["k_threshold"] == 5
 
 
 @pytest.mark.django_db
 def test_reaching_the_threshold_unlocks_the_aggregate():
     seed_submissions(5)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is True
-    assert result['sample_size'] == 5
-    assert result['salary_range_inr']['median']
-    assert 'LPA' in result['salary_range_lpa']['median']
+    assert result["has_data"] is True
+    assert result["sample_size"] == 5
+    assert result["salary_range_inr"]["median"]
+    assert "LPA" in result["salary_range_lpa"]["median"]
 
 
 @pytest.mark.django_db
@@ -277,10 +299,10 @@ def test_reaching_the_threshold_unlocks_the_aggregate():
 def test_the_threshold_is_configurable():
     seed_submissions(6)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is False
-    assert result['k_threshold'] == 10
+    assert result["has_data"] is False
+    assert result["k_threshold"] == 10
 
 
 @pytest.mark.django_db
@@ -291,14 +313,14 @@ def test_trimming_can_push_a_sample_back_below_the_threshold():
     to run again after trimming, or the guarantee is only skin deep.
     """
     seed_submissions(3)
-    for bad in ('1000', '999999999'):
+    for bad in ("1000", "999999999"):
         SalarySubmission.objects.create(
-            **{**submission_data(), 'salary_inr': Decimal(bad)},
+            **{**submission_data(), "salary_inr": Decimal(bad)},
         )
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is False
+    assert result["has_data"] is False
 
 
 @pytest.mark.django_db
@@ -306,30 +328,30 @@ def test_flagged_submissions_never_reach_an_aggregate():
     seed_submissions(5)
     SalarySubmission.objects.update(is_flagged=True)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is False
+    assert result["has_data"] is False
 
 
 @pytest.mark.django_db
 def test_filters_narrow_the_sample():
-    seed_submissions(5, location_city='Bangalore')
-    seed_submissions(5, location_city='Pune')
+    seed_submissions(5, location_city="Bangalore")
+    seed_submissions(5, location_city="Pune")
 
-    blr = SalaryService.get_insights({'location_city': 'Bangalore'})
-    both = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    blr = SalaryService.get_insights({"location_city": "Bangalore"})
+    both = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert blr['sample_size'] == 5
-    assert both['sample_size'] == 10
+    assert blr["sample_size"] == 5
+    assert both["sample_size"] == 10
 
 
 @pytest.mark.django_db
 def test_city_filtering_ignores_case():
-    seed_submissions(5, location_city='Bangalore')
+    seed_submissions(5, location_city="Bangalore")
 
-    result = SalaryService.get_insights({'location_city': 'bangalore'})
+    result = SalaryService.get_insights({"location_city": "bangalore"})
 
-    assert result['has_data'] is True
+    assert result["has_data"] is True
 
 
 @pytest.mark.django_db
@@ -338,9 +360,9 @@ def test_old_submissions_are_excluded_by_default():
     seed_submissions(5)
     SalarySubmission.objects.update(effective_year=datetime.now().year - 5)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert result['has_data'] is False
+    assert result["has_data"] is False
 
 
 # --------------------------------------------------------------------------
@@ -351,18 +373,18 @@ from django.test import override_settings
 
 from apps.career_intel.salary_services import client_ip, hash_ip
 
-PEPPER = 'test-pepper-value'
+PEPPER = "test-pepper-value"
 
 
 @override_settings(SALARY_IP_PEPPER=PEPPER)
 def test_the_same_address_always_hashes_the_same():
     """Rate limiting depends on it being deterministic."""
-    assert hash_ip('203.0.113.7') == hash_ip('203.0.113.7')
+    assert hash_ip("203.0.113.7") == hash_ip("203.0.113.7")
 
 
 @override_settings(SALARY_IP_PEPPER=PEPPER)
 def test_different_addresses_hash_differently():
-    assert hash_ip('203.0.113.7') != hash_ip('203.0.113.8')
+    assert hash_ip("203.0.113.7") != hash_ip("203.0.113.8")
 
 
 @pytest.mark.regression
@@ -373,9 +395,9 @@ def test_the_hash_does_not_contain_the_address():
     the raw address was simply not stored at all - meaning no rate limiting
     either. Storing it in the clear would have been worse.
     """
-    hashed = hash_ip('203.0.113.7')
+    hashed = hash_ip("203.0.113.7")
 
-    assert '203.0.113.7' not in hashed
+    assert "203.0.113.7" not in hashed
     assert len(hashed) == 64
 
 
@@ -386,32 +408,33 @@ def test_a_different_pepper_gives_a_different_hash():
     table anyone can build in an afternoon; without a secret in the mix,
     hashing the address would not be anonymising it.
     """
-    with override_settings(SALARY_IP_PEPPER='pepper-one'):
-        first = hash_ip('203.0.113.7')
-    with override_settings(SALARY_IP_PEPPER='pepper-two'):
-        second = hash_ip('203.0.113.7')
+    with override_settings(SALARY_IP_PEPPER="pepper-one"):
+        first = hash_ip("203.0.113.7")
+    with override_settings(SALARY_IP_PEPPER="pepper-two"):
+        second = hash_ip("203.0.113.7")
 
     assert first != second
 
 
-@override_settings(SALARY_IP_PEPPER='')
+@override_settings(SALARY_IP_PEPPER="")
 def test_no_pepper_means_no_hash_rather_than_a_weak_one():
     """
     A misconfigured deployment should lose rate limiting, not gain a
     reversible hash of every submitter's address.
     """
-    assert hash_ip('203.0.113.7') == ''
+    assert hash_ip("203.0.113.7") == ""
 
 
 @override_settings(SALARY_IP_PEPPER=PEPPER)
 def test_a_missing_address_hashes_to_nothing():
-    assert hash_ip(None) == ''
-    assert hash_ip('') == ''
+    assert hash_ip(None) == ""
+    assert hash_ip("") == ""
 
 
 # --------------------------------------------------------------------------
 # Reading the client address
 # --------------------------------------------------------------------------
+
 
 class FakeRequest:
     def __init__(self, **meta):
@@ -423,15 +446,15 @@ def test_the_forwarded_address_wins_over_the_socket():
     """Behind Nginx, REMOTE_ADDR is the proxy - every submission would
     otherwise share one hash and hit the device limit immediately."""
     request = FakeRequest(
-        HTTP_X_FORWARDED_FOR='203.0.113.7, 10.0.0.1',
-        REMOTE_ADDR='10.0.0.1',
+        HTTP_X_FORWARDED_FOR="203.0.113.7, 10.0.0.1",
+        REMOTE_ADDR="10.0.0.1",
     )
 
-    assert client_ip(request) == '203.0.113.7'
+    assert client_ip(request) == "203.0.113.7"
 
 
 def test_the_socket_address_is_used_without_a_proxy():
-    assert client_ip(FakeRequest(REMOTE_ADDR='203.0.113.7')) == '203.0.113.7'
+    assert client_ip(FakeRequest(REMOTE_ADDR="203.0.113.7")) == "203.0.113.7"
 
 
 def test_a_missing_request_is_handled():
@@ -442,15 +465,18 @@ def test_a_missing_request_is_handled():
 # Per-device limit
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 @override_settings(SALARY_IP_PEPPER=PEPPER)
 def test_the_address_is_stored_hashed_not_raw(seeker_user):
     submission = SalaryService.submit(
-        seeker_user, submission_data(), ip_address='203.0.113.7',
+        seeker_user,
+        submission_data(),
+        ip_address="203.0.113.7",
     )
 
-    assert submission.submitter_ip_hash == hash_ip('203.0.113.7')
-    assert '203.0.113.7' not in submission.submitter_ip_hash
+    assert submission.submitter_ip_hash == hash_ip("203.0.113.7")
+    assert "203.0.113.7" not in submission.submitter_ip_hash
 
 
 @pytest.mark.django_db
@@ -465,18 +491,22 @@ def test_one_device_cannot_submit_without_limit(seeker_user, plans):
 
     for index in range(2):
         user = User.objects.create_user(
-            email=f'submitter{index}@test.com', password='TestPass123!',
+            email=f"submitter{index}@test.com",
+            password="TestPass123!",
         )
         SalaryService.submit(
-            user, submission_data(), ip_address='203.0.113.7',
+            user,
+            submission_data(),
+            ip_address="203.0.113.7",
         )
 
     third = User.objects.create_user(
-        email='third@test.com', password='TestPass123!',
+        email="third@test.com",
+        password="TestPass123!",
     )
 
     with pytest.raises(ValidationError):
-        SalaryService.submit(third, submission_data(), ip_address='203.0.113.7')
+        SalaryService.submit(third, submission_data(), ip_address="203.0.113.7")
 
 
 @pytest.mark.django_db
@@ -484,22 +514,25 @@ def test_one_device_cannot_submit_without_limit(seeker_user, plans):
 def test_a_different_device_is_unaffected(seeker_user, plans):
     from apps.accounts.models import User
 
-    SalaryService.submit(seeker_user, submission_data(),
-                         ip_address='203.0.113.7')
+    SalaryService.submit(seeker_user, submission_data(), ip_address="203.0.113.7")
 
     other = User.objects.create_user(
-        email='elsewhere@test.com', password='TestPass123!',
+        email="elsewhere@test.com",
+        password="TestPass123!",
     )
     submission = SalaryService.submit(
-        other, submission_data(), ip_address='198.51.100.4',
+        other,
+        submission_data(),
+        ip_address="198.51.100.4",
     )
 
     assert submission.pk
 
 
 @pytest.mark.django_db
-@override_settings(SALARY_IP_PEPPER=PEPPER, SALARY_MAX_SUBMISSIONS_PER_IP=1,
-                   SALARY_IP_WINDOW_HOURS=24)
+@override_settings(
+    SALARY_IP_PEPPER=PEPPER, SALARY_MAX_SUBMISSIONS_PER_IP=1, SALARY_IP_WINDOW_HOURS=24
+)
 def test_the_limit_is_a_rolling_window(seeker_user, plans):
     """Yesterday's submission should not block today's."""
     from datetime import timedelta
@@ -508,32 +541,36 @@ def test_the_limit_is_a_rolling_window(seeker_user, plans):
 
     from apps.accounts.models import User
 
-    old = SalaryService.submit(seeker_user, submission_data(),
-                               ip_address='203.0.113.7')
+    old = SalaryService.submit(seeker_user, submission_data(), ip_address="203.0.113.7")
     SalarySubmission.objects.filter(pk=old.pk).update(
         submitted_at=timezone.now() - timedelta(hours=25),
     )
 
     other = User.objects.create_user(
-        email='today@test.com', password='TestPass123!',
+        email="today@test.com",
+        password="TestPass123!",
     )
     submission = SalaryService.submit(
-        other, submission_data(), ip_address='203.0.113.7',
+        other,
+        submission_data(),
+        ip_address="203.0.113.7",
     )
 
     assert submission.pk
 
 
 @pytest.mark.django_db
-@override_settings(SALARY_IP_PEPPER='')
+@override_settings(SALARY_IP_PEPPER="")
 def test_without_a_pepper_submissions_still_work(seeker_user):
     """Losing rate limiting is bad; refusing every submission is worse."""
     submission = SalaryService.submit(
-        seeker_user, submission_data(), ip_address='203.0.113.7',
+        seeker_user,
+        submission_data(),
+        ip_address="203.0.113.7",
     )
 
     assert submission.pk
-    assert submission.submitter_ip_hash == ''
+    assert submission.submitter_ip_hash == ""
 
 
 @pytest.mark.django_db
@@ -542,12 +579,13 @@ def test_a_submission_without_an_address_is_allowed(seeker_user):
     """Management commands and imports have no request behind them."""
     submission = SalaryService.submit(seeker_user, submission_data())
 
-    assert submission.submitter_ip_hash == ''
+    assert submission.submitter_ip_hash == ""
 
 
 # --------------------------------------------------------------------------
 # Re-identification defences
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 @pytest.mark.regression
@@ -559,12 +597,12 @@ def test_the_exact_minimum_and_maximum_are_not_published():
     """
     seed_submissions(6)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert 'min' not in result['salary_range_inr']
-    assert 'max' not in result['salary_range_inr']
-    assert 'min' not in result['salary_range_lpa']
-    assert 'max' not in result['salary_range_lpa']
+    assert "min" not in result["salary_range_inr"]
+    assert "max" not in result["salary_range_inr"]
+    assert "min" not in result["salary_range_lpa"]
+    assert "max" not in result["salary_range_lpa"]
 
 
 @pytest.mark.django_db
@@ -579,12 +617,12 @@ def test_published_figures_are_rounded_to_a_band():
 
     seed_submissions(6)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
-    figures = result['salary_range_inr']
-    band = choose_band(figures['median'])
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
+    figures = result["salary_range_inr"]
+    band = choose_band(figures["median"])
 
     for name, value in figures.items():
-        assert value % band == 0, f'{name} was not rounded to the band'
+        assert value % band == 0, f"{name} was not rounded to the band"
 
 
 @pytest.mark.django_db
@@ -608,23 +646,19 @@ def test_a_published_figure_never_points_at_one_submission():
     seed_submissions(7)
 
     submitted = [
-        float(value) for value in
-        SalarySubmission.objects.values_list('salary_inr', flat=True)
+        float(value) for value in SalarySubmission.objects.values_list("salary_inr", flat=True)
     ]
     published = SalaryService.get_insights(
-        {'role_title': 'Backend Developer'},
-    )['salary_range_inr']
+        {"role_title": "Backend Developer"},
+    )["salary_range_inr"]
 
-    half_band = choose_band(published['median']) / 2
+    half_band = choose_band(published["median"]) / 2
 
     for name, figure in published.items():
-        nearby = [
-            salary for salary in submitted
-            if abs(salary - figure) <= half_band
-        ]
+        nearby = [salary for salary in submitted if abs(salary - figure) <= half_band]
         assert len(nearby) != 1, (
-            f'{name} = {figure} matches exactly one submission, '
-            f'which makes it that person\'s salary'
+            f"{name} = {figure} matches exactly one submission, "
+            f"which makes it that person's salary"
         )
 
 
@@ -638,11 +672,11 @@ def test_the_rounded_median_still_describes_the_data():
 
     seed_submissions(6)
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
-    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
+    raw = SalaryService._raw_percentiles({"role_title": "Backend Developer"})
 
-    band = choose_band(result['salary_range_inr']['median'])
-    drift = abs(result['salary_range_inr']['median'] - raw['median'])
+    band = choose_band(result["salary_range_inr"]["median"])
+    drift = abs(result["salary_range_inr"]["median"] - raw["median"])
     assert drift <= band / 2
 
 
@@ -654,19 +688,21 @@ def test_a_differencing_attack_does_not_isolate_one_person():
     group minus one attribute, compare. With min and max gone and the rest
     banded, the difference no longer resolves to an individual.
     """
-    seed_submissions(6, experience_years_bucket='2-5')
-    seed_submissions(5, experience_years_bucket='5-10')
+    seed_submissions(6, experience_years_bucket="2-5")
+    seed_submissions(5, experience_years_bucket="5-10")
 
-    everyone = SalaryService.get_insights({'role_title': 'Backend Developer'})
-    juniors = SalaryService.get_insights({
-        'role_title': 'Backend Developer',
-        'experience_years_bucket': '2-5',
-    })
+    everyone = SalaryService.get_insights({"role_title": "Backend Developer"})
+    juniors = SalaryService.get_insights(
+        {
+            "role_title": "Backend Developer",
+            "experience_years_bucket": "2-5",
+        }
+    )
 
     # Both sets are large enough to publish, and neither exposes an endpoint
     # of its distribution for the other to be subtracted from.
-    assert everyone['has_data'] and juniors['has_data']
-    assert set(everyone['salary_range_inr']) == {'p25', 'median', 'p75', 'mean'}
+    assert everyone["has_data"] and juniors["has_data"]
+    assert set(everyone["salary_range_inr"]) == {"p25", "median", "p75", "mean"}
 
 
 @pytest.mark.django_db
@@ -679,20 +715,20 @@ def test_the_comparison_path_uses_unrounded_figures(seeker_user):
     """
     seed_submissions(6)
 
-    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+    raw = SalaryService._raw_percentiles({"role_title": "Backend Developer"})
 
-    assert 'min' in raw and 'max' in raw and 'p90' in raw
+    assert "min" in raw and "max" in raw and "p90" in raw
 
 
 @pytest.mark.django_db
 def test_the_raw_percentiles_never_reach_a_response(seeker_user):
     seed_submissions(6)
-    SalaryService.submit(seeker_user, submission_data(role_title='Other Role'))
+    SalaryService.submit(seeker_user, submission_data(role_title="Other Role"))
 
-    result = SalaryService.get_insights({'role_title': 'Backend Developer'})
+    result = SalaryService.get_insights({"role_title": "Backend Developer"})
 
-    assert 'p90' not in result['salary_range_inr']
-    assert 'p10' not in result['salary_range_inr']
+    assert "p90" not in result["salary_range_inr"]
+    assert "p10" not in result["salary_range_inr"]
 
 
 @pytest.mark.regression
@@ -712,9 +748,7 @@ def test_the_band_has_a_floor():
     Five percent of a small salary is not a meaningful window, and an
     intern's figure deserves the same protection as anyone else's.
     """
-    from apps.career_intel.salary_algorithm import (
-        PUBLISH_BAND_MIN_INR, choose_band,
-    )
+    from apps.career_intel.salary_algorithm import PUBLISH_BAND_MIN_INR, choose_band
 
     assert choose_band(2 * LAKH) == PUBLISH_BAND_MIN_INR
 
@@ -724,17 +758,13 @@ def test_the_band_has_a_ceiling():
     Privacy that destroys the number is not a trade worth making. A
     ₹20,00,000 band on a ₹1 crore median tells nobody anything.
     """
-    from apps.career_intel.salary_algorithm import (
-        PUBLISH_BAND_MAX_INR, choose_band,
-    )
+    from apps.career_intel.salary_algorithm import PUBLISH_BAND_MAX_INR, choose_band
 
     assert choose_band(200 * LAKH) == PUBLISH_BAND_MAX_INR
 
 
 def test_a_missing_reference_falls_back_to_the_floor():
-    from apps.career_intel.salary_algorithm import (
-        PUBLISH_BAND_MIN_INR, choose_band,
-    )
+    from apps.career_intel.salary_algorithm import PUBLISH_BAND_MIN_INR, choose_band
 
     assert choose_band(None) == PUBLISH_BAND_MIN_INR
     assert choose_band(0) == PUBLISH_BAND_MIN_INR
@@ -748,30 +778,26 @@ def test_a_widely_spread_group_still_hides_its_members():
     lakhs. The band scales with the median, so the published figure still
     covers more than one of them.
     """
-    from apps.career_intel.salary_algorithm import choose_band
 
     year = datetime.now().year
     for salary in (30, 45, 55, 70, 80):
         SalarySubmission.objects.create(
-            role_title='Backend Developer',
-            location_city='Bangalore',
-            experience_years_bucket='10+',
+            role_title="Backend Developer",
+            location_city="Bangalore",
+            experience_years_bucket="10+",
             salary_inr=Decimal(str(salary * LAKH)),
             effective_year=year,
         )
 
     published = SalaryService.get_insights(
-        {'role_title': 'Backend Developer'},
-    )['salary_range_inr']
-    submitted = [
-        float(v) for v in
-        SalarySubmission.objects.values_list('salary_inr', flat=True)
-    ]
+        {"role_title": "Backend Developer"},
+    )["salary_range_inr"]
+    submitted = [float(v) for v in SalarySubmission.objects.values_list("salary_inr", flat=True)]
 
     # A band cannot make this median ambiguous - the neighbours are ₹10L
     # away. The published figure sits between two people instead, so it is
     # nobody's salary at all.
-    assert published['median'] not in submitted
+    assert published["median"] not in submitted
 
 
 @pytest.mark.django_db
@@ -785,9 +811,9 @@ def test_every_figure_in_one_response_shares_a_band():
     seed_submissions(8)
 
     figures = SalaryService.get_insights(
-        {'role_title': 'Backend Developer'},
-    )['salary_range_inr']
-    band = choose_band(figures['median'])
+        {"role_title": "Backend Developer"},
+    )["salary_range_inr"]
+    band = choose_band(figures["median"])
 
     assert all(value % band == 0 for value in figures.values())
 
@@ -795,6 +821,7 @@ def test_every_figure_in_one_response_shares_a_band():
 # --------------------------------------------------------------------------
 # Publication percentiles
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_a_whole_index_never_returns_a_member():
@@ -821,9 +848,7 @@ def test_the_blend_sits_between_its_two_neighbours():
 
 def test_a_fractional_index_interpolates_as_usual():
     """Nothing changes when the index already falls between two people."""
-    from apps.career_intel.salary_algorithm import (
-        calculate_percentile, publication_percentile,
-    )
+    from apps.career_intel.salary_algorithm import calculate_percentile, publication_percentile
 
     values = [10.0, 20.0, 30.0, 40.0]  # p50 index = 1.5
 
@@ -857,20 +882,17 @@ def test_no_published_figure_is_anybodys_salary():
     year = datetime.now().year
     for salary in (30, 45, 55, 70, 80):
         SalarySubmission.objects.create(
-            role_title='Backend Developer',
-            location_city='Bangalore',
-            experience_years_bucket='10+',
+            role_title="Backend Developer",
+            location_city="Bangalore",
+            experience_years_bucket="10+",
             salary_inr=Decimal(str(salary * LAKH)),
             effective_year=year,
         )
 
     published = SalaryService.get_insights(
-        {'role_title': 'Backend Developer'},
-    )['salary_range_inr']
-    submitted = {
-        float(v) for v in
-        SalarySubmission.objects.values_list('salary_inr', flat=True)
-    }
+        {"role_title": "Backend Developer"},
+    )["salary_range_inr"]
+    submitted = {float(v) for v in SalarySubmission.objects.values_list("salary_inr", flat=True)}
 
     assert not {float(v) for v in published.values()} & submitted
 
@@ -883,10 +905,9 @@ def test_the_comparison_path_keeps_the_true_percentiles():
     """
     seed_submissions(5)
 
-    raw = SalaryService._raw_percentiles({'role_title': 'Backend Developer'})
+    raw = SalaryService._raw_percentiles({"role_title": "Backend Developer"})
     salaries = sorted(
-        float(v) for v in
-        SalarySubmission.objects.values_list('salary_inr', flat=True)
+        float(v) for v in SalarySubmission.objects.values_list("salary_inr", flat=True)
     )
 
-    assert raw['median'] == salaries[2]
+    assert raw["median"] == salaries[2]

@@ -1,6 +1,7 @@
 """
 Signal handlers for accounts app.
 """
+
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -25,4 +26,5 @@ def send_email_verification_on_signup(sender, instance, created, **kwargs):
             except Exception as e:
                 # Don't crash signup if email fails — just log and continue
                 import logging
+
                 logging.error(f"Failed to send OTP to {instance.email}: {e}")

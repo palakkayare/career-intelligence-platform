@@ -5,10 +5,7 @@ class IsRecruiter(permissions.BasePermission):
     """User must have role='recruiter'."""
 
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated
-            and request.user.role == 'recruiter'
-        )
+        return request.user.is_authenticated and request.user.role == "recruiter"
 
 
 class IsCompanyAdminOrReadOnly(permissions.BasePermission):
@@ -22,14 +19,11 @@ class IsCompanyAdminOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        if not hasattr(request.user, 'recruiter_profile'):
+        if not hasattr(request.user, "recruiter_profile"):
             return False
 
         profile = request.user.recruiter_profile
-        return (
-            profile.company_id == obj.id
-            and profile.is_company_admin
-        )
+        return profile.company_id == obj.id and profile.is_company_admin
 
 
 class CanViewRecruiterContact(permissions.BasePermission):
@@ -38,4 +32,3 @@ class CanViewRecruiterContact(permissions.BasePermission):
     Note: This permission is checked at serializer level
     using context, not as object permission. Stub here for clarity.
     """
-    pass

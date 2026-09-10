@@ -8,45 +8,103 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0001_initial'),
+        ("accounts", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LoginHistory',
+            name="LoginHistory",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('email_attempted', models.EmailField(max_length=254)),
-                ('status', models.CharField(choices=[('success', 'Success'), ('failed', 'Failed')], max_length=20)),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True)),
-                ('user_agent', models.CharField(blank=True, max_length=500)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='login_history', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("email_attempted", models.EmailField(max_length=254)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("success", "Success"), ("failed", "Failed")],
+                        max_length=20,
+                    ),
+                ),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                ("user_agent", models.CharField(blank=True, max_length=500)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="login_history",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'login_history',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', '-created_at'], name='login_histo_user_id_9416b0_idx')],
+                "db_table": "login_history",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-created_at"],
+                        name="login_histo_user_id_9416b0_idx",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='OTPCode',
+            name="OTPCode",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(db_index=True, max_length=6)),
-                ('purpose', models.CharField(choices=[('email_verify', 'Email Verification'), ('two_fa', '2FA Login'), ('sensitive', 'Sensitive Action')], max_length=20)),
-                ('expires_at', models.DateTimeField()),
-                ('is_used', models.BooleanField(default=False)),
-                ('attempts', models.PositiveSmallIntegerField(default=0)),
-                ('max_attempts', models.PositiveSmallIntegerField(default=3)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('used_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='otp_codes', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code", models.CharField(db_index=True, max_length=6)),
+                (
+                    "purpose",
+                    models.CharField(
+                        choices=[
+                            ("email_verify", "Email Verification"),
+                            ("two_fa", "2FA Login"),
+                            ("sensitive", "Sensitive Action"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("expires_at", models.DateTimeField()),
+                ("is_used", models.BooleanField(default=False)),
+                ("attempts", models.PositiveSmallIntegerField(default=0)),
+                ("max_attempts", models.PositiveSmallIntegerField(default=3)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="otp_codes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'otp_codes',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', 'purpose', 'is_used'], name='otp_codes_user_id_c67bdc_idx')],
+                "db_table": "otp_codes",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "purpose", "is_used"],
+                        name="otp_codes_user_id_c67bdc_idx",
+                    )
+                ],
             },
         ),
     ]

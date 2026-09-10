@@ -1,18 +1,5 @@
 from django.urls import path
 
-from .views import (
-    CompanyListCreateView,
-    CompanyDetailView,
-    CompanyLogoView,
-    CompanyTeamView,
-    CompanyJoinView,
-    CompanyLeaveView,
-    CompanyMemberPromoteView,
-    CompanyMemberRemoveView,
-    MyRecruiterProfileView,
-    PublicRecruiterProfileView,
-)
-
 from .candidate_views import (
     CandidateDetailView,
     CandidateSearchView,
@@ -23,36 +10,55 @@ from .candidate_views import (
     TalentPoolListCreateView,
     TalentPoolMembersView,
 )
-app_name = 'recruiters'
+from .views import (
+    CompanyDetailView,
+    CompanyJoinView,
+    CompanyLeaveView,
+    CompanyListCreateView,
+    CompanyLogoView,
+    CompanyMemberPromoteView,
+    CompanyMemberRemoveView,
+    CompanyTeamView,
+    MyRecruiterProfileView,
+    PublicRecruiterProfileView,
+)
+
+app_name = "recruiters"
 
 # Companies are conceptually shared; we put them under /companies/
 companies_patterns = [
-    path('', CompanyListCreateView.as_view(), name='company-list'),
-    path('<int:pk>/', CompanyDetailView.as_view(), name='company-detail'),
-    path('<int:pk>/logo/', CompanyLogoView.as_view(), name='company-logo'),
-    path('<int:pk>/team/', CompanyTeamView.as_view(), name='company-team'),
-    path('<int:pk>/join/', CompanyJoinView.as_view(), name='company-join'),
-    path('<int:pk>/leave/', CompanyLeaveView.as_view(), name='company-leave'),
-    path('<int:pk>/members/<int:recruiter_id>/promote/',
-         CompanyMemberPromoteView.as_view(), name='member-promote'),
-    path('<int:pk>/members/<int:recruiter_id>/remove/',
-         CompanyMemberRemoveView.as_view(), name='member-remove'),
+    path("", CompanyListCreateView.as_view(), name="company-list"),
+    path("<int:pk>/", CompanyDetailView.as_view(), name="company-detail"),
+    path("<int:pk>/logo/", CompanyLogoView.as_view(), name="company-logo"),
+    path("<int:pk>/team/", CompanyTeamView.as_view(), name="company-team"),
+    path("<int:pk>/join/", CompanyJoinView.as_view(), name="company-join"),
+    path("<int:pk>/leave/", CompanyLeaveView.as_view(), name="company-leave"),
+    path(
+        "<int:pk>/members/<int:recruiter_id>/promote/",
+        CompanyMemberPromoteView.as_view(),
+        name="member-promote",
+    ),
+    path(
+        "<int:pk>/members/<int:recruiter_id>/remove/",
+        CompanyMemberRemoveView.as_view(),
+        name="member-remove",
+    ),
 ]
 
 # Recruiter profile routes
 recruiters_patterns = [
-    path('me/', MyRecruiterProfileView.as_view(), name='my-profile'),
-    path('<uuid:public_id>/', PublicRecruiterProfileView.as_view(), name='public-profile'),
+    path("me/", MyRecruiterProfileView.as_view(), name="my-profile"),
+    path("<uuid:public_id>/", PublicRecruiterProfileView.as_view(), name="public-profile"),
 ]
 
 candidates_patterns = [
-    path('search/', CandidateSearchView.as_view(), name='search'),
+    path("search/", CandidateSearchView.as_view(), name="search"),
     # Static routes first so 'credits' / 'views' are not swallowed by <uuid>
-    path('credits/me/', MyCreditsView.as_view(), name='credits'),
-    path('pools/', TalentPoolListCreateView.as_view(), name='pools'),
-    path('pools/<int:pk>/', TalentPoolDetailView.as_view(), name='pool-detail'),
-    path('pools/<int:pk>/members/', TalentPoolMembersView.as_view(), name='pool-members'),
-    path('views/me/', MyViewHistoryView.as_view(), name='view-history'),
-    path('<uuid:public_id>/', CandidateDetailView.as_view(), name='detail'),
-    path('<uuid:public_id>/reveal/', RevealContactView.as_view(), name='reveal'),
+    path("credits/me/", MyCreditsView.as_view(), name="credits"),
+    path("pools/", TalentPoolListCreateView.as_view(), name="pools"),
+    path("pools/<int:pk>/", TalentPoolDetailView.as_view(), name="pool-detail"),
+    path("pools/<int:pk>/members/", TalentPoolMembersView.as_view(), name="pool-members"),
+    path("views/me/", MyViewHistoryView.as_view(), name="view-history"),
+    path("<uuid:public_id>/", CandidateDetailView.as_view(), name="detail"),
+    path("<uuid:public_id>/reveal/", RevealContactView.as_view(), name="reveal"),
 ]

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('career_intel', '0005_careerpathedge_cpe_from_weight_idx_and_more'),
+        ("career_intel", "0005_careerpathedge_cpe_from_weight_idx_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='salarysubmission',
-            name='submitter_ip_hash',
+            model_name="salarysubmission",
+            name="submitter_ip_hash",
             field=models.CharField(blank=True, db_index=True, max_length=64),
         ),
     ]

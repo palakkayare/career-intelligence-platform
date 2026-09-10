@@ -8,39 +8,174 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('career_intel', '0002_learningprovider_learningresource_resourceskill_and_more'),
-        ('industries', '0001_initial'),
+        (
+            "career_intel",
+            "0002_learningprovider_learningresource_resourceskill_and_more",
+        ),
+        ("industries", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SalarySubmission',
+            name="SalarySubmission",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('role_title', models.CharField(db_index=True, help_text='For example: "Senior Backend Developer"', max_length=200)),
-                ('location_city', models.CharField(db_index=True, max_length=100)),
-                ('company_size_bucket', models.CharField(choices=[('startup', 'Startup (1-10)'), ('small', 'Small (11-50)'), ('medium', 'Medium (51-200)'), ('large', 'Large (201-1000)'), ('enterprise', 'Enterprise (1000+)')], max_length=20)),
-                ('experience_years_bucket', models.CharField(choices=[('0-2', '0-2 years'), ('2-5', '2-5 years'), ('5-10', '5-10 years'), ('10+', '10+ years')], max_length=10)),
-                ('employment_type', models.CharField(choices=[('full_time', 'Full Time'), ('contract', 'Contract'), ('internship', 'Internship'), ('freelance', 'Freelance')], default='full_time', max_length=20)),
-                ('work_arrangement', models.CharField(choices=[('on_site', 'On-site'), ('hybrid', 'Hybrid'), ('remote', 'Remote')], default='on_site', max_length=20)),
-                ('salary_inr', models.DecimalField(decimal_places=2, help_text='Annual base salary in INR', max_digits=12)),
-                ('bonus_inr', models.DecimalField(blank=True, decimal_places=2, help_text='Annual bonus or variable pay', max_digits=12, null=True)),
-                ('has_equity', models.BooleanField(default=False, help_text='Stock options or RSUs (yes/no only, the amount is not collected)')),
-                ('is_verified', models.BooleanField(default=False)),
-                ('is_flagged', models.BooleanField(default=False, help_text='Flagged by an admin as suspicious; excluded from all aggregates')),
-                ('effective_year', models.PositiveSmallIntegerField(help_text='The year this salary was effective')),
-                ('submitted_at', models.DateTimeField(auto_now_add=True)),
-                ('industry', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='industries.industry')),
-                ('target_role', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='salary_submissions', to='career_intel.targetrole')),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='salary_submissions', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "role_title",
+                    models.CharField(
+                        db_index=True,
+                        help_text='For example: "Senior Backend Developer"',
+                        max_length=200,
+                    ),
+                ),
+                ("location_city", models.CharField(db_index=True, max_length=100)),
+                (
+                    "company_size_bucket",
+                    models.CharField(
+                        choices=[
+                            ("startup", "Startup (1-10)"),
+                            ("small", "Small (11-50)"),
+                            ("medium", "Medium (51-200)"),
+                            ("large", "Large (201-1000)"),
+                            ("enterprise", "Enterprise (1000+)"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "experience_years_bucket",
+                    models.CharField(
+                        choices=[
+                            ("0-2", "0-2 years"),
+                            ("2-5", "2-5 years"),
+                            ("5-10", "5-10 years"),
+                            ("10+", "10+ years"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "employment_type",
+                    models.CharField(
+                        choices=[
+                            ("full_time", "Full Time"),
+                            ("contract", "Contract"),
+                            ("internship", "Internship"),
+                            ("freelance", "Freelance"),
+                        ],
+                        default="full_time",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "work_arrangement",
+                    models.CharField(
+                        choices=[
+                            ("on_site", "On-site"),
+                            ("hybrid", "Hybrid"),
+                            ("remote", "Remote"),
+                        ],
+                        default="on_site",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "salary_inr",
+                    models.DecimalField(
+                        decimal_places=2,
+                        help_text="Annual base salary in INR",
+                        max_digits=12,
+                    ),
+                ),
+                (
+                    "bonus_inr",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=2,
+                        help_text="Annual bonus or variable pay",
+                        max_digits=12,
+                        null=True,
+                    ),
+                ),
+                (
+                    "has_equity",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Stock options or RSUs (yes/no only, the amount is not collected)",
+                    ),
+                ),
+                ("is_verified", models.BooleanField(default=False)),
+                (
+                    "is_flagged",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Flagged by an admin as suspicious; excluded from all aggregates",
+                    ),
+                ),
+                (
+                    "effective_year",
+                    models.PositiveSmallIntegerField(
+                        help_text="The year this salary was effective"
+                    ),
+                ),
+                ("submitted_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "industry",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="industries.industry",
+                    ),
+                ),
+                (
+                    "target_role",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="salary_submissions",
+                        to="career_intel.targetrole",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="salary_submissions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'salary_submissions',
-                'ordering': ['-submitted_at'],
-                'indexes': [models.Index(fields=['role_title', 'location_city', 'is_flagged'], name='salary_subm_role_ti_d86f93_idx'), models.Index(fields=['target_role', 'location_city'], name='salary_subm_target__90064f_idx'), models.Index(fields=['effective_year'], name='salary_subm_effecti_f85a32_idx')],
+                "db_table": "salary_submissions",
+                "ordering": ["-submitted_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["role_title", "location_city", "is_flagged"],
+                        name="salary_subm_role_ti_d86f93_idx",
+                    ),
+                    models.Index(
+                        fields=["target_role", "location_city"],
+                        name="salary_subm_target__90064f_idx",
+                    ),
+                    models.Index(
+                        fields=["effective_year"], name="salary_subm_effecti_f85a32_idx"
+                    ),
+                ],
             },
         ),
     ]

@@ -1,10 +1,13 @@
 """
 Notification delivery tests, focused on the mobile push path.
 """
+
 import pytest
 
 from apps.notifications.models import (
-    DeliveryPriority, Notification, NotificationKind, NotificationPreferences,
+    DeliveryPriority,
+    Notification,
+    NotificationKind,
 )
 from apps.notifications.service import NotificationService
 
@@ -13,8 +16,10 @@ pytestmark = pytest.mark.django_db
 
 def _notify(user, kind=NotificationKind.PAYMENT_SUCCESS):
     return NotificationService.create(
-        user=user, kind=kind, title='Payment received',
-        message='Your Pro subscription is active.',
+        user=user,
+        kind=kind,
+        title="Payment received",
+        message="Your Pro subscription is active.",
     )
 
 
@@ -28,17 +33,19 @@ def push_ready(seeker_user):
     populates Django's reverse cache on the user, so a separately fetched
     copy would be saved while the cached one stayed stale.
     """
-    seeker_user.fcm_token = 'fcm-token-abc123'
-    seeker_user.save(update_fields=['fcm_token'])
+    seeker_user.fcm_token = "fcm-token-abc123"
+    seeker_user.save(update_fields=["fcm_token"])
 
     prefs = seeker_user.notification_preferences
     prefs.push_enabled = True
-    prefs.save(update_fields=['push_enabled'])
+    prefs.save(update_fields=["push_enabled"])
     return seeker_user
+
 
 # --------------------------------------------------------------------------
 # In-app delivery
 # --------------------------------------------------------------------------
+
 
 def test_notification_is_always_stored(seeker_user):
     notif = _notify(seeker_user)
@@ -57,6 +64,7 @@ def test_profile_views_are_in_app_only(seeker_user):
 # Push
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.regression
 def test_push_is_attempted_when_the_user_is_set_up(push_ready):
     """
@@ -72,16 +80,17 @@ def test_push_is_attempted_when_the_user_is_set_up(push_ready):
 def test_no_push_without_a_device_token(seeker_user):
     prefs = seeker_user.notification_preferences
     prefs.push_enabled = True
-    prefs.save(update_fields=['push_enabled'])
+    prefs.save(update_fields=["push_enabled"])
 
     notif = _notify(seeker_user)
 
     assert NotificationService.push_notification(notif) is False
 
+
 def test_no_push_when_the_user_opted_out(push_ready):
     prefs = push_ready.notification_preferences
     prefs.push_enabled = False
-    prefs.save(update_fields=['push_enabled'])
+    prefs.save(update_fields=["push_enabled"])
 
     notif = _notify(push_ready)
 
@@ -90,13 +99,16 @@ def test_no_push_when_the_user_opted_out(push_ready):
 
 def test_push_is_off_by_default(seeker_user):
     """A device token alone is not consent."""
-    seeker_user.fcm_token = 'fcm-token-abc123'
-    seeker_user.save(update_fields=['fcm_token'])
+    seeker_user.fcm_token = "fcm-token-abc123"
+    seeker_user.save(update_fields=["fcm_token"])
 
     assert seeker_user.notification_preferences.push_enabled is False
+
+
 # --------------------------------------------------------------------------
 # Device registration
 # --------------------------------------------------------------------------
+
 
 def test_registering_a_device_stores_the_token(seeker_user):
     from rest_framework.test import APIClient
@@ -104,13 +116,17 @@ def test_registering_a_device_stores_the_token(seeker_user):
     client = APIClient()
     client.force_authenticate(user=seeker_user)
 
-    response = client.post('/api/v1/notifications/device-token/', {
-        'fcm_token': 'fcm-token-xyz',
-    }, format='json')
+    response = client.post(
+        "/api/v1/notifications/device-token/",
+        {
+            "fcm_token": "fcm-token-xyz",
+        },
+        format="json",
+    )
 
     seeker_user.refresh_from_db()
     assert response.status_code == 200
-    assert seeker_user.fcm_token == 'fcm-token-xyz'
+    assert seeker_user.fcm_token == "fcm-token-xyz"
     assert seeker_user.notification_preferences.push_enabled is True
 
 
@@ -120,12 +136,17 @@ def test_registering_can_leave_push_off(seeker_user):
     client = APIClient()
     client.force_authenticate(user=seeker_user)
 
-    client.post('/api/v1/notifications/device-token/', {
-        'fcm_token': 'fcm-token-xyz', 'enable_push': False,
-    }, format='json')
+    client.post(
+        "/api/v1/notifications/device-token/",
+        {
+            "fcm_token": "fcm-token-xyz",
+            "enable_push": False,
+        },
+        format="json",
+    )
 
     seeker_user.refresh_from_db()
-    assert seeker_user.fcm_token == 'fcm-token-xyz'
+    assert seeker_user.fcm_token == "fcm-token-xyz"
     assert seeker_user.notification_preferences.push_enabled is False
 
 
@@ -135,7 +156,7 @@ def test_clearing_the_device_stops_push(push_ready):
     client = APIClient()
     client.force_authenticate(user=push_ready)
 
-    response = client.delete('/api/v1/notifications/device-token/')
+    response = client.delete("/api/v1/notifications/device-token/")
 
     push_ready.refresh_from_db()
     assert response.status_code == 204
@@ -146,9 +167,13 @@ def test_clearing_the_device_stops_push(push_ready):
 def test_device_token_requires_authentication():
     from rest_framework.test import APIClient
 
-    response = APIClient().post('/api/v1/notifications/device-token/', {
-        'fcm_token': 'fcm-token-xyz',
-    }, format='json')
+    response = APIClient().post(
+        "/api/v1/notifications/device-token/",
+        {
+            "fcm_token": "fcm-token-xyz",
+        },
+        format="json",
+    )
 
     assert response.status_code in (401, 403)
 
@@ -156,6 +181,7 @@ def test_device_token_requires_authentication():
 # --------------------------------------------------------------------------
 # Triggers that were declared but never fired
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_a_withdrawal_notifies_the_recruiter(seeker, job, recruiter_user):
@@ -165,19 +191,20 @@ def test_a_withdrawal_notifies_the_recruiter(seeker, job, recruiter_user):
     list with no explanation.
     """
     from apps.applications.models import Application
-    from apps.applications.services import (
-        ApplicationCreationService, ApplicationStatusService,
-    )
+    from apps.applications.services import ApplicationCreationService, ApplicationStatusService
 
     application = ApplicationCreationService.create(seeker, job)
     Notification.objects.filter(user=recruiter_user).delete()
 
     ApplicationStatusService.update_status(
-        application, Application.Status.WITHDRAWN, actor=seeker.user,
+        application,
+        Application.Status.WITHDRAWN,
+        actor=seeker.user,
     )
 
     notif = Notification.objects.get(
-        user=recruiter_user, kind=NotificationKind.APPLICATION_WITHDRAWN,
+        user=recruiter_user,
+        kind=NotificationKind.APPLICATION_WITHDRAWN,
     )
     assert job.title in notif.message
 
@@ -185,17 +212,18 @@ def test_a_withdrawal_notifies_the_recruiter(seeker, job, recruiter_user):
 def test_the_seeker_is_not_told_about_their_own_withdrawal(seeker, job):
     """They just did it. The status-change notice already covers it."""
     from apps.applications.models import Application
-    from apps.applications.services import (
-        ApplicationCreationService, ApplicationStatusService,
-    )
+    from apps.applications.services import ApplicationCreationService, ApplicationStatusService
 
     application = ApplicationCreationService.create(seeker, job)
     ApplicationStatusService.update_status(
-        application, Application.Status.WITHDRAWN, actor=seeker.user,
+        application,
+        Application.Status.WITHDRAWN,
+        actor=seeker.user,
     )
 
     assert not Notification.objects.filter(
-        user=seeker.user, kind=NotificationKind.APPLICATION_WITHDRAWN,
+        user=seeker.user,
+        kind=NotificationKind.APPLICATION_WITHDRAWN,
     ).exists()
 
 
@@ -218,7 +246,8 @@ def test_expiring_a_subscription_notifies_the_user(seeker_user):
     SubscriptionService.expire_ended_subscriptions()
 
     assert Notification.objects.filter(
-        user=seeker_user, kind=NotificationKind.SUBSCRIPTION_EXPIRED,
+        user=seeker_user,
+        kind=NotificationKind.SUBSCRIPTION_EXPIRED,
     ).exists()
 
 
@@ -255,18 +284,23 @@ def test_a_finished_resume_analysis_notifies_the_owner(seeker_user):
     from apps.resumes.models import Resume
 
     resume = Resume.objects.create(
-        user=seeker_user, name='My CV', original_filename='cv.pdf',
-        file='resumes/cv.pdf', file_size_bytes=1000,
-        status=Resume.Status.PARSED, ats_score=78,
+        user=seeker_user,
+        name="My CV",
+        original_filename="cv.pdf",
+        file="resumes/cv.pdf",
+        file_size_bytes=1000,
+        status=Resume.Status.PARSED,
+        ats_score=78,
     )
 
     notify_resume_analysis_complete(resume)
 
     notif = Notification.objects.get(
-        user=seeker_user, kind=NotificationKind.RESUME_ANALYSIS_COMPLETE,
+        user=seeker_user,
+        kind=NotificationKind.RESUME_ANALYSIS_COMPLETE,
     )
-    assert '78' in notif.message
-    assert notif.context['ats_score'] == 78
+    assert "78" in notif.message
+    assert notif.context["ats_score"] == 78
 
 
 def test_job_alerts_arrive_as_one_digest_not_one_per_job(seeker_user):
@@ -277,34 +311,51 @@ def test_job_alerts_arrive_as_one_digest_not_one_per_job(seeker_user):
     from apps.notifications.triggers import notify_new_matching_jobs
 
     matches = [
-        {'job_id': str(i), 'job_title': f'Job {i}',
-         'company_name': 'Test Corp', 'score': 90 - i}
+        {
+            "job_id": str(i),
+            "job_title": f"Job {i}",
+            "company_name": "Test Corp",
+            "score": 90 - i,
+        }
         for i in range(10)
     ]
 
     notify_new_matching_jobs(seeker_user, matches)
 
     notifs = Notification.objects.filter(
-        user=seeker_user, kind=NotificationKind.NEW_MATCHING_JOB,
+        user=seeker_user,
+        kind=NotificationKind.NEW_MATCHING_JOB,
     )
     assert notifs.count() == 1
-    assert '10 new jobs' in notifs.first().title
+    assert "10 new jobs" in notifs.first().title
 
 
 def test_the_best_match_leads_the_digest(seeker_user):
     from apps.notifications.triggers import notify_new_matching_jobs
 
-    notify_new_matching_jobs(seeker_user, [
-        {'job_id': '1', 'job_title': 'Best Fit',
-         'company_name': 'Test Corp', 'score': 95},
-        {'job_id': '2', 'job_title': 'Worse Fit',
-         'company_name': 'Test Corp', 'score': 71},
-    ])
+    notify_new_matching_jobs(
+        seeker_user,
+        [
+            {
+                "job_id": "1",
+                "job_title": "Best Fit",
+                "company_name": "Test Corp",
+                "score": 95,
+            },
+            {
+                "job_id": "2",
+                "job_title": "Worse Fit",
+                "company_name": "Test Corp",
+                "score": 71,
+            },
+        ],
+    )
 
     notif = Notification.objects.get(
-        user=seeker_user, kind=NotificationKind.NEW_MATCHING_JOB,
+        user=seeker_user,
+        kind=NotificationKind.NEW_MATCHING_JOB,
     )
-    assert 'Best Fit' in notif.message
+    assert "Best Fit" in notif.message
 
 
 def test_an_empty_match_list_sends_nothing(seeker_user):
@@ -313,7 +364,8 @@ def test_an_empty_match_list_sends_nothing(seeker_user):
 
     assert notify_new_matching_jobs(seeker_user, []) is None
     assert not Notification.objects.filter(
-        user=seeker_user, kind=NotificationKind.NEW_MATCHING_JOB,
+        user=seeker_user,
+        kind=NotificationKind.NEW_MATCHING_JOB,
     ).exists()
 
 
@@ -325,9 +377,16 @@ def test_job_alerts_are_batched_not_emailed_immediately(seeker_user):
     """
     from apps.notifications.triggers import notify_new_matching_jobs
 
-    notif = notify_new_matching_jobs(seeker_user, [
-        {'job_id': '1', 'job_title': 'A Job',
-         'company_name': 'Test Corp', 'score': 80},
-    ])
+    notif = notify_new_matching_jobs(
+        seeker_user,
+        [
+            {
+                "job_id": "1",
+                "job_title": "A Job",
+                "company_name": "Test Corp",
+                "score": 80,
+            },
+        ],
+    )
 
     assert notif.delivery_priority == DeliveryPriority.DIGEST

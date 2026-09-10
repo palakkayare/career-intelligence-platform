@@ -6,13 +6,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('notifications', '0002_notificationpreferences_push_enabled'),
+        ("notifications", "0002_notificationpreferences_push_enabled"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='notification',
-            name='kind',
-            field=models.CharField(choices=[('application_received', 'Application Received (Recruiter)'), ('app_status_change', 'Application Status Changed (Seeker)'), ('app_withdrawn', 'Application Withdrawn (Recruiter)'), ('new_matching_job', 'New Matching Job (Seeker)'), ('new_matching_candidate', 'New Matching Candidate (Recruiter)'), ('payment_success', 'Payment Successful'), ('payment_failed', 'Payment Failed'), ('sub_expiring', 'Subscription Expiring Soon'), ('sub_expired', 'Subscription Expired'), ('resume_analysed', 'Resume Analysis Complete (Seeker)'), ('profile_viewed', 'Profile Viewed (Seeker)'), ('job_approved', 'Job Approved (Recruiter)'), ('job_rejected', 'Job Rejected (Recruiter)')], db_index=True, max_length=50),
+            model_name="notification",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("application_received", "Application Received (Recruiter)"),
+                    ("app_status_change", "Application Status Changed (Seeker)"),
+                    ("app_withdrawn", "Application Withdrawn (Recruiter)"),
+                    ("new_matching_job", "New Matching Job (Seeker)"),
+                    ("new_matching_candidate", "New Matching Candidate (Recruiter)"),
+                    ("payment_success", "Payment Successful"),
+                    ("payment_failed", "Payment Failed"),
+                    ("sub_expiring", "Subscription Expiring Soon"),
+                    ("sub_expired", "Subscription Expired"),
+                    ("resume_analysed", "Resume Analysis Complete (Seeker)"),
+                    ("profile_viewed", "Profile Viewed (Seeker)"),
+                    ("job_approved", "Job Approved (Recruiter)"),
+                    ("job_rejected", "Job Rejected (Recruiter)"),
+                ],
+                db_index=True,
+                max_length=50,
+            ),
         ),
     ]

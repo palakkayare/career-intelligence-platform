@@ -1,8 +1,10 @@
 """
 Candidate discovery tests, focused on who is allowed to be found.
 """
-import pytest
+
 from datetime import date, timedelta
+
+import pytest
 
 from apps.seekers.models import SeekerProfile
 
@@ -35,8 +37,8 @@ def test_private_profile_is_not_discoverable(seeker):
     seeker.visibility = SeekerProfile.Visibility.PRIVATE
     seeker.save()
 
-    assert seeker.is_open_to_opportunities is True, 'the opt-in toggle stays on'
-    assert not _is_discoverable(seeker), 'PRIVATE must override the toggle'
+    assert seeker.is_open_to_opportunities is True, "the opt-in toggle stays on"
+    assert not _is_discoverable(seeker), "PRIVATE must override the toggle"
 
 
 def test_opted_out_profile_is_not_discoverable(seeker):
@@ -64,9 +66,9 @@ def test_search_and_detail_share_one_definition():
     discoverable(), the two paths can drift apart again.
     """
     import inspect
+
     from apps.recruiters.candidate_services import CandidateSearchService
     from apps.recruiters.candidate_views import _searchable_seeker_or_404
 
-    assert 'discoverable()' in inspect.getsource(
-        CandidateSearchService._base_queryset)
-    assert 'discoverable()' in inspect.getsource(_searchable_seeker_or_404)
+    assert "discoverable()" in inspect.getsource(CandidateSearchService._base_queryset)
+    assert "discoverable()" in inspect.getsource(_searchable_seeker_or_404)

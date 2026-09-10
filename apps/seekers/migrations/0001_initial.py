@@ -10,104 +10,243 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('skills', '0001_initial'),
+        ("skills", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SeekerProfile',
+            name="SeekerProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('full_name', models.CharField(blank=True, max_length=255)),
-                ('bio', models.TextField(blank=True, max_length=500)),
-                ('location', models.CharField(blank=True, max_length=200)),
-                ('profile_photo', models.ImageField(blank=True, null=True, upload_to='profile_photos/%Y/%m/')),
-                ('current_title', models.CharField(blank=True, max_length=200)),
-                ('target_role', models.CharField(blank=True, max_length=200)),
-                ('years_of_experience', models.PositiveSmallIntegerField(default=0)),
-                ('availability_status', models.CharField(choices=[('actively_looking', 'Actively Looking'), ('open_to_offers', 'Open to Offers'), ('not_looking', 'Not Looking')], default='open_to_offers', max_length=30)),
-                ('visibility', models.CharField(choices=[('public', 'Public'), ('recruiters_only', 'Recruiters Only'), ('private', 'Private')], default='recruiters_only', max_length=30)),
-                ('github_url', models.URLField(blank=True)),
-                ('linkedin_url', models.URLField(blank=True)),
-                ('behance_url', models.URLField(blank=True)),
-                ('portfolio_url', models.URLField(blank=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='seeker_profile', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("full_name", models.CharField(blank=True, max_length=255)),
+                ("bio", models.TextField(blank=True, max_length=500)),
+                ("location", models.CharField(blank=True, max_length=200)),
+                (
+                    "profile_photo",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="profile_photos/%Y/%m/"
+                    ),
+                ),
+                ("current_title", models.CharField(blank=True, max_length=200)),
+                ("target_role", models.CharField(blank=True, max_length=200)),
+                ("years_of_experience", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "availability_status",
+                    models.CharField(
+                        choices=[
+                            ("actively_looking", "Actively Looking"),
+                            ("open_to_offers", "Open to Offers"),
+                            ("not_looking", "Not Looking"),
+                        ],
+                        default="open_to_offers",
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "visibility",
+                    models.CharField(
+                        choices=[
+                            ("public", "Public"),
+                            ("recruiters_only", "Recruiters Only"),
+                            ("private", "Private"),
+                        ],
+                        default="recruiters_only",
+                        max_length=30,
+                    ),
+                ),
+                ("github_url", models.URLField(blank=True)),
+                ("linkedin_url", models.URLField(blank=True)),
+                ("behance_url", models.URLField(blank=True)),
+                ("portfolio_url", models.URLField(blank=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="seeker_profile",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'seeker_profiles',
+                "db_table": "seeker_profiles",
             },
         ),
         migrations.CreateModel(
-            name='Education',
+            name="Education",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('institution_name', models.CharField(max_length=255)),
-                ('degree', models.CharField(choices=[('high_school', 'High School'), ('diploma', 'Diploma'), ('bachelors', "Bachelor's"), ('masters', "Master's"), ('phd', 'PhD'), ('other', 'Other')], max_length=20)),
-                ('field_of_study', models.CharField(max_length=255)),
-                ('start_year', models.PositiveSmallIntegerField()),
-                ('end_year', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('grade', models.CharField(blank=True, max_length=50)),
-                ('description', models.TextField(blank=True, max_length=1000)),
-                ('seeker', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='educations', to='seekers.seekerprofile')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("institution_name", models.CharField(max_length=255)),
+                (
+                    "degree",
+                    models.CharField(
+                        choices=[
+                            ("high_school", "High School"),
+                            ("diploma", "Diploma"),
+                            ("bachelors", "Bachelor's"),
+                            ("masters", "Master's"),
+                            ("phd", "PhD"),
+                            ("other", "Other"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("field_of_study", models.CharField(max_length=255)),
+                ("start_year", models.PositiveSmallIntegerField()),
+                ("end_year", models.PositiveSmallIntegerField(blank=True, null=True)),
+                ("grade", models.CharField(blank=True, max_length=50)),
+                ("description", models.TextField(blank=True, max_length=1000)),
+                (
+                    "seeker",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="educations",
+                        to="seekers.seekerprofile",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'educations',
-                'ordering': ['-end_year', '-start_year'],
+                "db_table": "educations",
+                "ordering": ["-end_year", "-start_year"],
             },
         ),
         migrations.CreateModel(
-            name='SeekerSkill',
+            name="SeekerSkill",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('proficiency', models.CharField(choices=[('beginner', 'Beginner'), ('intermediate', 'Intermediate'), ('advanced', 'Advanced'), ('expert', 'Expert')], default='intermediate', max_length=20)),
-                ('years_of_experience', models.PositiveSmallIntegerField(default=0)),
-                ('seeker', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='seeker_skills', to='seekers.seekerprofile')),
-                ('skill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='seeker_skills', to='skills.skill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "proficiency",
+                    models.CharField(
+                        choices=[
+                            ("beginner", "Beginner"),
+                            ("intermediate", "Intermediate"),
+                            ("advanced", "Advanced"),
+                            ("expert", "Expert"),
+                        ],
+                        default="intermediate",
+                        max_length=20,
+                    ),
+                ),
+                ("years_of_experience", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "seeker",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="seeker_skills",
+                        to="seekers.seekerprofile",
+                    ),
+                ),
+                (
+                    "skill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="seeker_skills",
+                        to="skills.skill",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'seeker_skills',
-                'ordering': ['-proficiency', 'skill__name'],
-                'unique_together': {('seeker', 'skill')},
+                "db_table": "seeker_skills",
+                "ordering": ["-proficiency", "skill__name"],
+                "unique_together": {("seeker", "skill")},
             },
         ),
         migrations.AddField(
-            model_name='seekerprofile',
-            name='skills',
-            field=models.ManyToManyField(related_name='seekers', through='seekers.SeekerSkill', to='skills.skill'),
+            model_name="seekerprofile",
+            name="skills",
+            field=models.ManyToManyField(
+                related_name="seekers", through="seekers.SeekerSkill", to="skills.skill"
+            ),
         ),
         migrations.CreateModel(
-            name='WorkExperience',
+            name="WorkExperience",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
-                ('company_name', models.CharField(max_length=255)),
-                ('job_title', models.CharField(max_length=255)),
-                ('employment_type', models.CharField(choices=[('full_time', 'Full Time'), ('part_time', 'Part Time'), ('contract', 'Contract'), ('internship', 'Internship'), ('freelance', 'Freelance')], default='full_time', max_length=20)),
-                ('location', models.CharField(blank=True, max_length=200)),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField(blank=True, null=True)),
-                ('is_current', models.BooleanField(default=False)),
-                ('description', models.TextField(blank=True, max_length=2000)),
-                ('seeker', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='experiences', to='seekers.seekerprofile')),
-                ('skills_used', models.ManyToManyField(blank=True, related_name='experiences', to='skills.skill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("is_deleted", models.BooleanField(db_index=True, default=False)),
+                ("deleted_at", models.DateTimeField(blank=True, null=True)),
+                ("company_name", models.CharField(max_length=255)),
+                ("job_title", models.CharField(max_length=255)),
+                (
+                    "employment_type",
+                    models.CharField(
+                        choices=[
+                            ("full_time", "Full Time"),
+                            ("part_time", "Part Time"),
+                            ("contract", "Contract"),
+                            ("internship", "Internship"),
+                            ("freelance", "Freelance"),
+                        ],
+                        default="full_time",
+                        max_length=20,
+                    ),
+                ),
+                ("location", models.CharField(blank=True, max_length=200)),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField(blank=True, null=True)),
+                ("is_current", models.BooleanField(default=False)),
+                ("description", models.TextField(blank=True, max_length=2000)),
+                (
+                    "seeker",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="experiences",
+                        to="seekers.seekerprofile",
+                    ),
+                ),
+                (
+                    "skills_used",
+                    models.ManyToManyField(
+                        blank=True, related_name="experiences", to="skills.skill"
+                    ),
+                ),
             ],
             options={
-                'db_table': 'work_experiences',
-                'ordering': ['-is_current', '-start_date'],
+                "db_table": "work_experiences",
+                "ordering": ["-is_current", "-start_date"],
             },
         ),
     ]

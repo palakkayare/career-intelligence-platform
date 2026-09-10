@@ -12,6 +12,7 @@ recommendations, the admin list.
 So the fix is at the taxonomy instead. Resolve names through aliases before
 creating anything, and merge the duplicates that already exist.
 """
+
 import logging
 
 from django.db import transaction
@@ -52,7 +53,8 @@ class SkillResolver:
 
         lowered = cleaned.lower()
         candidates = Skill.objects.filter(
-            aliases__icontains=cleaned, is_deprecated=False,
+            aliases__icontains=cleaned,
+            is_deprecated=False,
         )
         for skill in candidates:
             if any(str(alias).lower() == lowered for alias in skill.aliases):
@@ -71,7 +73,7 @@ class SkillResolver:
         list, not about blocking the user.
         """
         if not name or not name.strip():
-            raise ValidationError({'name': 'Skill name cannot be empty.'})
+            raise ValidationError({"name": "Skill name cannot be empty."})
 
         existing = cls.resolve(name)
         if existing is not None:
@@ -82,7 +84,7 @@ class SkillResolver:
             category=category or Skill.category.field.default,
             is_approved=False,
         )
-        logger.info('New skill created pending approval: %s', skill.name)
+        logger.info("New skill created pending approval: %s", skill.name)
         return skill, True
 
     @classmethod
@@ -130,21 +132,21 @@ class SkillMergeService:
         enough that the admin doing it should see the blast radius.
         """
         if source.pk == target.pk:
-            raise ValidationError({'detail': 'Cannot merge a skill into itself.'})
+            raise ValidationError({"detail": "Cannot merge a skill into itself."})
 
         moved = {
-            'seeker_skills': cls._move_seeker_skills(source, target),
-            'jobs_required': cls._move_job_skills(source, target),
-            'resume_skills': cls._move_resume_skills(source, target),
+            "seeker_skills": cls._move_seeker_skills(source, target),
+            "jobs_required": cls._move_job_skills(source, target),
+            "resume_skills": cls._move_resume_skills(source, target),
         }
 
         cls._absorb_aliases(source, target)
 
         source.is_deprecated = True
-        source.save(update_fields=['is_deprecated'])
+        source.save(update_fields=["is_deprecated"])
 
-        logger.info('Merged skill %s into %s: %s', source.name, target.name, moved)
-        return {'source': source.name, 'target': target.name, 'moved': moved}
+        logger.info("Merged skill %s into %s: %s", source.name, target.name, moved)
+        return {"source": source.name, "target": target.name, "moved": moved}
 
     @staticmethod
     def _move_seeker_skills(source, target):
@@ -156,20 +158,17 @@ class SkillMergeService:
         """
         from apps.seekers.models import SeekerSkill
 
-        already = set(
-            SeekerSkill.objects
-            .filter(skill=target)
-            .values_list('seeker_id', flat=True)
-        )
+        already = set(SeekerSkill.objects.filter(skill=target).values_list("seeker_id", flat=True))
 
         duplicates = SeekerSkill.objects.filter(
-            skill=source, seeker_id__in=already,
+            skill=source,
+            seeker_id__in=already,
         )
         duplicate_count = duplicates.count()
         duplicates.delete()
 
         moved = SeekerSkill.objects.filter(skill=source).update(skill=target)
-        return {'moved': moved, 'duplicates_removed': duplicate_count}
+        return {"moved": moved, "duplicates_removed": duplicate_count}
 
     @staticmethod
     def _move_job_skills(source, target):
@@ -197,13 +196,10 @@ class SkillMergeService:
     def _move_resume_skills(source, target):
         from apps.resumes.models import ResumeSkill
 
-        already = set(
-            ResumeSkill.objects
-            .filter(skill=target)
-            .values_list('resume_id', flat=True)
-        )
+        already = set(ResumeSkill.objects.filter(skill=target).values_list("resume_id", flat=True))
         ResumeSkill.objects.filter(
-            skill=source, resume_id__in=already,
+            skill=source,
+            resume_id__in=already,
         ).delete()
 
         return ResumeSkill.objects.filter(skill=source).update(skill=target)
@@ -223,7 +219,7 @@ class SkillMergeService:
                 lowered.add(str(candidate).lower())
 
         target.aliases = aliases
-        target.save(update_fields=['aliases'])
+        target.save(update_fields=["aliases"])
 
     @classmethod
     def find_likely_duplicates(cls, limit=50):
@@ -240,13 +236,13 @@ class SkillMergeService:
         for skill in Skill.objects.filter(is_deprecated=False):
             key = (
                 skill.name.lower()
-                .replace(' ', '').replace('.', '')
-                .replace('-', '').replace('_', '')
+                .replace(" ", "")
+                .replace(".", "")
+                .replace("-", "")
+                .replace("_", "")
             )
             buckets.setdefault(key, []).append(skill)
 
         return [
-            {'normalised': key, 'skills': group}
-            for key, group in buckets.items()
-            if len(group) > 1
+            {"normalised": key, "skills": group} for key, group in buckets.items() if len(group) > 1
         ][:limit]

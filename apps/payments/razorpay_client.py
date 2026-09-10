@@ -2,6 +2,7 @@
 Wrapper around razorpay SDK.
 Centralizes config and provides typed methods.
 """
+
 import razorpay
 from django.conf import settings
 
@@ -33,12 +34,14 @@ class RazorpayClient:
         Returns: order dict from Razorpay
         """
         client = cls.get_client()
-        order = client.order.create({
-            'amount': int(amount_inr * 100),  # paise
-            'currency': 'INR',
-            'receipt': receipt,
-            'notes': notes or {},
-        })
+        order = client.order.create(
+            {
+                "amount": int(amount_inr * 100),  # paise
+                "currency": "INR",
+                "receipt": receipt,
+                "notes": notes or {},
+            }
+        )
         return order
 
     @classmethod
@@ -48,11 +51,13 @@ class RazorpayClient:
         Returns True if valid, raises SignatureVerificationError if not.
         """
         client = cls.get_client()
-        client.utility.verify_payment_signature({
-            'razorpay_order_id': order_id,
-            'razorpay_payment_id': payment_id,
-            'razorpay_signature': signature,
-        })
+        client.utility.verify_payment_signature(
+            {
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            }
+        )
         return True
 
     @classmethod
@@ -66,7 +71,7 @@ class RazorpayClient:
         """Fetch order details from Razorpay."""
         client = cls.get_client()
         return client.order.fetch(order_id)
-    
+
     @classmethod
     def refund_payment(cls, payment_id, amount_inr=None, notes=None):
         """
@@ -82,9 +87,9 @@ class RazorpayClient:
         the refund.processed webhook.
         """
         client = cls.get_client()
-        payload = {'notes': notes or {}}
+        payload = {"notes": notes or {}}
         if amount_inr is not None:
-            payload['amount'] = int(amount_inr * 100)  # paise
+            payload["amount"] = int(amount_inr * 100)  # paise
         return client.payment.refund(payment_id, payload)
 
     @classmethod

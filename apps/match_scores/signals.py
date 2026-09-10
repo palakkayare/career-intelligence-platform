@@ -1,6 +1,7 @@
 """
 Trigger recompute when relevant data changes.
 """
+
 import logging
 
 from django.db.models.signals import post_save
@@ -19,4 +20,5 @@ def trigger_recompute_for_job(sender, instance, created, **kwargs):
         return
 
     from .tasks import recompute_match_scores_for_job
+
     recompute_match_scores_for_job.delay(instance.id)

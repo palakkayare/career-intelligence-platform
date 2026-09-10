@@ -8,30 +8,62 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('seekers', '0005_seekerprofile_profile_strength'),
+        ("seekers", "0005_seekerprofile_profile_strength"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='seekerskill',
-            name='endorsement_count',
+            model_name="seekerskill",
+            name="endorsement_count",
             field=models.PositiveIntegerField(db_index=True, default=0),
         ),
         migrations.CreateModel(
-            name='SkillEndorsement',
+            name="SkillEndorsement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('endorsed_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='endorsements_given', to=settings.AUTH_USER_MODEL)),
-                ('seeker_skill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='endorsements', to='seekers.seekerskill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "endorsed_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="endorsements_given",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "seeker_skill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="endorsements",
+                        to="seekers.seekerskill",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'skill_endorsements',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['seeker_skill', '-created_at'], name='skill_endor_seeker__8f8416_idx')],
-                'constraints': [models.UniqueConstraint(fields=('seeker_skill', 'endorsed_by'), name='one_endorsement_per_person_per_skill')],
+                "db_table": "skill_endorsements",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["seeker_skill", "-created_at"],
+                        name="skill_endor_seeker__8f8416_idx",
+                    )
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("seeker_skill", "endorsed_by"),
+                        name="one_endorsement_per_person_per_skill",
+                    )
+                ],
             },
         ),
     ]

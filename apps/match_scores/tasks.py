@@ -1,12 +1,14 @@
 """
 Celery tasks for match score (re)computation.
 """
+
 import logging
 
 from celery import shared_task
 
 from apps.jobs.models import Job
 from apps.seekers.models import SeekerProfile
+
 from .services import MatchScoreService
 
 logger = logging.getLogger(__name__)
@@ -34,23 +36,17 @@ def recompute_match_scores_for_job(self, job_id):
         return
 
     # Find candidate seekers — those with overlap in required skills
-    required_skill_ids = list(
-        job.required_skills.values_list('id', flat=True)
-    )
+    required_skill_ids = list(job.required_skills.values_list("id", flat=True))
     if not required_skill_ids:
         logger.info(f"Job {job_id} has no required skills, skipping")
         return
 
-    seekers = (
-        SeekerProfile.objects
-        .filter(
-            user__is_active=True,
-            user__is_email_verified=True,
-            seeker_skills__skill_id__in=required_skill_ids,
-            is_deleted=False,
-        )
-        .distinct()
-    )
+    seekers = SeekerProfile.objects.filter(
+        user__is_active=True,
+        user__is_email_verified=True,
+        seeker_skills__skill_id__in=required_skill_ids,
+        is_deleted=False,
+    ).distinct()
 
     count = 0
     for seeker in seekers:
@@ -73,7 +69,7 @@ def recompute_all_match_scores():
     active_jobs = Job.objects.filter(
         status=Job.Status.ACTIVE,
         is_deleted=False,
-    ).values_list('id', flat=True)
+    ).values_list("id", flat=True)
 
     job_count = 0
     for job_id in active_jobs:
@@ -113,28 +109,27 @@ def send_new_job_alerts(days=7):
         is_deleted=False,
         user__is_active=True,
         user__is_email_verified=True,
-    ).select_related('user')
+    ).select_related("user")
 
     for seeker in seekers:
         matches = (
-            MatchScore.objects
-            .filter(
+            MatchScore.objects.filter(
                 seeker=seeker,
                 overall_score__gte=MIN_ALERT_SCORE,
                 computed_at__gte=cutoff,
-                job__status='active',
+                job__status="active",
                 job__is_deleted=False,
             )
-            .select_related('job', 'job__company')
-            .order_by('-overall_score')[:MAX_ALERT_MATCHES]
+            .select_related("job", "job__company")
+            .order_by("-overall_score")[:MAX_ALERT_MATCHES]
         )
 
         payload = [
             {
-                'job_id': str(match.job.public_id),
-                'job_title': match.job.title,
-                'company_name': match.job.company.name,
-                'score': int(match.overall_score),
+                "job_id": str(match.job.public_id),
+                "job_title": match.job.title,
+                "company_name": match.job.company.name,
+                "score": int(match.overall_score),
             }
             for match in matches
         ]
@@ -143,5 +138,5 @@ def send_new_job_alerts(days=7):
             notify_new_matching_jobs(seeker.user, payload)
             notified += 1
 
-    logger.info('Job alerts: notified %s seekers', notified)
-    return {'seekers_notified': notified}
+    logger.info("Job alerts: notified %s seekers", notified)
+    return {"seekers_notified": notified}

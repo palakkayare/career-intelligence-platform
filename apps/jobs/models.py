@@ -1,27 +1,30 @@
 import uuid
+
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.utils.text import slugify
 
-from apps.core.models import TimestampedModel, SoftDeleteModel
-from apps.skills.models import Skill
+from apps.core.models import SoftDeleteModel, TimestampedModel
 from apps.recruiters.models import Company, RecruiterProfile
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVectorField
+from apps.skills.models import Skill
+
 
 class JobCategory(TimestampedModel):
     """
     Hierarchical job categories.
     e.g., Engineering > Backend Development
     """
+
     name = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     parent = models.ForeignKey(
-        'self',
+        "self",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name='children',
+        related_name="children",
     )
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)  # Frontend icon name
@@ -29,10 +32,10 @@ class JobCategory(TimestampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'job_categories'
-        ordering = ['sort_order', 'name']
-        verbose_name_plural = 'Job Categories'
-        unique_together = ('name', 'parent')  # Same name OK under different parents
+        db_table = "job_categories"
+        ordering = ["sort_order", "name"]
+        verbose_name_plural = "Job Categories"
+        unique_together = ("name", "parent")  # Same name OK under different parents
 
     def __str__(self):
         if self.parent:
@@ -47,16 +50,18 @@ class JobCategory(TimestampedModel):
             else:
                 self.slug = base
         super().save(*args, **kwargs)
-        
+
+
 class Tag(TimestampedModel):
     """Free-form tags for jobs (admin-curated taxonomy)."""
+
     name = models.CharField(max_length=50, unique=True, db_index=True)
     slug = models.SlugField(max_length=60, unique=True, blank=True)
     use_count = models.PositiveIntegerField(default=0)  # Popularity tracking
 
     class Meta:
-        db_table = 'job_tags'
-        ordering = ['-use_count', 'name']
+        db_table = "job_tags"
+        ordering = ["-use_count", "name"]
 
     def __str__(self):
         return self.name
@@ -66,34 +71,36 @@ class Tag(TimestampedModel):
             self.slug = slugify(self.name)
         self.name = self.name.lower().strip()
         super().save(*args, **kwargs)
-        
+
+
 class Job(TimestampedModel, SoftDeleteModel):
     """
     A job posting. Has a state machine for lifecycle management.
     """
+
     class Status(models.TextChoices):
-        DRAFT = 'draft', 'Draft'
-        PENDING_APPROVAL = 'pending_approval', 'Pending Approval'
-        ACTIVE = 'active', 'Active'
-        CLOSED = 'closed', 'Closed'
-        EXPIRED = 'expired', 'Expired'
-        REJECTED = 'rejected', 'Rejected'
+        DRAFT = "draft", "Draft"
+        PENDING_APPROVAL = "pending_approval", "Pending Approval"
+        ACTIVE = "active", "Active"
+        CLOSED = "closed", "Closed"
+        EXPIRED = "expired", "Expired"
+        REJECTED = "rejected", "Rejected"
 
     class EmploymentType(models.TextChoices):
-        FULL_TIME = 'full_time', 'Full Time'
-        PART_TIME = 'part_time', 'Part Time'
-        CONTRACT = 'contract', 'Contract'
-        INTERNSHIP = 'internship', 'Internship'
-        FREELANCE = 'freelance', 'Freelance'
+        FULL_TIME = "full_time", "Full Time"
+        PART_TIME = "part_time", "Part Time"
+        CONTRACT = "contract", "Contract"
+        INTERNSHIP = "internship", "Internship"
+        FREELANCE = "freelance", "Freelance"
 
     class WorkArrangement(models.TextChoices):
-        ON_SITE = 'on_site', 'On-site'
-        HYBRID = 'hybrid', 'Hybrid'
-        REMOTE = 'remote', 'Remote'
+        ON_SITE = "on_site", "On-site"
+        HYBRID = "hybrid", "Hybrid"
+        REMOTE = "remote", "Remote"
 
     class SalaryPeriod(models.TextChoices):
-        MONTHLY = 'monthly', 'Per Month'
-        YEARLY = 'yearly', 'Per Year'
+        MONTHLY = "monthly", "Per Month"
+        YEARLY = "yearly", "Per Year"
 
     # Public ID for shareable URLs (don't expose internal id)
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -106,12 +113,12 @@ class Job(TimestampedModel, SoftDeleteModel):
     company = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,  # Don't lose job if company is deleted
-        related_name='jobs',
+        related_name="jobs",
     )
     posted_by = models.ForeignKey(
         RecruiterProfile,
         on_delete=models.PROTECT,
-        related_name='posted_jobs',
+        related_name="posted_jobs",
     )
     # Categorization
     category = models.ForeignKey(
@@ -119,18 +126,18 @@ class Job(TimestampedModel, SoftDeleteModel):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name='jobs',
+        related_name="jobs",
     )
-    tags = models.ManyToManyField(Tag, blank=True, related_name='jobs')
+    tags = models.ManyToManyField(Tag, blank=True, related_name="jobs")
 
     # Requirements
     required_skills = models.ManyToManyField(
         Skill,
-        related_name='required_for_jobs',
+        related_name="required_for_jobs",
     )
     nice_to_have_skills = models.ManyToManyField(
         Skill,
-        related_name='nice_to_have_for_jobs',
+        related_name="nice_to_have_for_jobs",
         blank=True,
     )
     min_experience_years = models.PositiveSmallIntegerField(default=0)
@@ -152,7 +159,7 @@ class Job(TimestampedModel, SoftDeleteModel):
     # Compensation
     salary_min = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     salary_max = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    salary_currency = models.CharField(max_length=3, default='INR')
+    salary_currency = models.CharField(max_length=3, default="INR")
     salary_period = models.CharField(
         max_length=20,
         choices=SalaryPeriod.choices,
@@ -160,7 +167,7 @@ class Job(TimestampedModel, SoftDeleteModel):
     )
     is_salary_negotiable = models.BooleanField(default=False)
     is_salary_visible = models.BooleanField(default=True)  # Show in listings
-    
+
     # Lifecycle
     status = models.CharField(
         max_length=30,
@@ -181,7 +188,7 @@ class Job(TimestampedModel, SoftDeleteModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='jobs_approved',
+        related_name="jobs_approved",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
 
@@ -193,13 +200,13 @@ class Job(TimestampedModel, SoftDeleteModel):
     search_vector = SearchVectorField(null=True, blank=True)
 
     class Meta:
-        db_table = 'jobs'
-        ordering = ['-activated_at', '-created_at']
+        db_table = "jobs"
+        ordering = ["-activated_at", "-created_at"]
         indexes = [
-            models.Index(fields=['status', 'is_deleted', '-activated_at']),
-            models.Index(fields=['company', 'status']),
-            models.Index(fields=['category', 'status']),
-            GinIndex(fields=['search_vector']),
+            models.Index(fields=["status", "is_deleted", "-activated_at"]),
+            models.Index(fields=["company", "status"]),
+            models.Index(fields=["category", "status"]),
+            GinIndex(fields=["search_vector"]),
         ]
 
     def __str__(self):
@@ -210,12 +217,13 @@ class Job(TimestampedModel, SoftDeleteModel):
 
     def can_be_edited_by(self, user):
         """Editing rules: only draft/rejected by the recruiter who posted it."""
-        if not hasattr(user, 'recruiter_profile'):
+        if not hasattr(user, "recruiter_profile"):
             return False
         if self.posted_by_id != user.recruiter_profile.id:
             return False
         return self.status in (self.Status.DRAFT, self.Status.REJECTED)
-    
+
+
 class SavedJob(TimestampedModel):
     """
     A job a seeker bookmarked to come back to.
@@ -225,15 +233,16 @@ class SavedJob(TimestampedModel):
     still want the bookmark. Distinct from SavedSearch, which stores filters
     rather than a specific posting.
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='saved_jobs',
+        related_name="saved_jobs",
     )
     job = models.ForeignKey(
         Job,
         on_delete=models.CASCADE,
-        related_name='saved_by',
+        related_name="saved_by",
     )
     note = models.CharField(
         max_length=500,
@@ -242,11 +251,11 @@ class SavedJob(TimestampedModel):
     )
 
     class Meta:
-        db_table = 'saved_jobs'
-        ordering = ['-created_at']
-        unique_together = ('user', 'job')
+        db_table = "saved_jobs"
+        ordering = ["-created_at"]
+        unique_together = ("user", "job")
         indexes = [
-            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=["user", "-created_at"]),
         ]
 
     def __str__(self):
@@ -255,10 +264,11 @@ class SavedJob(TimestampedModel):
 
 class SavedSearch(TimestampedModel):
     """User can save filter combinations for quick re-use."""
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='saved_searches',
+        related_name="saved_searches",
     )
     name = models.CharField(max_length=100)
     query_text = models.CharField(max_length=500, blank=True)
@@ -267,9 +277,9 @@ class SavedSearch(TimestampedModel):
     last_executed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'saved_searches'
-        ordering = ['-created_at']
-        unique_together = ('user', 'name')
+        db_table = "saved_searches"
+        ordering = ["-created_at"]
+        unique_together = ("user", "name")
 
     def __str__(self):
         return f"{self.name} ({self.user.email})"
@@ -277,22 +287,23 @@ class SavedSearch(TimestampedModel):
 
 class SearchHistory(TimestampedModel):
     """Tracks user's recent searches. Auto-pruned to last 10."""
+
     MAX_PER_USER = 10
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='search_history',
+        related_name="search_history",
     )
     query_text = models.CharField(max_length=500, blank=True)
     filters = models.JSONField(default=dict, blank=True)
     result_count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        db_table = 'search_history'
-        ordering = ['-created_at']
+        db_table = "search_history"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=["user", "-created_at"]),
         ]
 
     def __str__(self):

@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('seekers', '0004_seekerprofile_hide_current_company_and_more'),
+        ("seekers", "0004_seekerprofile_hide_current_company_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='seekerprofile',
-            name='profile_strength',
-            field=models.PositiveSmallIntegerField(db_index=True, default=0, help_text='Completeness score 0-100, recalculated automatically.'),
+            model_name="seekerprofile",
+            name="profile_strength",
+            field=models.PositiveSmallIntegerField(
+                db_index=True,
+                default=0,
+                help_text="Completeness score 0-100, recalculated automatically.",
+            ),
         ),
     ]

@@ -7,28 +7,54 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('recruiters', '0002_recruitercredits_candidateview'),
+        ("recruiters", "0002_recruitercredits_candidateview"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TalentPool',
+            name="TalentPool",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('description', models.CharField(blank=True, max_length=300)),
-                ('filters', models.JSONField(blank=True, default=dict)),
-                ('notify_on_new', models.BooleanField(default=True, help_text='Email the recruiter when new candidates enter this pool.')),
-                ('last_checked_at', models.DateTimeField(blank=True, null=True)),
-                ('recruiter', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='talent_pools', to='recruiters.recruiterprofile')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("description", models.CharField(blank=True, max_length=300)),
+                ("filters", models.JSONField(blank=True, default=dict)),
+                (
+                    "notify_on_new",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Email the recruiter when new candidates enter this pool.",
+                    ),
+                ),
+                ("last_checked_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "recruiter",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="talent_pools",
+                        to="recruiters.recruiterprofile",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'talent_pools',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['recruiter', '-created_at'], name='talent_pool_recruit_867a0c_idx')],
-                'unique_together': {('recruiter', 'name')},
+                "db_table": "talent_pools",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["recruiter", "-created_at"],
+                        name="talent_pool_recruit_867a0c_idx",
+                    )
+                ],
+                "unique_together": {("recruiter", "name")},
             },
         ),
     ]

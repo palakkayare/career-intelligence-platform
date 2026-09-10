@@ -23,53 +23,98 @@ MIN_ANALYSABLE_LENGTH = 100
 # --------------------------------------------------------------------------- #
 
 STRONG_ACTION_VERBS = {
-    'leadership': {
-        'led', 'managed', 'directed', 'spearheaded', 'supervised',
-        'coached', 'mentored', 'guided', 'orchestrated', 'oversaw',
-        'championed', 'pioneered',
+    "leadership": {
+        "led",
+        "managed",
+        "directed",
+        "spearheaded",
+        "supervised",
+        "coached",
+        "mentored",
+        "guided",
+        "orchestrated",
+        "oversaw",
+        "championed",
+        "pioneered",
     },
-    'building': {
-        'built', 'developed', 'created', 'designed', 'engineered',
-        'architected', 'implemented', 'constructed', 'crafted',
-        'authored', 'programmed', 'coded',
+    "building": {
+        "built",
+        "developed",
+        "created",
+        "designed",
+        "engineered",
+        "architected",
+        "implemented",
+        "constructed",
+        "crafted",
+        "authored",
+        "programmed",
+        "coded",
     },
-    'improvement': {
-        'optimized', 'reduced', 'increased', 'streamlined', 'improved',
-        'enhanced', 'accelerated', 'simplified', 'refactored',
-        'modernized', 'upgraded', 'scaled',
+    "improvement": {
+        "optimized",
+        "reduced",
+        "increased",
+        "streamlined",
+        "improved",
+        "enhanced",
+        "accelerated",
+        "simplified",
+        "refactored",
+        "modernized",
+        "upgraded",
+        "scaled",
     },
-    'achievement': {
-        'delivered', 'shipped', 'launched', 'achieved', 'executed',
-        'completed', 'accomplished', 'succeeded', 'exceeded',
-        'won', 'awarded',
+    "achievement": {
+        "delivered",
+        "shipped",
+        "launched",
+        "achieved",
+        "executed",
+        "completed",
+        "accomplished",
+        "succeeded",
+        "exceeded",
+        "won",
+        "awarded",
     },
-    'analysis': {
-        'analyzed', 'researched', 'investigated', 'evaluated',
-        'identified', 'discovered', 'diagnosed', 'measured',
+    "analysis": {
+        "analyzed",
+        "researched",
+        "investigated",
+        "evaluated",
+        "identified",
+        "discovered",
+        "diagnosed",
+        "measured",
     },
-    'collaboration': {
-        'collaborated', 'partnered', 'coordinated', 'facilitated',
-        'negotiated', 'communicated', 'presented',
+    "collaboration": {
+        "collaborated",
+        "partnered",
+        "coordinated",
+        "facilitated",
+        "negotiated",
+        "communicated",
+        "presented",
     },
 }
 
 WEAK_PHRASES = [
-    'responsible for',
-    'duties included',
-    'tasks were',
-    'was tasked with',
-    'helped with',
-    'worked on',
-    'assisted with',
-    'involved in',
+    "responsible for",
+    "duties included",
+    "tasks were",
+    "was tasked with",
+    "helped with",
+    "worked on",
+    "assisted with",
+    "involved in",
 ]
 
 # Pre-compile every verb pattern once at import time instead of rebuilding
 # ~60 regexes on every single analysis call.
 _VERB_PATTERNS = {
     category: [
-        (verb, re.compile(rf'\b{re.escape(verb)}\b', re.IGNORECASE))
-        for verb in sorted(verbs)
+        (verb, re.compile(rf"\b{re.escape(verb)}\b", re.IGNORECASE)) for verb in sorted(verbs)
     ]
     for category, verbs in STRONG_ACTION_VERBS.items()
 }
@@ -91,14 +136,14 @@ def analyze_action_verbs(text: str) -> Dict:
         for verb, pattern in patterns:
             count = len(pattern.findall(text))
             if count:
-                hits.append({'verb': verb, 'count': count})
+                hits.append({"verb": verb, "count": count})
                 total_strong += count
         if hits:
             found[category] = hits
 
     text_lower = text.lower()
     weak_found = [
-        {'phrase': phrase, 'count': text_lower.count(phrase)}
+        {"phrase": phrase, "count": text_lower.count(phrase)}
         for phrase in WEAK_PHRASES
         if text_lower.count(phrase) > 0
     ]
@@ -121,7 +166,7 @@ def analyze_action_verbs(text: str) -> Dict:
     quantity_bonus = min(5, max(0, total_strong - 5))
 
     # Each filler phrase costs 2 points, capped so one bad line is not fatal
-    weak_penalty = min(10, sum(item['count'] for item in weak_found) * 2)
+    weak_penalty = min(10, sum(item["count"] for item in weak_found) * 2)
 
     score = diversity_score + diversity_bonus + quantity_bonus - weak_penalty
     score = max(0, min(25, score))
@@ -129,30 +174,31 @@ def analyze_action_verbs(text: str) -> Dict:
     suggestions = []
     if unique_strong_count < 5:
         suggestions.append(
-            'Use more strong action verbs such as led, built, optimized '
-            'or delivered.'
+            "Use more strong action verbs such as led, built, optimized " "or delivered."
         )
     if weak_found:
-        phrases = ', '.join(item['phrase'] for item in weak_found[:3])
-        suggestions.append(f'Replace weak phrases: {phrases}.')
+        phrases = ", ".join(item["phrase"] for item in weak_found[:3])
+        suggestions.append(f"Replace weak phrases: {phrases}.")
     if len(found) < 3:
         suggestions.append(
-            'Vary your verbs so the resume shows leadership, building and '
-            'measurable improvement.'
+            "Vary your verbs so the resume shows leadership, building and "
+            "measurable improvement."
         )
 
     return {
-        'score': score,
-        'max': 25,
-        'unique_strong_count': unique_strong_count,
-        'total_strong_uses': total_strong,
-        'categories_used': sorted(found.keys()),
-        'verbs_found': found,
-        'weak_phrases_found': weak_found,
-        'suggestions': suggestions,
+        "score": score,
+        "max": 25,
+        "unique_strong_count": unique_strong_count,
+        "total_strong_uses": total_strong,
+        "categories_used": sorted(found.keys()),
+        "verbs_found": found,
+        "weak_phrases_found": weak_found,
+        "suggestions": suggestions,
     }
-    
+
     # --------------------------------------------------------------------------- #
+
+
 # Quantifiable achievements
 # --------------------------------------------------------------------------- #
 
@@ -161,30 +207,29 @@ QUANTITY_PATTERNS = [
     # "closed 30 tickets". The unit is open-ended because every team
     # measures a different thing.
     re.compile(
-        r'\b(?:shipped|launched|delivered|built|created|managed|led|hired|'
-        r'closed|resolved|migrated|automated|onboarded|trained|published|'
-        r'reviewed|integrated|supported|handled|processed)\s+'
-        r'(?:over\s+|more\s+than\s+)?\d+(?:,\d{3})*\+?\b',
+        r"\b(?:shipped|launched|delivered|built|created|managed|led|hired|"
+        r"closed|resolved|migrated|automated|onboarded|trained|published|"
+        r"reviewed|integrated|supported|handled|processed)\s+"
+        r"(?:over\s+|more\s+than\s+)?\d+(?:,\d{3})*\+?\b",
         re.IGNORECASE,
     ),
-    re.compile(r'\b\d+(?:,\d{3})*(?:\.\d+)?%'),                    # 40%, 25.5%
-    re.compile(r'\$\d+(?:[,.]\d+)*\s*(?:K|M|k|m|thousand|million)?'),
-    re.compile(r'₹\d+(?:[,.]\d+)*\s*(?:K|M|k|m|L|Cr|cr|lakh)?'),
-    re.compile(r'\b\d+x\b', re.IGNORECASE),                        # 5x, 10x
+    re.compile(r"\b\d+(?:,\d{3})*(?:\.\d+)?%"),  # 40%, 25.5%
+    re.compile(r"\$\d+(?:[,.]\d+)*\s*(?:K|M|k|m|thousand|million)?"),
+    re.compile(r"₹\d+(?:[,.]\d+)*\s*(?:K|M|k|m|L|Cr|cr|lakh)?"),
+    re.compile(r"\b\d+x\b", re.IGNORECASE),  # 5x, 10x
     re.compile(
-        r'\b\d+(?:,\d{3})*\+?\s+'
-        r'(?:users|customers|clients|requests|orders|engineers|teams|'
-        r'developers|people|transactions|records|queries)\b',
+        r"\b\d+(?:,\d{3})*\+?\s+"
+        r"(?:users|customers|clients|requests|orders|engineers|teams|"
+        r"developers|people|transactions|records|queries)\b",
         re.IGNORECASE,
     ),
     re.compile(
-        r'\b\d+(?:\.\d+)?\s+(?:million|billion|thousand|crore|lakh)\b',
+        r"\b\d+(?:\.\d+)?\s+(?:million|billion|thousand|crore|lakh)\b",
         re.IGNORECASE,
     ),
-    re.compile(r'\b(?:from|by|to)\s+\d+(?:,\d{3})*', re.IGNORECASE),
+    re.compile(r"\b(?:from|by|to)\s+\d+(?:,\d{3})*", re.IGNORECASE),
     re.compile(
-        r'\b\d+\s*(?:ms|sec|seconds?|mins?|minutes?|hours?|days?|weeks?|'
-        r'months?|years?)\b',
+        r"\b\d+\s*(?:ms|sec|seconds?|mins?|minutes?|hours?|days?|weeks?|" r"months?|years?)\b",
         re.IGNORECASE,
     ),
 ]
@@ -192,10 +237,11 @@ QUANTITY_PATTERNS = [
 # Things that look numeric but say nothing about impact. Checked first so a
 # bullet is not credited just for containing a page number or a clock time.
 FALSE_QUANTIFIER_PATTERNS = [
-    re.compile(r'\b\d{1,2}:\d{2}\s*(?:am|pm)?\b', re.IGNORECASE),   # 10:00 AM
-    re.compile(r'\bpage\s+\d+\b', re.IGNORECASE),                   # Page 5
-    re.compile(r'\b(?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|present)\b',
-               re.IGNORECASE),                                      # 2021-2023
+    re.compile(r"\b\d{1,2}:\d{2}\s*(?:am|pm)?\b", re.IGNORECASE),  # 10:00 AM
+    re.compile(r"\bpage\s+\d+\b", re.IGNORECASE),  # Page 5
+    re.compile(
+        r"\b(?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|present)\b", re.IGNORECASE
+    ),  # 2021-2023
 ]
 
 
@@ -203,7 +249,7 @@ def _strip_false_quantifiers(bullet: str) -> str:
     """Remove number-like noise so it cannot be mistaken for a real metric."""
     cleaned = bullet
     for pattern in FALSE_QUANTIFIER_PATTERNS:
-        cleaned = pattern.sub(' ', cleaned)
+        cleaned = pattern.sub(" ", cleaned)
     return cleaned
 
 
@@ -212,16 +258,13 @@ def _split_into_bullets(text: str) -> List[str]:
     Prefer real bullet points. If the resume has almost none (common with
     plain-text exports), fall back to sentences so the analysis still works.
     """
-    bullets = re.findall(r'(?:^|\n)\s*[•\-\*\u25cf\u25aa]\s*(.+?)(?=\n|$)', text)
+    bullets = re.findall(r"(?:^|\n)\s*[•\-\*\u25cf\u25aa]\s*(.+?)(?=\n|$)", text)
     bullets = [b.strip() for b in bullets if len(b.strip()) > 15]
 
     if len(bullets) >= 3:
         return bullets
 
-    return [
-        s.strip() for s in re.split(r'[.!?\n]+', text)
-        if len(s.strip()) > 20
-    ]
+    return [s.strip() for s in re.split(r"[.!?\n]+", text) if len(s.strip()) > 20]
 
 
 def analyze_quantification(text: str) -> Dict:
@@ -234,15 +277,15 @@ def analyze_quantification(text: str) -> Dict:
 
     if not bullets:
         return {
-            'score': 0,
-            'max': 25,
-            'total_bullets': 0,
-            'quantified_count': 0,
-            'pct_quantified': 0.0,
-            'examples': [],
-            'suggestions': [
-                'Use bullet points for your accomplishments so each one can '
-                'be read and measured separately.',
+            "score": 0,
+            "max": 25,
+            "total_bullets": 0,
+            "quantified_count": 0,
+            "pct_quantified": 0.0,
+            "examples": [],
+            "suggestions": [
+                "Use bullet points for your accomplishments so each one can "
+                "be read and measured separately.",
             ],
         }
 
@@ -273,23 +316,21 @@ def analyze_quantification(text: str) -> Dict:
     suggestions = []
     if pct_quantified < 30:
         suggestions.append(
-            f'Only {pct_quantified:.0f}% of your bullets contain numbers. '
+            f"Only {pct_quantified:.0f}% of your bullets contain numbers. "
             f'Aim for 30% or more — add metrics like "increased signups by '
             f'25%" or "managed a team of 8".'
         )
     if pct_quantified < 5:
-        suggestions.append(
-            'Numbers turn claims into evidence. Even rough figures help.'
-        )
+        suggestions.append("Numbers turn claims into evidence. Even rough figures help.")
 
     return {
-        'score': score,
-        'max': 25,
-        'total_bullets': total_bullets,
-        'quantified_count': quantified_count,
-        'pct_quantified': round(pct_quantified, 1),
-        'examples': examples,
-        'suggestions': suggestions,
+        "score": score,
+        "max": 25,
+        "total_bullets": total_bullets,
+        "quantified_count": quantified_count,
+        "pct_quantified": round(pct_quantified, 1),
+        "examples": examples,
+        "suggestions": suggestions,
     }
 
 
@@ -298,40 +339,162 @@ def analyze_quantification(text: str) -> Dict:
 # --------------------------------------------------------------------------- #
 
 PASSIVE_PATTERNS = [
-    re.compile(r'\b(?:was|were)\s+\w+ed\b', re.IGNORECASE),
-    re.compile(r'\b(?:been|being)\s+\w+ed\b', re.IGNORECASE),
-    re.compile(r'\bwas\s+responsible\b', re.IGNORECASE),
+    re.compile(r"\b(?:was|were)\s+\w+ed\b", re.IGNORECASE),
+    re.compile(r"\b(?:been|being)\s+\w+ed\b", re.IGNORECASE),
+    re.compile(r"\bwas\s+responsible\b", re.IGNORECASE),
 ]
 
 # Domain vocabulary the general English dictionary does not know. Without
 # this, every technical resume would be flagged as full of typos.
 TECH_TERMS = {
-    'django', 'flask', 'fastapi', 'pyramid', 'celery', 'gunicorn', 'uvicorn',
-    'kubernetes', 'docker', 'helm', 'terraform', 'ansible', 'nginx',
-    'postgresql', 'postgres', 'mysql', 'sqlite', 'redis', 'mongodb',
-    'elasticsearch', 'cassandra', 'dynamodb',
-    'aws', 'gcp', 'azure', 'ec2', 'rds', 'lambda', 'cloudwatch', 'cloudfront',
-    'react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'gatsby', 'jquery',
-    'graphql', 'restful', 'grpc', 'websocket', 'websockets', 'webhook',
-    'sqlalchemy', 'redux', 'mobx', 'pydantic', 'alembic',
-    'oauth', 'jwt', 'saml', 'openid', 'ldap',
-    'github', 'gitlab', 'bitbucket', 'jira', 'confluence', 'jenkins',
-    'kafka', 'rabbitmq', 'airflow', 'spark', 'hadoop',
-    'pytest', 'unittest', 'jest', 'mocha', 'cypress', 'selenium',
-    'devops', 'agile', 'scrum', 'kanban', 'sprint', 'standup',
-    'tensorflow', 'pytorch', 'keras', 'sklearn', 'numpy', 'pandas', 'scipy',
-    'matplotlib', 'seaborn', 'spacy', 'nltk', 'huggingface', 'transformers',
-    'fullstack', 'backend', 'frontend', 'middleware',
-    'microservices', 'microservice', 'monolith', 'serverless',
-    'android', 'kotlin', 'swift', 'flutter', 'dart',
-    'javascript', 'typescript', 'python', 'golang', 'rust', 'scala',
-    'html', 'css', 'scss', 'sass', 'tailwind', 'bootstrap',
-    'webpack', 'vite', 'rollup', 'babel', 'eslint',
-    'nosql', 'rdbms', 'crud', 'orm', 'jsonb', 'protobuf', 'yaml',
-    'saas', 'paas', 'iaas', 'cicd', 'sre', 'slo', 'sla',
-    'dataset', 'datasets', 'dataframe', 'notebook', 'jupyter',
-    'roadmap', 'stakeholders', 'onboarding', 'scalable', 'scalability',
-    'refactored', 'refactoring', 'dockerized', 'containerized',
+    "django",
+    "flask",
+    "fastapi",
+    "pyramid",
+    "celery",
+    "gunicorn",
+    "uvicorn",
+    "kubernetes",
+    "docker",
+    "helm",
+    "terraform",
+    "ansible",
+    "nginx",
+    "postgresql",
+    "postgres",
+    "mysql",
+    "sqlite",
+    "redis",
+    "mongodb",
+    "elasticsearch",
+    "cassandra",
+    "dynamodb",
+    "aws",
+    "gcp",
+    "azure",
+    "ec2",
+    "rds",
+    "lambda",
+    "cloudwatch",
+    "cloudfront",
+    "react",
+    "vue",
+    "angular",
+    "svelte",
+    "nextjs",
+    "nuxt",
+    "gatsby",
+    "jquery",
+    "graphql",
+    "restful",
+    "grpc",
+    "websocket",
+    "websockets",
+    "webhook",
+    "sqlalchemy",
+    "redux",
+    "mobx",
+    "pydantic",
+    "alembic",
+    "oauth",
+    "jwt",
+    "saml",
+    "openid",
+    "ldap",
+    "github",
+    "gitlab",
+    "bitbucket",
+    "jira",
+    "confluence",
+    "jenkins",
+    "kafka",
+    "rabbitmq",
+    "airflow",
+    "spark",
+    "hadoop",
+    "pytest",
+    "unittest",
+    "jest",
+    "mocha",
+    "cypress",
+    "selenium",
+    "devops",
+    "agile",
+    "scrum",
+    "kanban",
+    "sprint",
+    "standup",
+    "tensorflow",
+    "pytorch",
+    "keras",
+    "sklearn",
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "spacy",
+    "nltk",
+    "huggingface",
+    "transformers",
+    "fullstack",
+    "backend",
+    "frontend",
+    "middleware",
+    "microservices",
+    "microservice",
+    "monolith",
+    "serverless",
+    "android",
+    "kotlin",
+    "swift",
+    "flutter",
+    "dart",
+    "javascript",
+    "typescript",
+    "python",
+    "golang",
+    "rust",
+    "scala",
+    "html",
+    "css",
+    "scss",
+    "sass",
+    "tailwind",
+    "bootstrap",
+    "webpack",
+    "vite",
+    "rollup",
+    "babel",
+    "eslint",
+    "nosql",
+    "rdbms",
+    "crud",
+    "orm",
+    "jsonb",
+    "protobuf",
+    "yaml",
+    "saas",
+    "paas",
+    "iaas",
+    "cicd",
+    "sre",
+    "slo",
+    "sla",
+    "dataset",
+    "datasets",
+    "dataframe",
+    "notebook",
+    "jupyter",
+    "roadmap",
+    "stakeholders",
+    "onboarding",
+    "scalable",
+    "scalability",
+    "refactored",
+    "refactoring",
+    "dockerized",
+    "containerized",
 }
 
 # Words shorter than this are skipped: short tokens produce almost all the
@@ -355,14 +518,11 @@ def check_spelling(text: str) -> List[str]:
 
     # Emails, URLs and handles are identifiers, never spelling mistakes.
     # Strip them before tokenising or every resume header looks broken.
-    text = re.sub(r'\S+@\S+', ' ', text)
-    text = re.sub(r'https?://\S+|www\.\S+', ' ', text)
+    text = re.sub(r"\S+@\S+", " ", text)
+    text = re.sub(r"https?://\S+|www\.\S+", " ", text)
 
     words = {
-        word.lower()
-        for word in re.findall(
-            rf'\b[a-zA-Z]{{{MIN_SPELLCHECK_WORD_LENGTH},}}\b', text
-        )
+        word.lower() for word in re.findall(rf"\b[a-zA-Z]{{{MIN_SPELLCHECK_WORD_LENGTH},}}\b", text)
     }
     if not words:
         return []
@@ -370,13 +530,10 @@ def check_spelling(text: str) -> List[str]:
     # Words that appear capitalised in the original are almost always
     # proper nouns - names, cities, colleges. Telling someone their own
     # surname is misspelled is worse than saying nothing.
-    proper_nouns = {
-        w.lower() for w in re.findall(r'\b[A-Z][a-zA-Z]{3,}\b', text)
-    }
+    proper_nouns = {w.lower() for w in re.findall(r"\b[A-Z][a-zA-Z]{3,}\b", text)}
 
     misspelled = [
-        word for word in spell.unknown(words)
-        if word not in TECH_TERMS and word not in proper_nouns
+        word for word in spell.unknown(words) if word not in TECH_TERMS and word not in proper_nouns
     ]
 
     # Longer words first: they are more likely to be genuine words the
@@ -393,10 +550,7 @@ def analyze_language_quality(text: str) -> Dict:
     Passive voice is judged on a tolerance curve, not banned outright —
     some technical statements are legitimately passive.
     """
-    sentences = [
-        s.strip() for s in re.split(r'[.!?\n]+', text)
-        if len(s.strip()) > 10
-    ]
+    sentences = [s.strip() for s in re.split(r"[.!?\n]+", text) if len(s.strip()) > 10]
 
     passive_count = 0
     passive_examples = []
@@ -433,43 +587,41 @@ def analyze_language_quality(text: str) -> Dict:
     suggestions = []
     if pct_passive >= 20:
         suggestions.append(
-            f'{pct_passive:.0f}% of your sentences use passive voice. '
+            f"{pct_passive:.0f}% of your sentences use passive voice. "
             f'Prefer "I designed the system" over "the system was designed '
             f'by me".'
         )
     if spelling_issues:
-        suggestions.append(
-            f'Possible spelling issues: {", ".join(spelling_issues[:5])}.'
-        )
+        suggestions.append(f'Possible spelling issues: {", ".join(spelling_issues[:5])}.')
 
     return {
-        'score': passive_score + spelling_score,
-        'max': 20,
-        'passive_voice': {
-            'count': passive_count,
-            'pct': round(pct_passive, 1),
-            'total_sentences': len(sentences),
-            'examples': passive_examples,
+        "score": passive_score + spelling_score,
+        "max": 20,
+        "passive_voice": {
+            "count": passive_count,
+            "pct": round(pct_passive, 1),
+            "total_sentences": len(sentences),
+            "examples": passive_examples,
         },
-        'spelling_issues': spelling_issues,
-        'suggestions': suggestions,
+        "spelling_issues": spelling_issues,
+        "suggestions": suggestions,
     }
-    
+
     # --------------------------------------------------------------------------- #
+
+
 # Job-description keyword matching
 # --------------------------------------------------------------------------- #
 
 QUALIFICATION_PATTERNS = [
     re.compile(r"bachelor['’]?s?\s+(?:degree|in|of)", re.IGNORECASE),
     re.compile(r"master['’]?s?\s+(?:degree|in|of)", re.IGNORECASE),
-    re.compile(r'\bphd\b', re.IGNORECASE),
-    re.compile(r'\bb\.?(?:tech|sc|com|ca|e)\b', re.IGNORECASE),
-    re.compile(r'\bm\.?(?:tech|sc|com|ca|ba|s)\b', re.IGNORECASE),
+    re.compile(r"\bphd\b", re.IGNORECASE),
+    re.compile(r"\bb\.?(?:tech|sc|com|ca|e)\b", re.IGNORECASE),
+    re.compile(r"\bm\.?(?:tech|sc|com|ca|ba|s)\b", re.IGNORECASE),
 ]
 
-YEARS_PATTERN = re.compile(
-    r'(\d+)\+?\s*years?\s+(?:of\s+)?experience', re.IGNORECASE
-)
+YEARS_PATTERN = re.compile(r"(\d+)\+?\s*years?\s+(?:of\s+)?experience", re.IGNORECASE)
 
 
 def extract_jd_keywords(jd_text: str, skill_names: Set[str]) -> Dict:
@@ -481,8 +633,9 @@ def extract_jd_keywords(jd_text: str, skill_names: Set[str]) -> Dict:
     meaningless keywords.
     """
     matched_skills = {
-        skill for skill in skill_names
-        if re.search(rf'\b{re.escape(skill.lower())}\b', jd_text.lower())
+        skill
+        for skill in skill_names
+        if re.search(rf"\b{re.escape(skill.lower())}\b", jd_text.lower())
     }
 
     qualifications = []
@@ -495,15 +648,13 @@ def extract_jd_keywords(jd_text: str, skill_names: Set[str]) -> Dict:
     required_years = int(years_match.group(1)) if years_match else None
 
     return {
-        'skills': sorted(matched_skills),
-        'qualifications': qualifications,
-        'required_years': required_years,
+        "skills": sorted(matched_skills),
+        "qualifications": qualifications,
+        "required_years": required_years,
     }
 
 
-def analyze_jd_match(
-    resume_text: str, jd_text: str, skill_names: Set[str]
-) -> Dict:
+def analyze_jd_match(resume_text: str, jd_text: str, skill_names: Set[str]) -> Dict:
     """
     Compare a resume against one job description. Score out of 30.
 
@@ -515,29 +666,29 @@ def analyze_jd_match(
 
     matched_skills = []
     missing_skills = []
-    for skill in jd_keywords['skills']:
-        if re.search(rf'\b{re.escape(skill.lower())}\b', resume_lower):
+    for skill in jd_keywords["skills"]:
+        if re.search(rf"\b{re.escape(skill.lower())}\b", resume_lower):
             matched_skills.append(skill)
         else:
             missing_skills.append(skill)
 
-    total_jd_skills = len(jd_keywords['skills'])
+    total_jd_skills = len(jd_keywords["skills"])
 
     # A job description with no recognisable skills cannot be scored
     # honestly. Report that instead of inventing a number.
     if total_jd_skills == 0:
         return {
-            'score': 0,
-            'max': 30,
-            'scorable': False,
-            'skill_match_pct': 0.0,
-            'matched_skills': [],
-            'missing_skills': [],
-            'jd_keywords_total': 0,
-            'required_years': jd_keywords['required_years'],
-            'suggestions': [
-                'This job description does not list recognisable skills, so '
-                'keyword matching was skipped.',
+            "score": 0,
+            "max": 30,
+            "scorable": False,
+            "skill_match_pct": 0.0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "jd_keywords_total": 0,
+            "required_years": jd_keywords["required_years"],
+            "suggestions": [
+                "This job description does not list recognisable skills, so "
+                "keyword matching was skipped.",
             ],
         }
 
@@ -557,41 +708,43 @@ def analyze_jd_match(
     suggestions = []
     if missing_skills:
         suggestions.append(
-            f'Consider mentioning these keywords from the job description, '
+            f"Consider mentioning these keywords from the job description, "
             f'if they apply to you: {", ".join(missing_skills[:5])}.'
         )
         suggestions.append(
-            'Do not keyword-stuff — only add skills you can speak to in an '
-            'interview.'
+            "Do not keyword-stuff — only add skills you can speak to in an " "interview."
         )
 
     return {
-        'score': score,
-        'max': 30,
-        'scorable': True,
-        'skill_match_pct': round(skill_match_pct, 1),
-        'matched_skills': matched_skills,
-        'missing_skills': missing_skills,
-        'jd_keywords_total': total_jd_skills,
-        'required_years': jd_keywords['required_years'],
-        'suggestions': suggestions,
+        "score": score,
+        "max": 30,
+        "scorable": True,
+        "skill_match_pct": round(skill_match_pct, 1),
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills,
+        "jd_keywords_total": total_jd_skills,
+        "required_years": jd_keywords["required_years"],
+        "suggestions": suggestions,
     }
-    
+
     # --------------------------------------------------------------------------- #
+
+
 # Orchestration
 # --------------------------------------------------------------------------- #
+
 
 def _rating_for(pct: float) -> str:
     """Translate a percentage into a letter grade users can act on."""
     if pct >= 85:
-        return 'A — Excellent'
+        return "A — Excellent"
     if pct >= 70:
-        return 'B — Good'
+        return "B — Good"
     if pct >= 55:
-        return 'C — Fair'
+        return "C — Fair"
     if pct >= 40:
-        return 'D — Needs Improvement'
-    return 'F — Poor'
+        return "D — Needs Improvement"
+    return "F — Poor"
 
 
 def _empty_result(message: str) -> Dict:
@@ -603,17 +756,17 @@ def _empty_result(message: str) -> Dict:
     a short-circuit return that omitted them would raise a KeyError.
     """
     return {
-        'advanced_score': 0,
-        'advanced_max': 70,
-        'advanced_score_pct': 0.0,
-        'rating': _rating_for(0),
-        'analysable': False,
-        'message': message,
-        'breakdown': {},
-        'top_suggestions': [
-            'Upload a resume with more content so it can be analysed.',
+        "advanced_score": 0,
+        "advanced_max": 70,
+        "advanced_score_pct": 0.0,
+        "rating": _rating_for(0),
+        "analysable": False,
+        "message": message,
+        "breakdown": {},
+        "top_suggestions": [
+            "Upload a resume with more content so it can be analysed.",
         ],
-        'has_jd_analysis': False,
+        "has_jd_analysis": False,
     }
 
 
@@ -629,16 +782,16 @@ def run_full_analysis(
     The result is reported as a percentage so both modes are comparable.
     """
     if not resume_text or len(resume_text.strip()) < MIN_ANALYSABLE_LENGTH:
-        return _empty_result('Resume text is too short to analyse.')
+        return _empty_result("Resume text is too short to analyse.")
 
     action_verbs = analyze_action_verbs(resume_text)
     quantification = analyze_quantification(resume_text)
     language = analyze_language_quality(resume_text)
 
     breakdown = {
-        'action_verbs': action_verbs,
-        'quantification': quantification,
-        'language_quality': language,
+        "action_verbs": action_verbs,
+        "quantification": quantification,
+        "language_quality": language,
     }
 
     components = [action_verbs, quantification, language]
@@ -646,34 +799,34 @@ def run_full_analysis(
     jd_match = None
     if jd_text and skill_names:
         jd_match = analyze_jd_match(resume_text, jd_text, skill_names)
-        breakdown['jd_match'] = jd_match
+        breakdown["jd_match"] = jd_match
         components.append(jd_match)
 
     # A JD that yielded no keywords contributes no points and no ceiling,
     # otherwise the candidate would be punished for a vague job posting.
-    jd_counts_toward_total = bool(jd_match and jd_match['scorable'])
+    jd_counts_toward_total = bool(jd_match and jd_match["scorable"])
 
     advanced_max = 70 + (30 if jd_counts_toward_total else 0)
     advanced_score = (
-        action_verbs['score']
-        + quantification['score']
-        + language['score']
-        + (jd_match['score'] if jd_counts_toward_total else 0)
+        action_verbs["score"]
+        + quantification["score"]
+        + language["score"]
+        + (jd_match["score"] if jd_counts_toward_total else 0)
     )
     advanced_pct = round(advanced_score / advanced_max * 100, 1)
 
     all_suggestions = []
     for component in components:
-        all_suggestions.extend(component.get('suggestions', []))
+        all_suggestions.extend(component.get("suggestions", []))
 
     return {
-        'advanced_score': advanced_score,
-        'advanced_max': advanced_max,
-        'advanced_score_pct': advanced_pct,
-        'rating': _rating_for(advanced_pct),
-        'analysable': True,
-        'breakdown': breakdown,
+        "advanced_score": advanced_score,
+        "advanced_max": advanced_max,
+        "advanced_score_pct": advanced_pct,
+        "rating": _rating_for(advanced_pct),
+        "analysable": True,
+        "breakdown": breakdown,
         # Capped at five: a long list of fixes makes people do nothing.
-        'top_suggestions': all_suggestions[:5],
-        'has_jd_analysis': jd_match is not None,
+        "top_suggestions": all_suggestions[:5],
+        "has_jd_analysis": jd_match is not None,
     }

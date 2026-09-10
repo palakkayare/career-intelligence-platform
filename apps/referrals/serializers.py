@@ -15,7 +15,7 @@ class MyCodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReferralCode
-        fields = ('code', 'share_url', 'click_count', 'signup_count', 'paid_count')
+        fields = ("code", "share_url", "click_count", "signup_count", "paid_count")
         read_only_fields = fields
 
     def get_share_url(self, obj):
@@ -43,9 +43,14 @@ class ReferralRewardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferralReward
         fields = (
-            'id', 'kind', 'value',
-            'status', 'granted_at', 'used_at', 'expires_at',
-            'is_usable',
+            "id",
+            "kind",
+            "value",
+            "status",
+            "granted_at",
+            "used_at",
+            "expires_at",
+            "is_usable",
         )
         read_only_fields = fields
 

@@ -42,17 +42,17 @@ class CareerPathService:
                 name=node.name,
                 level=node.level,
                 category=node.category,
-                avg_salary_inr=float(node.avg_salary_inr) if node.avg_salary_inr else None,
+                avg_salary_inr=(float(node.avg_salary_inr) if node.avg_salary_inr else None),
                 typical_experience_years=node.typical_experience_years,
             )
 
         edges = (
-            CareerPathEdge.objects
-            .filter(is_active=True, from_node__is_active=True, to_node__is_active=True)
-            .select_related('from_node', 'to_node')
+            CareerPathEdge.objects.filter(
+                is_active=True, from_node__is_active=True, to_node__is_active=True
+            ).select_related("from_node", "to_node")
             # Without this prefetch, reading required_skills below would fire
             # one query per edge.
-            .prefetch_related('required_skills')
+            .prefetch_related("required_skills")
         )
 
         for edge in edges:
@@ -92,13 +92,17 @@ class CareerPathService:
         # --- Validate the endpoints before touching any algorithm ---
         if from_slug not in graph.nodes:
             return {
-                'error': f'Unknown starting role: {from_slug}',
-                'from': None, 'to': None, 'paths': [],
+                "error": f"Unknown starting role: {from_slug}",
+                "from": None,
+                "to": None,
+                "paths": [],
             }
         if to_slug not in graph.nodes:
             return {
-                'error': f'Unknown target role: {to_slug}',
-                'from': None, 'to': None, 'paths': [],
+                "error": f"Unknown target role: {to_slug}",
+                "from": None,
+                "to": None,
+                "paths": [],
             }
 
         origin = cls._node_summary(graph, from_slug)
@@ -106,8 +110,10 @@ class CareerPathService:
 
         if from_slug == to_slug:
             return {
-                'message': 'You are already in this role.',
-                'from': origin, 'to': destination, 'paths': [],
+                "message": "You are already in this role.",
+                "from": origin,
+                "to": destination,
+                "paths": [],
             }
 
         # --- Primary candidates ---
@@ -117,56 +123,62 @@ class CareerPathService:
         seen_paths = set()
 
         try:
-            fastest = nx.shortest_path(graph, from_slug, to_slug, weight='time_months')
+            fastest = nx.shortest_path(graph, from_slug, to_slug, weight="time_months")
             seen_paths.add(tuple(fastest))
-            candidates.append({
-                'optimization': 'fastest',
-                'label': 'Fastest path',
-                'path': fastest,
-            })
+            candidates.append(
+                {
+                    "optimization": "fastest",
+                    "label": "Fastest path",
+                    "path": fastest,
+                }
+            )
         except nx.NetworkXNoPath:
             # No route at all. The career graph is mostly forward-only, so this
             # is the expected answer for backwards queries.
             return {
-                'message': (
+                "message": (
                     f'No path exists from {origin["name"]} to {destination["name"]}. '
-                    f'Career transitions in this graph move forward only.'
+                    f"Career transitions in this graph move forward only."
                 ),
-                'from': origin, 'to': destination, 'paths': [],
+                "from": origin,
+                "to": destination,
+                "paths": [],
             }
 
-        easiest = nx.shortest_path(graph, from_slug, to_slug, weight='weight')
+        easiest = nx.shortest_path(graph, from_slug, to_slug, weight="weight")
         if tuple(easiest) not in seen_paths:
             seen_paths.add(tuple(easiest))
-            candidates.append({
-                'optimization': 'easiest',
-                'label': 'Easiest path',
-                'path': easiest,
-            })
+            candidates.append(
+                {
+                    "optimization": "easiest",
+                    "label": "Easiest path",
+                    "path": easiest,
+                }
+            )
 
         # No weight argument means every edge counts as 1, i.e. fewest hops.
         direct = nx.shortest_path(graph, from_slug, to_slug)
         if tuple(direct) not in seen_paths:
             seen_paths.add(tuple(direct))
-            candidates.append({
-                'optimization': 'direct',
-                'label': 'Most direct',
-                'path': direct,
-            })
+            candidates.append(
+                {
+                    "optimization": "direct",
+                    "label": "Most direct",
+                    "path": direct,
+                }
+            )
 
         enriched_paths = []
         for candidate in candidates[:max_paths]:
-            enriched = cls._enrich_path(graph, candidate['path'])
-            enriched['optimization'] = candidate['optimization']
-            enriched['label'] = candidate['label']
+            enriched = cls._enrich_path(graph, candidate["path"])
+            enriched["optimization"] = candidate["optimization"]
+            enriched["label"] = candidate["label"]
             enriched_paths.append(enriched)
 
         # --- Alternative routes, up to two beyond the primary candidates ---
         alternative_limit = max_paths + 2
         try:
-            alternatives = list(
-                nx.all_simple_paths(graph, from_slug, to_slug, cutoff=5)
-            )
+            alternatives = list(nx.all_simple_paths(graph, from_slug, to_slug, cutoff=5))
             alternatives.sort(key=len)
 
             for path in alternatives:
@@ -176,17 +188,17 @@ class CareerPathService:
                     continue
                 seen_paths.add(tuple(path))
                 enriched = cls._enrich_path(graph, path)
-                enriched['optimization'] = 'alternative'
-                enriched['label'] = 'Alternative route'
+                enriched["optimization"] = "alternative"
+                enriched["label"] = "Alternative route"
                 enriched_paths.append(enriched)
         except nx.NodeNotFound:
             pass
 
         return {
-            'from': origin,
-            'to': destination,
-            'paths': enriched_paths,
-            'total_options_found': len(enriched_paths),
+            "from": origin,
+            "to": destination,
+            "paths": enriched_paths,
+            "total_options_found": len(enriched_paths),
         }
 
     # ------------------------------------------------------------------
@@ -203,7 +215,11 @@ class CareerPathService:
         graph = cls.build_graph()
 
         if from_slug not in graph.nodes:
-            return {'error': f'Unknown role: {from_slug}', 'from': None, 'reachable': []}
+            return {
+                "error": f"Unknown role: {from_slug}",
+                "from": None,
+                "reachable": [],
+            }
 
         reachable = []
 
@@ -215,29 +231,31 @@ class CareerPathService:
                 continue
 
             attrs = graph.nodes[target]
-            quickest = nx.shortest_path(graph, from_slug, target, weight='time_months')
+            quickest = nx.shortest_path(graph, from_slug, target, weight="time_months")
             total_months = sum(
-                graph.edges[quickest[i], quickest[i + 1]]['time_months']
+                graph.edges[quickest[i], quickest[i + 1]]["time_months"]
                 for i in range(len(quickest) - 1)
             )
 
-            reachable.append({
-                'slug': target,
-                'name': attrs['name'],
-                'level': attrs['level'],
-                'category': attrs['category'],
-                'hops': hops,
-                'estimated_months': total_months,
-                'estimated_years': round(total_months / 12, 1),
-            })
+            reachable.append(
+                {
+                    "slug": target,
+                    "name": attrs["name"],
+                    "level": attrs["level"],
+                    "category": attrs["category"],
+                    "hops": hops,
+                    "estimated_months": total_months,
+                    "estimated_years": round(total_months / 12, 1),
+                }
+            )
 
-        reachable.sort(key=lambda item: (item['hops'], item['estimated_months']))
+        reachable.sort(key=lambda item: (item["hops"], item["estimated_months"]))
 
         return {
-            'from': cls._node_summary(graph, from_slug),
-            'max_hops': max_hops,
-            'reachable': reachable,
-            'total_reachable': len(reachable),
+            "from": cls._node_summary(graph, from_slug),
+            "max_hops": max_hops,
+            "reachable": reachable,
+            "total_reachable": len(reachable),
         }
 
     # ------------------------------------------------------------------
@@ -250,31 +268,31 @@ class CareerPathService:
 
         nodes_list = [
             {
-                'id': slug,
-                'name': attrs['name'],
-                'level': attrs['level'],
-                'category': attrs['category'],
-                'avg_salary_inr': attrs.get('avg_salary_inr'),
+                "id": slug,
+                "name": attrs["name"],
+                "level": attrs["level"],
+                "category": attrs["category"],
+                "avg_salary_inr": attrs.get("avg_salary_inr"),
             }
             for slug, attrs in graph.nodes(data=True)
         ]
 
         edges_list = [
             {
-                'source': source,
-                'target': target,
-                'weight': attrs['weight'],
-                'time_months': attrs['time_months'],
-                'transition_type': attrs['transition_type'],
+                "source": source,
+                "target": target,
+                "weight": attrs["weight"],
+                "time_months": attrs["time_months"],
+                "transition_type": attrs["transition_type"],
             }
             for source, target, attrs in graph.edges(data=True)
         ]
 
         return {
-            'nodes': nodes_list,
-            'edges': edges_list,
-            'total_nodes': len(nodes_list),
-            'total_edges': len(edges_list),
+            "nodes": nodes_list,
+            "edges": edges_list,
+            "total_nodes": len(nodes_list),
+            "total_edges": len(edges_list),
         }
 
     # ------------------------------------------------------------------
@@ -285,10 +303,10 @@ class CareerPathService:
         """Compact node description, used wherever a node is referenced."""
         attrs = graph.nodes[slug]
         return {
-            'slug': slug,
-            'name': attrs['name'],
-            'level': attrs['level'],
-            'avg_salary_inr': attrs.get('avg_salary_inr'),
+            "slug": slug,
+            "name": attrs["name"],
+            "level": attrs["level"],
+            "avg_salary_inr": attrs.get("avg_salary_inr"),
         }
 
     @classmethod
@@ -310,32 +328,34 @@ class CareerPathService:
             from_slug, to_slug = path[i], path[i + 1]
             attrs = graph.edges[from_slug, to_slug]
 
-            transitions.append({
-                'from': cls._node_summary(graph, from_slug),
-                'to': cls._node_summary(graph, to_slug),
-                'time_months': attrs['time_months'],
-                'difficulty_weight': attrs['weight'],
-                'transition_type': attrs['transition_type'],
-                'rationale': attrs['rationale'],
-                'required_skills': [
-                    {'id': skill_id, 'name': skill_name}
-                    for skill_id, skill_name in zip(
-                        attrs['required_skill_ids'],
-                        attrs['required_skill_names'],
-                    )
-                ],
-            })
+            transitions.append(
+                {
+                    "from": cls._node_summary(graph, from_slug),
+                    "to": cls._node_summary(graph, to_slug),
+                    "time_months": attrs["time_months"],
+                    "difficulty_weight": attrs["weight"],
+                    "transition_type": attrs["transition_type"],
+                    "rationale": attrs["rationale"],
+                    "required_skills": [
+                        {"id": skill_id, "name": skill_name}
+                        for skill_id, skill_name in zip(
+                            attrs["required_skill_ids"],
+                            attrs["required_skill_names"],
+                        )
+                    ],
+                }
+            )
 
-            all_skills.update(attrs['required_skill_names'])
-            total_months += attrs['time_months']
-            total_weight += attrs['weight']
+            all_skills.update(attrs["required_skill_names"])
+            total_months += attrs["time_months"]
+            total_weight += attrs["weight"]
 
         return {
-            'nodes': [cls._node_summary(graph, slug) for slug in path],
-            'transitions': transitions,
-            'total_steps': len(path) - 1,
-            'total_months': total_months,
-            'total_years': round(total_months / 12, 1),
-            'total_difficulty': total_weight,
-            'all_skills_to_learn': sorted(all_skills),
+            "nodes": [cls._node_summary(graph, slug) for slug in path],
+            "transitions": transitions,
+            "total_steps": len(path) - 1,
+            "total_months": total_months,
+            "total_years": round(total_months / 12, 1),
+            "total_difficulty": total_weight,
+            "all_skills_to_learn": sorted(all_skills),
         }

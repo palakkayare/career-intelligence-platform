@@ -8,39 +8,74 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0003_user_auth_provider_user_full_name_user_google_sub_and_more'),
+        ("accounts", "0003_user_auth_provider_user_full_name_user_google_sub_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TwoFactorAuth',
+            name="TwoFactorAuth",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('secret', models.CharField(max_length=32)),
-                ('is_enabled', models.BooleanField(default=False)),
-                ('enabled_at', models.DateTimeField(blank=True, null=True)),
-                ('last_used_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='two_factor', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("secret", models.CharField(max_length=32)),
+                ("is_enabled", models.BooleanField(default=False)),
+                ("enabled_at", models.DateTimeField(blank=True, null=True)),
+                ("last_used_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="two_factor",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'two_factor_auth',
+                "db_table": "two_factor_auth",
             },
         ),
         migrations.CreateModel(
-            name='BackupCode',
+            name="BackupCode",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code_hash', models.CharField(db_index=True, max_length=64)),
-                ('is_used', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('used_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='backup_codes', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code_hash", models.CharField(db_index=True, max_length=64)),
+                ("is_used", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="backup_codes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'backup_codes',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', 'is_used'], name='backup_code_user_id_07fbaf_idx')],
+                "db_table": "backup_codes",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "is_used"],
+                        name="backup_code_user_id_07fbaf_idx",
+                    )
+                ],
             },
         ),
     ]

@@ -8,22 +8,30 @@ from .models import Company, RecruiterProfile
 
 class CompanyListSerializer(serializers.ModelSerializer):
     """Compact for list views."""
+
     industry = IndustrySerializer(read_only=True)
 
     class Meta:
         model = Company
         fields = (
-            'id', 'name', 'slug', 'logo', 'industry',
-            'size', 'is_verified', 'headquarters_location',
+            "id",
+            "name",
+            "slug",
+            "logo",
+            "industry",
+            "size",
+            "is_verified",
+            "headquarters_location",
         )
 
 
 class CompanyDetailSerializer(serializers.ModelSerializer):
     """Full company info."""
+
     industry = IndustrySerializer(read_only=True)
     industry_id = serializers.PrimaryKeyRelatedField(
         queryset=Industry.objects.filter(is_active=True),
-        source='industry',
+        source="industry",
         write_only=True,
         required=False,
         allow_null=True,
@@ -33,13 +41,29 @@ class CompanyDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = (
-            'id', 'name', 'slug', 'logo', 'description', 'culture_statement',
-            'industry', 'industry_id', 'size', 'founded_year', 'website',
-            'headquarters_location', 'is_verified', 'verified_at',
-            'team_size', 'created_at',
+            "id",
+            "name",
+            "slug",
+            "logo",
+            "description",
+            "culture_statement",
+            "industry",
+            "industry_id",
+            "size",
+            "founded_year",
+            "website",
+            "headquarters_location",
+            "is_verified",
+            "verified_at",
+            "team_size",
+            "created_at",
         )
         read_only_fields = (
-            'slug', 'is_verified', 'verified_at', 'team_size', 'created_at',
+            "slug",
+            "is_verified",
+            "verified_at",
+            "team_size",
+            "created_at",
         )
 
     def get_team_size(self, obj):
@@ -49,17 +73,19 @@ class CompanyDetailSerializer(serializers.ModelSerializer):
 class CompanyLogoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ('logo',)
+        fields = ("logo",)
 
     def validate_logo(self, value):
         if value.size > 2 * 1024 * 1024:
             raise serializers.ValidationError("Logo too large (max 2MB).")
-        if value.content_type not in ['image/jpeg', 'image/png', 'image/webp']:
+        if value.content_type not in ["image/jpeg", "image/png", "image/webp"]:
             raise serializers.ValidationError("Use JPG, PNG, or WebP.")
         return value
-    
+
+
 class RecruiterProfileSerializer(serializers.ModelSerializer):
     """Full recruiter profile, with conditional contact reveal."""
+
     company = CompanyListSerializer(read_only=True)
     email = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
@@ -67,13 +93,24 @@ class RecruiterProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecruiterProfile
         fields = (
-            'id', 'full_name', 'position', 'bio', 'profile_photo',
-            'company', 'is_company_admin',
-            'email', 'phone', 'linkedin_url', 'contact_visibility',
-            'created_at',
+            "id",
+            "full_name",
+            "position",
+            "bio",
+            "profile_photo",
+            "company",
+            "is_company_admin",
+            "email",
+            "phone",
+            "linkedin_url",
+            "contact_visibility",
+            "created_at",
         )
         read_only_fields = (
-            'is_company_admin', 'company', 'email', 'created_at',
+            "is_company_admin",
+            "company",
+            "email",
+            "created_at",
         )
 
     def get_email(self, obj):
@@ -88,7 +125,7 @@ class RecruiterProfileSerializer(serializers.ModelSerializer):
 
     def _can_see_contact(self, obj):
         """Apply contact_visibility rules."""
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
 
@@ -114,7 +151,10 @@ class RecruiterProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecruiterProfile
         fields = (
-            'full_name', 'position', 'bio',
-            'phone', 'linkedin_url', 'contact_visibility',
+            "full_name",
+            "position",
+            "bio",
+            "phone",
+            "linkedin_url",
+            "contact_visibility",
         )
-    

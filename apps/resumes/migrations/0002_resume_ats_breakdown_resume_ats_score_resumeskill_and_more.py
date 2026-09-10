@@ -7,44 +7,81 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('resumes', '0001_initial'),
-        ('skills', '0001_initial'),
+        ("resumes", "0001_initial"),
+        ("skills", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='resume',
-            name='ats_breakdown',
+            model_name="resume",
+            name="ats_breakdown",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='resume',
-            name='ats_score',
+            model_name="resume",
+            name="ats_score",
             field=models.PositiveSmallIntegerField(blank=True, null=True),
         ),
         migrations.CreateModel(
-            name='ResumeSkill',
+            name="ResumeSkill",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('confidence', models.FloatField(default=0.5)),
-                ('source', models.CharField(choices=[('skills_section', 'Skills Section'), ('experience', 'Experience Section'), ('education', 'Education Section'), ('general', 'General Text'), ('user_added', 'User Added')], default='general', max_length=30)),
-                ('mention_count', models.PositiveSmallIntegerField(default=1)),
-                ('is_confirmed', models.BooleanField(default=False)),
-                ('is_user_added', models.BooleanField(default=False)),
-                ('resume', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='resume_skills', to='resumes.resume')),
-                ('skill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='resume_skills', to='skills.skill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("confidence", models.FloatField(default=0.5)),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[
+                            ("skills_section", "Skills Section"),
+                            ("experience", "Experience Section"),
+                            ("education", "Education Section"),
+                            ("general", "General Text"),
+                            ("user_added", "User Added"),
+                        ],
+                        default="general",
+                        max_length=30,
+                    ),
+                ),
+                ("mention_count", models.PositiveSmallIntegerField(default=1)),
+                ("is_confirmed", models.BooleanField(default=False)),
+                ("is_user_added", models.BooleanField(default=False)),
+                (
+                    "resume",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="resume_skills",
+                        to="resumes.resume",
+                    ),
+                ),
+                (
+                    "skill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="resume_skills",
+                        to="skills.skill",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'resume_skills',
-                'ordering': ['-confidence', 'skill__name'],
-                'unique_together': {('resume', 'skill')},
+                "db_table": "resume_skills",
+                "ordering": ["-confidence", "skill__name"],
+                "unique_together": {("resume", "skill")},
             },
         ),
         migrations.AddField(
-            model_name='resume',
-            name='extracted_skills',
-            field=models.ManyToManyField(related_name='resumes', through='resumes.ResumeSkill', to='skills.skill'),
+            model_name="resume",
+            name="extracted_skills",
+            field=models.ManyToManyField(
+                related_name="resumes", through="resumes.ResumeSkill", to="skills.skill"
+            ),
         ),
     ]

@@ -1,6 +1,7 @@
 """
 Cross-cutting views: the admin metrics dashboard.
 """
+
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,11 +16,12 @@ class HealthCheckView(APIView):
     seconds. Deliberately does not touch the database: a brief database blip
     should not cause the orchestrator to kill otherwise healthy containers.
     """
+
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
     def get(self, request):
-        return Response({'status': 'ok'})
+        return Response({"status": "ok"})
 
 
 class ReadinessCheckView(APIView):
@@ -30,6 +32,7 @@ class ReadinessCheckView(APIView):
     database and cache have to be reachable. Returns 503 when they are not, so
     a load balancer can take the container out of rotation without killing it.
     """
+
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
@@ -41,21 +44,21 @@ class ReadinessCheckView(APIView):
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute('SELECT 1')
-            checks['database'] = 'ok'
+                cursor.execute("SELECT 1")
+            checks["database"] = "ok"
         except Exception as exc:
-            checks['database'] = f'error: {exc}'
+            checks["database"] = f"error: {exc}"
 
         try:
-            cache.set('healthcheck', 'ok', 10)
-            checks['cache'] = 'ok' if cache.get('healthcheck') == 'ok' else 'error: readback failed'
+            cache.set("healthcheck", "ok", 10)
+            checks["cache"] = "ok" if cache.get("healthcheck") == "ok" else "error: readback failed"
         except Exception as exc:
-            checks['cache'] = f'error: {exc}'
+            checks["cache"] = f"error: {exc}"
 
-        healthy = all(value == 'ok' for value in checks.values())
+        healthy = all(value == "ok" for value in checks.values())
 
         return Response(
-            {'status': 'ok' if healthy else 'degraded', 'checks': checks},
+            {"status": "ok" if healthy else "degraded", "checks": checks},
             status=200 if healthy else 503,
         )
 
@@ -68,6 +71,7 @@ class AdminDashboardView(APIView):
     rate, active plans" and "Platform health metrics: DAU, MAU, applications
     per day".
     """
+
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
@@ -78,6 +82,7 @@ class AdminDashboardView(APIView):
 
 class RevenueMetricsView(APIView):
     """GET /api/v1/admin/dashboard/revenue/"""
+
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
@@ -88,6 +93,7 @@ class RevenueMetricsView(APIView):
 
 class ActivityMetricsView(APIView):
     """GET /api/v1/admin/dashboard/activity/"""
+
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):

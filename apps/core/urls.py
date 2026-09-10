@@ -9,12 +9,12 @@ from .views import (
 )
 
 admin_dashboard_patterns = [
-    path('', AdminDashboardView.as_view(), name='dashboard'),
-    path('revenue/', RevenueMetricsView.as_view(), name='dashboard-revenue'),
-    path('activity/', ActivityMetricsView.as_view(), name='dashboard-activity'),
+    path("", AdminDashboardView.as_view(), name="dashboard"),
+    path("revenue/", RevenueMetricsView.as_view(), name="dashboard-revenue"),
+    path("activity/", ActivityMetricsView.as_view(), name="dashboard-activity"),
 ]
 
 health_patterns = [
-    path('', HealthCheckView.as_view(), name='health'),
-    path('ready/', ReadinessCheckView.as_view(), name='health-ready'),
+    path("", HealthCheckView.as_view(), name="health"),
+    path("ready/", ReadinessCheckView.as_view(), name="health-ready"),
 ]

@@ -1,6 +1,7 @@
 """
 Throttle configuration and behaviour.
 """
+
 import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
@@ -22,6 +23,7 @@ def clear_throttle_cache():
 # Configuration
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.regression
 def test_blueprint_throttle_rates_are_configured():
     """
@@ -30,31 +32,34 @@ def test_blueprint_throttle_rates_are_configured():
     """
     from django.conf import settings
 
-    rates = settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
-    assert 'search' in rates
-    assert 'apply' in rates
+    rates = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    assert "search" in rates
+    assert "apply" in rates
 
 
 def test_throttle_scopes():
-    assert SearchThrottle.scope == 'search'
-    assert ApplyThrottle.scope == 'apply'
+    assert SearchThrottle.scope == "search"
+    assert ApplyThrottle.scope == "apply"
 
 
-@pytest.mark.parametrize('view_path,throttle_name', [
-    ('apps.jobs.views.JobSearchView', 'SearchThrottle'),
-    ('apps.jobs.views.PublicJobListView', 'SearchThrottle'),
-    ('apps.applications.views.ApplyToJobView', 'ApplyThrottle'),
-    ('apps.recruiters.candidate_views.CandidateSearchView', 'SearchThrottle'),
-])
+@pytest.mark.parametrize(
+    "view_path,throttle_name",
+    [
+        ("apps.jobs.views.JobSearchView", "SearchThrottle"),
+        ("apps.jobs.views.PublicJobListView", "SearchThrottle"),
+        ("apps.applications.views.ApplyToJobView", "ApplyThrottle"),
+        ("apps.recruiters.candidate_views.CandidateSearchView", "SearchThrottle"),
+    ],
+)
 def test_expensive_views_are_throttled(view_path, throttle_name):
     import importlib
 
-    module_path, class_name = view_path.rsplit('.', 1)
+    module_path, class_name = view_path.rsplit(".", 1)
     view = getattr(importlib.import_module(module_path), class_name)
 
     assert any(
         t.__name__ == throttle_name for t in view.throttle_classes
-    ), f'{class_name} should carry {throttle_name}'
+    ), f"{class_name} should carry {throttle_name}"
 
 
 def test_every_throttle_scope_has_a_rate():
@@ -64,7 +69,7 @@ def test_every_throttle_scope_has_a_rate():
     from apps.accounts import throttles as auth_throttles
     from apps.payments.views import SubscriptionThrottle
 
-    rates = settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+    rates = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
     scopes = {
         SearchThrottle.scope,
         ApplyThrottle.scope,
@@ -76,21 +81,23 @@ def test_every_throttle_scope_has_a_rate():
         auth_throttles.TwoFAThrottle.scope,
     }
 
-    assert scopes <= set(rates), f'missing rates for {scopes - set(rates)}'
+    assert scopes <= set(rates), f"missing rates for {scopes - set(rates)}"
 
 
 # --------------------------------------------------------------------------
 # Behaviour
 # --------------------------------------------------------------------------
 
+
 # DRF resolves THROTTLE_RATES once, into a class attribute on
 # SimpleRateThrottle, so override_settings never reaches it. Patching the
 # dict directly is what actually changes the limit for a test.
 def _tight_limit():
     from unittest.mock import patch
+
     from rest_framework.throttling import SimpleRateThrottle
 
-    return patch.dict(SimpleRateThrottle.THROTTLE_RATES, {'search': '2/min'})
+    return patch.dict(SimpleRateThrottle.THROTTLE_RATES, {"search": "2/min"})
 
 
 def test_search_returns_429_once_the_limit_is_hit(seeker_user):
@@ -98,10 +105,10 @@ def test_search_returns_429_once_the_limit_is_hit(seeker_user):
     client.force_authenticate(user=seeker_user)
 
     with _tight_limit():
-        assert client.get('/api/v1/jobs/search/?q=python').status_code == 200
-        assert client.get('/api/v1/jobs/search/?q=python').status_code == 200
+        assert client.get("/api/v1/jobs/search/?q=python").status_code == 200
+        assert client.get("/api/v1/jobs/search/?q=python").status_code == 200
 
-        blocked = client.get('/api/v1/jobs/search/?q=python')
+        blocked = client.get("/api/v1/jobs/search/?q=python")
 
     assert blocked.status_code == 429
 
@@ -116,19 +123,18 @@ def test_the_limit_is_per_user_not_global(seeker_user, recruiter_user):
 
     with _tight_limit():
         for _ in range(3):
-            first.get('/api/v1/jobs/search/?q=python')
+            first.get("/api/v1/jobs/search/?q=python")
 
-        assert first.get('/api/v1/jobs/search/?q=python').status_code == 429
-        assert second.get('/api/v1/jobs/search/?q=python').status_code == 200
+        assert first.get("/api/v1/jobs/search/?q=python").status_code == 429
+        assert second.get("/api/v1/jobs/search/?q=python").status_code == 200
 
 
 # --------------------------------------------------------------------------
 # Admin dashboard metrics
 # --------------------------------------------------------------------------
 
-from decimal import Decimal
 from datetime import timedelta
-from unittest.mock import patch
+from decimal import Decimal
 
 from django.utils import timezone
 
@@ -140,8 +146,8 @@ def paid_subscriber(free_seeker, plans):
     """A seeker on an active paid Pro plan."""
     from apps.payments.models import Subscription
 
-    sub = free_seeker.user.subscriptions.order_by('-created_at').first()
-    sub.plan = plans['pro']
+    sub = free_seeker.user.subscriptions.order_by("-created_at").first()
+    sub.plan = plans["pro"]
     sub.status = Subscription.Status.ACTIVE
     sub.trial_ends_at = None
     sub.current_period_start = timezone.now() - timedelta(days=5)
@@ -156,25 +162,28 @@ def test_mrr_counts_active_paid_subscriptions(paid_subscriber, plans):
     Regression: Feature 10 asks for a revenue dashboard with MRR, churn and
     active plans. None of it existed.
     """
-    assert RevenueMetrics.mrr() == Decimal('499.00')
-    assert RevenueMetrics.arr() == Decimal('5988.00')
+    assert RevenueMetrics.mrr() == Decimal("499.00")
+    assert RevenueMetrics.arr() == Decimal("5988.00")
     assert RevenueMetrics.active_paid_subscriptions().count() == 1
 
 
 def test_trials_do_not_count_towards_mrr(seeker_user):
     """A trial pays nothing, so it must not inflate recurring revenue."""
-    assert seeker_user.subscriptions.get().status == 'trialing'
-    assert RevenueMetrics.mrr() == Decimal('0.00')
+    assert seeker_user.subscriptions.get().status == "trialing"
+    assert RevenueMetrics.mrr() == Decimal("0.00")
 
 
 def test_yearly_plans_are_spread_across_the_year(free_seeker, plans):
     from apps.payments.models import Plan, Subscription
 
     yearly = Plan.objects.create(
-        name='Pro Yearly', slug='pro_yearly', tier=Plan.Tier.PRO,
-        billing_period=Plan.BillingPeriod.YEARLY, price_inr=Decimal('4790'),
+        name="Pro Yearly",
+        slug="pro_yearly",
+        tier=Plan.Tier.PRO,
+        billing_period=Plan.BillingPeriod.YEARLY,
+        price_inr=Decimal("4790"),
     )
-    sub = free_seeker.user.subscriptions.order_by('-created_at').first()
+    sub = free_seeker.user.subscriptions.order_by("-created_at").first()
     sub.plan = yearly
     sub.status = Subscription.Status.ACTIVE
     sub.trial_ends_at = None
@@ -182,7 +191,7 @@ def test_yearly_plans_are_spread_across_the_year(free_seeker, plans):
     sub.save()
 
     # 4790 / 12, not 4790
-    assert RevenueMetrics.mrr() == Decimal('399.17')
+    assert RevenueMetrics.mrr() == Decimal("399.17")
 
 
 def test_expired_subscriptions_drop_out_of_mrr(paid_subscriber):
@@ -190,7 +199,7 @@ def test_expired_subscriptions_drop_out_of_mrr(paid_subscriber):
     sub.current_period_end = timezone.now() - timedelta(days=1)
     sub.save()
 
-    assert RevenueMetrics.mrr() == Decimal('0.00')
+    assert RevenueMetrics.mrr() == Decimal("0.00")
 
 
 def test_a_cancelled_but_unexpired_plan_still_counts(paid_subscriber):
@@ -202,11 +211,11 @@ def test_a_cancelled_but_unexpired_plan_still_counts(paid_subscriber):
     sub.cancelled_at = timezone.now()
     sub.save()
 
-    assert RevenueMetrics.mrr() == Decimal('499.00')
+    assert RevenueMetrics.mrr() == Decimal("499.00")
 
 
 def test_churn_is_zero_with_no_cancellations(paid_subscriber):
-    assert RevenueMetrics.churn_rate() == Decimal('0.00')
+    assert RevenueMetrics.churn_rate() == Decimal("0.00")
 
 
 def test_churn_counts_cancellations_against_the_starting_base(paid_subscriber):
@@ -218,22 +227,24 @@ def test_churn_counts_cancellations_against_the_starting_base(paid_subscriber):
     sub.save()
 
     # One canceller, no survivors -> 100%
-    assert RevenueMetrics.churn_rate() == Decimal('100.00')
+    assert RevenueMetrics.churn_rate() == Decimal("100.00")
 
 
 def test_subscribers_by_plan(paid_subscriber):
-    assert RevenueMetrics.subscribers_by_plan() == {'Pro Monthly': 1}
+    assert RevenueMetrics.subscribers_by_plan() == {"Pro Monthly": 1}
 
 
 # --------------------------------------------------------------------------
 # Activity
 # --------------------------------------------------------------------------
 
+
 def _log_login(user, days_ago=0):
     from apps.accounts.models import LoginHistory
 
     entry = LoginHistory.objects.create(
-        user=user, email_attempted=user.email,
+        user=user,
+        email_attempted=user.email,
         status=LoginHistory.Status.SUCCESS,
     )
     if days_ago:
@@ -244,7 +255,7 @@ def _log_login(user, days_ago=0):
 
 
 def test_dau_and_mau(seeker_user, recruiter_user):
-    _log_login(seeker_user)                 # today
+    _log_login(seeker_user)  # today
     _log_login(recruiter_user, days_ago=10)  # this month, not today
 
     assert ActivityMetrics.dau() == 1
@@ -263,7 +274,8 @@ def test_failed_logins_are_not_activity(seeker_user):
     from apps.accounts.models import LoginHistory
 
     LoginHistory.objects.create(
-        user=seeker_user, email_attempted=seeker_user.email,
+        user=seeker_user,
+        email_attempted=seeker_user.email,
         status=LoginHistory.Status.FAILED,
     )
 
@@ -278,36 +290,37 @@ def test_applications_per_day_fills_empty_days(seeker, job):
     series = ActivityMetrics.applications_per_day(days=7)
 
     assert len(series) == 7
-    assert series[-1]['count'] == 1, 'today is last'
-    assert all(day['count'] == 0 for day in series[:-1])
+    assert series[-1]["count"] == 1, "today is last"
+    assert all(day["count"] == 0 for day in series[:-1])
 
 
 def test_withdrawn_applications_stay_in_the_history(seeker, job):
     """Removing them would silently rewrite past days."""
     from apps.applications.models import Application
-    from apps.applications.services import (
-        ApplicationCreationService, ApplicationStatusService,
-    )
+    from apps.applications.services import ApplicationCreationService, ApplicationStatusService
 
     app = ApplicationCreationService.create(seeker, job)
     ApplicationStatusService.update_status(
-        app, Application.Status.WITHDRAWN, actor=seeker.user,
+        app,
+        Application.Status.WITHDRAWN,
+        actor=seeker.user,
     )
 
     series = ActivityMetrics.applications_per_day(days=7)
-    assert series[-1]['count'] == 1
+    assert series[-1]["count"] == 1
 
 
 # --------------------------------------------------------------------------
 # Endpoint
 # --------------------------------------------------------------------------
 
+
 def test_dashboard_snapshot_shape(paid_subscriber):
     snapshot = dashboard_snapshot()
 
-    assert 'revenue' in snapshot and 'activity' in snapshot
-    assert snapshot['revenue']['mrr'] == Decimal('499.00')
-    assert 'dau' in snapshot['activity']
+    assert "revenue" in snapshot and "activity" in snapshot
+    assert snapshot["revenue"]["mrr"] == Decimal("499.00")
+    assert "dau" in snapshot["activity"]
 
 
 def test_dashboard_requires_staff(seeker_user):
@@ -316,7 +329,7 @@ def test_dashboard_requires_staff(seeker_user):
     client = APIClient()
     client.force_authenticate(user=seeker_user)
 
-    assert client.get('/api/v1/admin/dashboard/').status_code == 403
+    assert client.get("/api/v1/admin/dashboard/").status_code == 403
 
 
 def test_staff_can_read_the_dashboard(plans):
@@ -325,15 +338,16 @@ def test_staff_can_read_the_dashboard(plans):
     from apps.accounts.models import User
 
     admin = User.objects.create_superuser(
-        email='ops@test.com', password='TestPass123!',
+        email="ops@test.com",
+        password="TestPass123!",
     )
     client = APIClient()
     client.force_authenticate(user=admin)
 
-    response = client.get('/api/v1/admin/dashboard/')
+    response = client.get("/api/v1/admin/dashboard/")
 
     assert response.status_code == 200
-    assert 'revenue' in response.data
+    assert "revenue" in response.data
 
 
 # --------------------------------------------------------------------------
@@ -350,91 +364,110 @@ def test_passwords_never_leave_the_process():
     is, the risk shifts to what gets sent - this platform holds resumes,
     salary data and payment records.
     """
-    event = before_send({
-        'request': {'data': {'email': 'a@test.com', 'password': 'hunter2'}},
-    }, {})
+    event = before_send(
+        {
+            "request": {"data": {"email": "a@test.com", "password": "hunter2"}},
+        },
+        {},
+    )
 
-    assert event['request']['data']['password'] == '[Filtered]'
-    assert event['request']['data']['email'] == 'a@test.com'
+    assert event["request"]["data"]["password"] == "[Filtered]"
+    assert event["request"]["data"]["email"] == "a@test.com"
 
 
 def test_tokens_and_signatures_are_scrubbed():
-    event = before_send({
-        'extra': {
-            'razorpay_signature': 'abc123',
-            'refresh_token': 'eyJ...',
-            'fcm_token': 'device-abc',
-            'order_id': 'order_TEST123',
+    event = before_send(
+        {
+            "extra": {
+                "razorpay_signature": "abc123",
+                "refresh_token": "eyJ...",
+                "fcm_token": "device-abc",
+                "order_id": "order_TEST123",
+            },
         },
-    }, {})
+        {},
+    )
 
-    assert event['extra']['razorpay_signature'] == '[Filtered]'
-    assert event['extra']['refresh_token'] == '[Filtered]'
-    assert event['extra']['fcm_token'] == '[Filtered]'
-    assert event['extra']['order_id'] == 'order_TEST123', 'not sensitive'
+    assert event["extra"]["razorpay_signature"] == "[Filtered]"
+    assert event["extra"]["refresh_token"] == "[Filtered]"
+    assert event["extra"]["fcm_token"] == "[Filtered]"
+    assert event["extra"]["order_id"] == "order_TEST123", "not sensitive"
 
 
 def test_salary_figures_are_scrubbed():
     """Salary submissions are collected on a promise of anonymity."""
-    event = before_send({
-        'extra': {'salary_inr': '1200000', 'role_title': 'Backend Developer'},
-    }, {})
+    event = before_send(
+        {
+            "extra": {"salary_inr": "1200000", "role_title": "Backend Developer"},
+        },
+        {},
+    )
 
-    assert event['extra']['salary_inr'] == '[Filtered]'
-    assert event['extra']['role_title'] == 'Backend Developer'
+    assert event["extra"]["salary_inr"] == "[Filtered]"
+    assert event["extra"]["role_title"] == "Backend Developer"
 
 
 def test_cookies_are_dropped_entirely():
     """There is no safe version of a session cookie."""
-    event = before_send({
-        'request': {'cookies': {'sessionid': 'abc'}, 'url': '/api/v1/jobs/'},
-    }, {})
+    event = before_send(
+        {
+            "request": {"cookies": {"sessionid": "abc"}, "url": "/api/v1/jobs/"},
+        },
+        {},
+    )
 
-    assert 'cookies' not in event['request']
-    assert event['request']['url'] == '/api/v1/jobs/'
+    assert "cookies" not in event["request"]
+    assert event["request"]["url"] == "/api/v1/jobs/"
 
 
 def test_scrubbing_reaches_nested_values():
-    event = before_send({
-        'extra': {'payload': {'user': {'api_key': 'k-123', 'id': 7}}},
-    }, {})
+    event = before_send(
+        {
+            "extra": {"payload": {"user": {"api_key": "k-123", "id": 7}}},
+        },
+        {},
+    )
 
-    assert event['extra']['payload']['user']['api_key'] == '[Filtered]'
-    assert event['extra']['payload']['user']['id'] == 7
+    assert event["extra"]["payload"]["user"]["api_key"] == "[Filtered]"
+    assert event["extra"]["payload"]["user"]["id"] == 7
 
 
 def test_scrubbing_handles_lists():
-    event = before_send({
-        'extra': {'items': [{'token': 't1'}, {'name': 'ok'}]},
-    }, {})
+    event = before_send(
+        {
+            "extra": {"items": [{"token": "t1"}, {"name": "ok"}]},
+        },
+        {},
+    )
 
-    assert event['extra']['items'][0]['token'] == '[Filtered]'
-    assert event['extra']['items'][1]['name'] == 'ok'
+    assert event["extra"]["items"][0]["token"] == "[Filtered]"
+    assert event["extra"]["items"][1]["name"] == "ok"
 
 
 def test_an_event_with_nothing_sensitive_passes_through():
-    event = before_send({'request': {'url': '/api/v1/jobs/', 'method': 'GET'}}, {})
+    event = before_send({"request": {"url": "/api/v1/jobs/", "method": "GET"}}, {})
 
-    assert event['request']['url'] == '/api/v1/jobs/'
-    assert event['request']['method'] == 'GET'
+    assert event["request"]["url"] == "/api/v1/jobs/"
+    assert event["request"]["method"] == "GET"
 
 
 def test_blank_dsn_disables_sentry_quietly():
     """Development and CI have no Sentry project, and should not need one."""
-    assert init_sentry(dsn='', environment='test') is False
+    assert init_sentry(dsn="", environment="test") is False
 
 
 def test_client_errors_are_ignored():
     """4xx are client mistakes; they would bury real defects."""
     from apps.core.observability import IGNORED_EXCEPTIONS
 
-    assert 'rest_framework.exceptions.ValidationError' in IGNORED_EXCEPTIONS
-    assert 'rest_framework.exceptions.NotFound' in IGNORED_EXCEPTIONS
+    assert "rest_framework.exceptions.ValidationError" in IGNORED_EXCEPTIONS
+    assert "rest_framework.exceptions.NotFound" in IGNORED_EXCEPTIONS
 
 
 # --------------------------------------------------------------------------
 # Health checks
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.regression
 def test_health_is_public():
@@ -444,10 +477,10 @@ def test_health_is_public():
     """
     from rest_framework.test import APIClient
 
-    response = APIClient().get('/api/v1/health/')
+    response = APIClient().get("/api/v1/health/")
 
     assert response.status_code == 200
-    assert response.data['status'] == 'ok'
+    assert response.data["status"] == "ok"
 
 
 def test_health_does_not_touch_the_database(django_assert_num_queries):
@@ -455,17 +488,17 @@ def test_health_does_not_touch_the_database(django_assert_num_queries):
     from rest_framework.test import APIClient
 
     with django_assert_num_queries(0):
-        APIClient().get('/api/v1/health/')
+        APIClient().get("/api/v1/health/")
 
 
 def test_readiness_reports_dependencies():
     from rest_framework.test import APIClient
 
-    response = APIClient().get('/api/v1/health/ready/')
+    response = APIClient().get("/api/v1/health/ready/")
 
     assert response.status_code == 200
-    assert response.data['checks']['database'] == 'ok'
-    assert response.data['checks']['cache'] == 'ok'
+    assert response.data["checks"]["database"] == "ok"
+    assert response.data["checks"]["cache"] == "ok"
 
 
 def test_readiness_returns_503_when_the_database_is_down():
@@ -474,9 +507,9 @@ def test_readiness_returns_503_when_the_database_is_down():
 
     from rest_framework.test import APIClient
 
-    with patch('django.db.connection.cursor', side_effect=RuntimeError('down')):
-        response = APIClient().get('/api/v1/health/ready/')
+    with patch("django.db.connection.cursor", side_effect=RuntimeError("down")):
+        response = APIClient().get("/api/v1/health/ready/")
 
     assert response.status_code == 503
-    assert response.data['status'] == 'degraded'
-    assert 'down' in response.data['checks']['database']
+    assert response.data["status"] == "degraded"
+    assert "down" in response.data["checks"]["database"]

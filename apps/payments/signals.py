@@ -1,6 +1,7 @@
 """
 Auto-grant free trial on user signup.
 """
+
 import logging
 
 from django.conf import settings
@@ -21,7 +22,7 @@ def grant_free_trial_on_signup(sender, instance, created, **kwargs):
     if not created:
         return
 
-    if instance.role == 'admin':
+    if instance.role == "admin":
         return
 
     try:

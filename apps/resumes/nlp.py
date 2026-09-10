@@ -1,6 +1,7 @@
 """
 spaCy model loader. Singleton — model is loaded only once per process.
 """
+
 import logging
 from functools import lru_cache
 
@@ -16,7 +17,7 @@ def get_nlp():
     Subsequent calls return the same cached instance.
     """
     try:
-        nlp = spacy.load('en_core_web_sm')
+        nlp = spacy.load("en_core_web_sm")
         logger.info("spaCy model loaded: en_core_web_sm")
         return nlp
     except OSError:

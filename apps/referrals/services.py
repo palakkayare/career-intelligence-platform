@@ -25,8 +25,15 @@ MAX_REWARDS_PER_REFERRER_PER_MONTH = 10
 
 # Sharing a domain with these providers is normal, so it is not suspicious
 PUBLIC_EMAIL_DOMAINS = {
-    'gmail.com', 'googlemail.com', 'yahoo.com', 'outlook.com',
-    'hotmail.com', 'live.com', 'icloud.com', 'protonmail.com', 'proton.me',
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "icloud.com",
+    "protonmail.com",
+    "proton.me",
 }
 
 
@@ -40,7 +47,7 @@ class ReferralService:
         """Return the user's referral code, generating one if missing."""
         code, _created = ReferralCode.objects.get_or_create(
             user=user,
-            defaults={'code': generate_unique_code(user)},
+            defaults={"code": generate_unique_code(user)},
         )
         return code
 
@@ -53,7 +60,7 @@ class ReferralService:
         ReferralCode.objects.filter(
             code=code_str.upper().strip(),
             is_active=True,
-        ).update(click_count=F('click_count') + 1)
+        ).update(click_count=F("click_count") + 1)
 
     # ─── Signup linking ───
 
@@ -91,11 +98,10 @@ class ReferralService:
             return None
 
         # Rule 3: matching private email domains look like farmed accounts
-        referrer_domain = code.user.email.split('@')[-1].lower()
-        referee_domain = referee_user.email.split('@')[-1].lower()
+        referrer_domain = code.user.email.split("@")[-1].lower()
+        referee_domain = referee_user.email.split("@")[-1].lower()
         is_flagged = (
-            referrer_domain == referee_domain
-            and referrer_domain not in PUBLIC_EMAIL_DOMAINS
+            referrer_domain == referee_domain and referrer_domain not in PUBLIC_EMAIL_DOMAINS
         )
 
         referral = Referral.objects.create(
@@ -105,11 +111,11 @@ class ReferralService:
             status=Referral.Status.FLAGGED if is_flagged else Referral.Status.PENDING,
             referee_signup_ip=ip_address,
             is_flagged=is_flagged,
-            flag_reason='Same private email domain (suspicious)' if is_flagged else '',
+            flag_reason="Same private email domain (suspicious)" if is_flagged else "",
         )
 
         ReferralCode.objects.filter(pk=code.pk).update(
-            signup_count=F('signup_count') + 1,
+            signup_count=F("signup_count") + 1,
         )
 
         logger.info(f"Referral created: {code.user.email} -> {referee_user.email}")
@@ -127,8 +133,7 @@ class ReferralService:
         both sides. Flagged referrals are ignored on purpose.
         """
         referral = (
-            Referral.objects
-            .select_for_update()
+            Referral.objects.select_for_update()
             .filter(referee=user, status=Referral.Status.PENDING)
             .first()
         )
@@ -139,8 +144,7 @@ class ReferralService:
         from apps.payments.models import PaymentTransaction
 
         previous_paid = (
-            PaymentTransaction.objects
-            .filter(user=user, status=PaymentTransaction.Status.SUCCESS)
+            PaymentTransaction.objects.filter(user=user, status=PaymentTransaction.Status.SUCCESS)
             .exclude(pk=transaction_obj.pk)
             .exists()
         )
@@ -166,21 +170,19 @@ class ReferralService:
             )
             referral.status = Referral.Status.FLAGGED
             referral.is_flagged = True
-            referral.flag_reason = 'Referrer hit the monthly reward cap'
-            referral.save(update_fields=['status', 'is_flagged', 'flag_reason'])
+            referral.flag_reason = "Referrer hit the monthly reward cap"
+            referral.save(update_fields=["status", "is_flagged", "flag_reason"])
             return None
 
         # Mark the referral as converted
         referral.status = Referral.Status.CONVERTED
         referral.converted_at = timezone.now()
         referral.converted_amount_inr = transaction_obj.amount_inr
-        referral.save(
-            update_fields=['status', 'converted_at', 'converted_amount_inr']
-        )
+        referral.save(update_fields=["status", "converted_at", "converted_amount_inr"])
 
         if referral.code_used_id:
             ReferralCode.objects.filter(pk=referral.code_used_id).update(
-                paid_count=F('paid_count') + 1,
+                paid_count=F("paid_count") + 1,
             )
 
         cls._create_rewards(referral)
@@ -198,7 +200,7 @@ class ReferralService:
             referral=referral,
             user=referral.referrer,
             kind=ReferralReward.Kind.PRO_EXTENSION,
-            value={'days': REFERRER_PRO_DAYS},
+            value={"days": REFERRER_PRO_DAYS},
             status=ReferralReward.Status.GRANTED,
             granted_at=now,
             expires_at=now + timedelta(days=REFERRER_REWARD_VALIDITY_DAYS),
@@ -212,11 +214,9 @@ class ReferralService:
             user=referral.referee,
             kind=ReferralReward.Kind.DISCOUNT,
             value={
-                'percent_off': REFEREE_DISCOUNT_PCT,
-                'code': discount_code,
-                'description': (
-                    f'{REFEREE_DISCOUNT_PCT}% off your next subscription'
-                ),
+                "percent_off": REFEREE_DISCOUNT_PCT,
+                "code": discount_code,
+                "description": (f"{REFEREE_DISCOUNT_PCT}% off your next subscription"),
             },
             status=ReferralReward.Status.GRANTED,
             granted_at=now,
@@ -233,24 +233,24 @@ class ReferralService:
             NotificationService.create(
                 user=referral.referrer,
                 kind=NotificationKind.PAYMENT_SUCCESS,  # reused until a referral kind exists
-                title='Your referral converted!',
+                title="Your referral converted!",
                 message=(
-                    f'{referral.referee.email} just subscribed using your code. '
-                    f'You earned {REFERRER_PRO_DAYS} days of Pro on your next renewal.'
+                    f"{referral.referee.email} just subscribed using your code. "
+                    f"You earned {REFERRER_PRO_DAYS} days of Pro on your next renewal."
                 ),
-                link='/referrals/my-rewards/',
-                context={'referee_email': referral.referee.email},
+                link="/referrals/my-rewards/",
+                context={"referee_email": referral.referee.email},
             )
 
             NotificationService.create(
                 user=referral.referee,
                 kind=NotificationKind.PAYMENT_SUCCESS,
-                title='Welcome bonus unlocked!',
+                title="Welcome bonus unlocked!",
                 message=(
-                    f'You signed up with a referral code. '
-                    f'Enjoy {REFEREE_DISCOUNT_PCT}% off your next subscription.'
+                    f"You signed up with a referral code. "
+                    f"Enjoy {REFEREE_DISCOUNT_PCT}% off your next subscription."
                 ),
-                link='/referrals/my-rewards/',
+                link="/referrals/my-rewards/",
                 context={},
             )
         except Exception as exc:
@@ -271,31 +271,34 @@ class ReferralService:
                 status=ReferralReward.Status.GRANTED,
             )
         except ReferralReward.DoesNotExist:
-            raise ValidationError('Reward not found or already used.')
+            raise ValidationError("Reward not found or already used.")
 
         if not reward.is_usable():
-            raise ValidationError('This reward has expired.')
+            raise ValidationError("This reward has expired.")
 
         from apps.payments.models import Subscription
 
-        sub = Subscription.objects.select_for_update().filter(
-            user=user,
-            status=Subscription.Status.ACTIVE,
-        ).first()
+        sub = (
+            Subscription.objects.select_for_update()
+            .filter(
+                user=user,
+                status=Subscription.Status.ACTIVE,
+            )
+            .first()
+        )
 
         if not sub:
             raise ValidationError(
-                'No active subscription to extend. Subscribe first, '
-                'then apply the reward.'
+                "No active subscription to extend. Subscribe first, " "then apply the reward."
             )
 
-        days = reward.value.get('days', 0)
+        days = reward.value.get("days", 0)
         sub.current_period_end = sub.current_period_end + timedelta(days=days)
-        sub.save(update_fields=['current_period_end'])
+        sub.save(update_fields=["current_period_end"])
 
         reward.status = ReferralReward.Status.USED
         reward.used_at = timezone.now()
-        reward.save(update_fields=['status', 'used_at'])
+        reward.save(update_fields=["status", "used_at"])
 
         logger.info(f"Applied a {days}-day Pro extension for {user.email}")
         return True
@@ -308,14 +311,15 @@ class ReferralService:
         code = cls.get_or_create_code(user)
 
         return {
-            'code': code.code,
-            'share_url': f"{settings.FRONTEND_URL}/signup?ref={code.code}",
-            'click_count': code.click_count,
-            'signup_count': code.signup_count,
-            'paid_count': code.paid_count,
-            'conversion_rate': (
+            "code": code.code,
+            "share_url": f"{settings.FRONTEND_URL}/signup?ref={code.code}",
+            "click_count": code.click_count,
+            "signup_count": code.signup_count,
+            "paid_count": code.paid_count,
+            "conversion_rate": (
                 round(code.paid_count / code.signup_count * 100, 1)
-                if code.signup_count > 0 else 0.0
+                if code.signup_count > 0
+                else 0.0
             ),
         }
 
@@ -325,9 +329,8 @@ class ReferralService:
         last_30 = timezone.now() - timedelta(days=30)
 
         return list(
-            Referral.objects
-            .filter(status=Referral.Status.CONVERTED, converted_at__gte=last_30)
-            .values('referrer__id', 'referrer__email', 'referrer__full_name')
-            .annotate(conversion_count=Count('id'))
-            .order_by('-conversion_count')[:limit]
+            Referral.objects.filter(status=Referral.Status.CONVERTED, converted_at__gte=last_30)
+            .values("referrer__id", "referrer__email", "referrer__full_name")
+            .annotate(conversion_count=Count("id"))
+            .order_by("-conversion_count")[:limit]
         )

@@ -25,12 +25,12 @@ def anonymize_name(full_name: str, email: str) -> str:
     "Priya Kayare" -> "Pri***", and the email prefix is used when the
     user has not set a name.
     """
-    name = (full_name or '').strip().split(' ')[0]
+    name = (full_name or "").strip().split(" ")[0]
     if not name:
-        name = (email or '').split('@')[0]
+        name = (email or "").split("@")[0]
     if not name:
-        return 'User***'
-    return name[:3].capitalize() + '***'
+        return "User***"
+    return name[:3].capitalize() + "***"
 
 
 class MyCodeView(APIView):
@@ -66,11 +66,10 @@ class MyRewardsView(generics.ListAPIView):
         # chalta hai, jahan na `self` hota hai na koi request.
         ReferralReward.expire_stale(self.request.user)
 
-        return (
-            ReferralReward.objects
-            .filter(user=self.request.user)
-            .order_by('-granted_at', '-created_at')
+        return ReferralReward.objects.filter(user=self.request.user).order_by(
+            "-granted_at", "-created_at"
         )
+
 
 class TrackClickView(APIView):
     """
@@ -85,8 +84,8 @@ class TrackClickView(APIView):
     def post(self, request):
         serializer = TrackClickSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ReferralService.track_click(serializer.validated_data['code'])
-        return Response({'status': 'tracked'})
+        ReferralService.track_click(serializer.validated_data["code"])
+        return Response({"status": "tracked"})
 
 
 class LeaderboardView(APIView):
@@ -103,20 +102,20 @@ class LeaderboardView(APIView):
 
         entries = [
             {
-                'rank': idx,
-                'name': anonymize_name(
-                    entry['referrer__full_name'], entry['referrer__email']
-                ),
-                'conversion_count': entry['conversion_count'],
-                'is_me': entry['referrer__id'] == request.user.id,
+                "rank": idx,
+                "name": anonymize_name(entry["referrer__full_name"], entry["referrer__email"]),
+                "conversion_count": entry["conversion_count"],
+                "is_me": entry["referrer__id"] == request.user.id,
             }
             for idx, entry in enumerate(raw, start=1)
         ]
 
-        return Response({
-            'leaderboard': LeaderboardEntrySerializer(entries, many=True).data,
-            'period': 'last_30_days',
-        })
+        return Response(
+            {
+                "leaderboard": LeaderboardEntrySerializer(entries, many=True).data,
+                "period": "last_30_days",
+            }
+        )
 
 
 class ApplyRewardView(APIView):
@@ -135,6 +134,6 @@ class ApplyRewardView(APIView):
 
         ReferralService.apply_pro_extension_reward(
             user=request.user,
-            reward_id=serializer.validated_data['reward_id'],
+            reward_id=serializer.validated_data["reward_id"],
         )
-        return Response({'message': 'Reward applied successfully.'})
+        return Response({"message": "Reward applied successfully."})

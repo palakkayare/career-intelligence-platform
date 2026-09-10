@@ -6,30 +6,61 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payments', '0001_initial'),
+        ("payments", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WebhookEvent',
+            name="WebhookEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('razorpay_event_id', models.CharField(db_index=True, max_length=100, unique=True)),
-                ('event_type', models.CharField(db_index=True, max_length=100)),
-                ('payload', models.JSONField()),
-                ('signature', models.CharField(max_length=512)),
-                ('processing_status', models.CharField(choices=[('received', 'Received'), ('processed', 'Processed Successfully'), ('failed', 'Processing Failed'), ('skipped', 'Skipped (Duplicate)')], default='received', max_length=20)),
-                ('processed_at', models.DateTimeField(blank=True, null=True)),
-                ('error_message', models.TextField(blank=True)),
-                ('retry_count', models.PositiveSmallIntegerField(default=0)),
-                ('received_at', models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "razorpay_event_id",
+                    models.CharField(db_index=True, max_length=100, unique=True),
+                ),
+                ("event_type", models.CharField(db_index=True, max_length=100)),
+                ("payload", models.JSONField()),
+                ("signature", models.CharField(max_length=512)),
+                (
+                    "processing_status",
+                    models.CharField(
+                        choices=[
+                            ("received", "Received"),
+                            ("processed", "Processed Successfully"),
+                            ("failed", "Processing Failed"),
+                            ("skipped", "Skipped (Duplicate)"),
+                        ],
+                        default="received",
+                        max_length=20,
+                    ),
+                ),
+                ("processed_at", models.DateTimeField(blank=True, null=True)),
+                ("error_message", models.TextField(blank=True)),
+                ("retry_count", models.PositiveSmallIntegerField(default=0)),
+                ("received_at", models.DateTimeField(auto_now_add=True, db_index=True)),
             ],
             options={
-                'db_table': 'webhook_events',
-                'ordering': ['-received_at'],
-                'indexes': [models.Index(fields=['event_type', 'processing_status'], name='webhook_eve_event_t_9678a4_idx'), models.Index(fields=['-received_at'], name='webhook_eve_receive_1288c2_idx')],
+                "db_table": "webhook_events",
+                "ordering": ["-received_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["event_type", "processing_status"],
+                        name="webhook_eve_event_t_9678a4_idx",
+                    ),
+                    models.Index(
+                        fields=["-received_at"], name="webhook_eve_receive_1288c2_idx"
+                    ),
+                ],
             },
         ),
     ]

@@ -1,6 +1,7 @@
 """
 User manager and soft-delete tests.
 """
+
 import pytest
 
 from apps.accounts.models import User
@@ -9,15 +10,16 @@ pytestmark = pytest.mark.django_db
 
 
 def test_create_user_defaults_to_seeker(plans):
-    user = User.objects.create_user(email='a@test.com', password='TestPass123!')
+    user = User.objects.create_user(email="a@test.com", password="TestPass123!")
     assert user.role == User.Role.SEEKER
     assert user.is_seeker is True
-    assert user.check_password('TestPass123!')
+    assert user.check_password("TestPass123!")
 
 
 def test_create_superuser_is_staff_and_verified(plans):
     admin = User.objects.create_superuser(
-        email='admin@test.com', password='TestPass123!',
+        email="admin@test.com",
+        password="TestPass123!",
     )
     assert admin.is_staff
     assert admin.is_superuser
@@ -27,7 +29,9 @@ def test_create_superuser_is_staff_and_verified(plans):
 
 def test_oauth_user_has_no_usable_password(plans):
     user = User.objects.create_oauth_user(
-        email='google@test.com', google_sub='sub-123', full_name='G User',
+        email="google@test.com",
+        google_sub="sub-123",
+        full_name="G User",
     )
     assert user.has_usable_password() is False
     assert user.is_email_verified is True
@@ -53,7 +57,7 @@ def test_soft_deleted_user_cannot_authenticate(seeker_user):
 
     seeker_user.soft_delete()
 
-    assert authenticate(email='seeker@test.com', password='TestPass123!') is None
+    assert authenticate(email="seeker@test.com", password="TestPass123!") is None
 
 
 def test_restore_brings_the_user_back(seeker_user):
@@ -69,6 +73,7 @@ def test_restore_brings_the_user_back(seeker_user):
 # Data export
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.regression
 def test_export_covers_the_main_sections(seeker):
     """
@@ -79,10 +84,15 @@ def test_export_covers_the_main_sections(seeker):
 
     data = DataExportService.build(seeker.user)
 
-    assert data['account']['email'] == seeker.user.email
-    assert data['export_metadata']['format_version']
-    for section in ('account', 'security_activity', 'notifications',
-                    'referrals', 'seeker'):
+    assert data["account"]["email"] == seeker.user.email
+    assert data["export_metadata"]["format_version"]
+    for section in (
+        "account",
+        "security_activity",
+        "notifications",
+        "referrals",
+        "seeker",
+    ):
         assert section in data
 
 
@@ -94,26 +104,26 @@ def test_export_omits_authentication_secrets(seeker):
     blob = json.dumps(DataExportService.build(seeker.user), default=str)
 
     assert seeker.user.password not in blob
-    assert 'password' not in DataExportService.build(seeker.user)['account']
+    assert "password" not in DataExportService.build(seeker.user)["account"]
 
 
 def test_export_includes_applications_including_withdrawn(seeker, job):
     from apps.accounts.privacy import DataExportService
     from apps.applications.models import Application
-    from apps.applications.services import (
-        ApplicationCreationService, ApplicationStatusService,
-    )
+    from apps.applications.services import ApplicationCreationService, ApplicationStatusService
 
     app = ApplicationCreationService.create(seeker, job)
     ApplicationStatusService.update_status(
-        app, Application.Status.WITHDRAWN, actor=seeker.user,
+        app,
+        Application.Status.WITHDRAWN,
+        actor=seeker.user,
     )
 
-    exported = DataExportService.build(seeker.user)['seeker']['applications']
+    exported = DataExportService.build(seeker.user)["seeker"]["applications"]
 
     assert len(exported) == 1
-    assert exported[0]['withdrawn'] is True
-    assert exported[0]['job_title'] == job.title
+    assert exported[0]["withdrawn"] is True
+    assert exported[0]["job_title"] == job.title
 
 
 def test_recruiter_export_has_no_seeker_section(recruiter):
@@ -121,24 +131,27 @@ def test_recruiter_export_has_no_seeker_section(recruiter):
 
     data = DataExportService.build(recruiter.user)
 
-    assert 'recruiter' in data
-    assert 'seeker' not in data
+    assert "recruiter" in data
+    assert "seeker" not in data
 
 
 # --------------------------------------------------------------------------
 # Account deactivation
 # --------------------------------------------------------------------------
 
+
 def test_deactivation_closes_the_account(seeker):
     from apps.accounts.privacy import AccountDeactivationService
 
     AccountDeactivationService.deactivate(
-        seeker.user, password='TestPass123!', reason='Found a job',
+        seeker.user,
+        password="TestPass123!",
+        reason="Found a job",
     )
 
     seeker.user.refresh_from_db()
     assert seeker.user.is_deleted
-    assert seeker.user.deactivation_reason == 'Found a job'
+    assert seeker.user.deactivation_reason == "Found a job"
     assert not User.objects.filter(pk=seeker.user.pk).exists()
 
 
@@ -148,7 +161,7 @@ def test_deactivation_requires_the_password(seeker):
     from apps.accounts.privacy import AccountDeactivationService
 
     with pytest.raises(ValidationError):
-        AccountDeactivationService.deactivate(seeker.user, password='wrong')
+        AccountDeactivationService.deactivate(seeker.user, password="wrong")
 
     seeker.user.refresh_from_db()
     assert not seeker.user.is_deleted
@@ -158,7 +171,9 @@ def test_oauth_account_closes_without_a_password(plans):
     from apps.accounts.privacy import AccountDeactivationService
 
     user = User.objects.create_oauth_user(
-        email='oauth@test.com', google_sub='sub-9', full_name='OAuth User',
+        email="oauth@test.com",
+        google_sub="sub-9",
+        full_name="OAuth User",
     )
 
     AccountDeactivationService.deactivate(user)
@@ -176,10 +191,11 @@ def test_deactivation_withdraws_live_applications(seeker, six_jobs):
         ApplicationCreationService.create(seeker, job)
 
     summary = AccountDeactivationService.deactivate(
-        seeker.user, password='TestPass123!',
+        seeker.user,
+        password="TestPass123!",
     )
 
-    assert summary['applications_withdrawn'] == 3
+    assert summary["applications_withdrawn"] == 3
     assert not Application.objects.filter(seeker=seeker).exists()
     assert Application.all_objects.filter(seeker=seeker).count() == 3
 
@@ -188,11 +204,12 @@ def test_deactivation_stops_billing(seeker):
     from apps.accounts.privacy import AccountDeactivationService
 
     summary = AccountDeactivationService.deactivate(
-        seeker.user, password='TestPass123!',
+        seeker.user,
+        password="TestPass123!",
     )
 
     subscription = seeker.user.subscriptions.get()
-    assert summary['subscription_cancelled'] is True
+    assert summary["subscription_cancelled"] is True
     assert subscription.auto_renew is False
     assert subscription.cancelled_at is not None
 
@@ -201,7 +218,7 @@ def test_deactivation_hides_the_profile(seeker):
     from apps.accounts.privacy import AccountDeactivationService
     from apps.seekers.models import SeekerProfile
 
-    AccountDeactivationService.deactivate(seeker.user, password='TestPass123!')
+    AccountDeactivationService.deactivate(seeker.user, password="TestPass123!")
 
     seeker.refresh_from_db()
     assert seeker.visibility == SeekerProfile.Visibility.PRIVATE
@@ -214,9 +231,9 @@ def test_deactivated_user_cannot_log_in(seeker):
 
     from apps.accounts.privacy import AccountDeactivationService
 
-    AccountDeactivationService.deactivate(seeker.user, password='TestPass123!')
+    AccountDeactivationService.deactivate(seeker.user, password="TestPass123!")
 
-    assert authenticate(email=seeker.user.email, password='TestPass123!') is None
+    assert authenticate(email=seeker.user.email, password="TestPass123!") is None
 
 
 def test_cannot_deactivate_twice(seeker):
@@ -224,11 +241,12 @@ def test_cannot_deactivate_twice(seeker):
 
     from apps.accounts.privacy import AccountDeactivationService
 
-    AccountDeactivationService.deactivate(seeker.user, password='TestPass123!')
+    AccountDeactivationService.deactivate(seeker.user, password="TestPass123!")
 
     with pytest.raises(ValidationError):
         AccountDeactivationService.deactivate(
-            seeker.user, password='TestPass123!',
+            seeker.user,
+            password="TestPass123!",
         )
 
 
@@ -237,10 +255,11 @@ def test_deactivation_is_audited(seeker):
     from apps.accounts.privacy import AccountDeactivationService
     from apps.audit.models import AuditLog
 
-    AccountDeactivationService.deactivate(seeker.user, password='TestPass123!')
+    AccountDeactivationService.deactivate(seeker.user, password="TestPass123!")
 
     entry = AuditLog.objects.filter(
-        model_name='accounts.User', object_id=str(seeker.user.pk),
+        model_name="accounts.User",
+        object_id=str(seeker.user.pk),
         action=AuditLog.Action.UPDATE,
-    ).latest('created_at')
-    assert entry.new_value.get('is_deleted') is True
+    ).latest("created_at")
+    assert entry.new_value.get("is_deleted") is True

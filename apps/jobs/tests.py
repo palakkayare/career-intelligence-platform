@@ -291,7 +291,7 @@ def test_the_other_sorts_still_work(seeker, make_job):
     from django.utils import timezone
 
     older = make_job(title="Older")
-    make_job(title='Newer')
+    make_job(title="Newer")
     Job.objects.filter(pk=older.pk).update(
         activated_at=timezone.now() - timedelta(days=5),
     )

@@ -4,11 +4,7 @@ Notification delivery tests, focused on the mobile push path.
 
 import pytest
 
-from apps.notifications.models import (
-    DeliveryPriority,
-    Notification,
-    NotificationKind,
-)
+from apps.notifications.models import DeliveryPriority, Notification, NotificationKind
 from apps.notifications.service import NotificationService
 
 pytestmark = pytest.mark.django_db

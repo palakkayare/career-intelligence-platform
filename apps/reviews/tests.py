@@ -12,11 +12,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.reviews.models import (
-    CompanyReview,
-    InterviewExperience,
-    ReviewReport,
-)
+from apps.reviews.models import CompanyReview, InterviewExperience, ReviewReport
 from apps.reviews.services import (
     REPORT_HIDE_THRESHOLD,
     InterviewExperienceService,

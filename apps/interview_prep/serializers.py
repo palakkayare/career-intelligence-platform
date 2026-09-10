@@ -1,11 +1,6 @@
 from rest_framework import serializers
 
-from .models import (
-    CompanyInterviewTip,
-    InterviewQuestion,
-    NegotiationScript,
-    StarTemplate,
-)
+from .models import CompanyInterviewTip, InterviewQuestion, NegotiationScript, StarTemplate
 
 
 class InterviewQuestionSerializer(serializers.ModelSerializer):

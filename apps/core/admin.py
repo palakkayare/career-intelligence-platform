@@ -1,5 +1,3 @@
-
-
 # Register your models here.
 class SoftDeleteAdminMixin:
     """Show soft-deleted rows in the admin.

@@ -6,7 +6,6 @@ means either stale match scores shown to users, or a cache that never hits
 and quietly puts the full recomputation load back on the database.
 """
 
-
 import pytest
 from django.core.cache import cache
 

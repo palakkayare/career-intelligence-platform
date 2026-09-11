@@ -1,0 +1,70 @@
+# Railway variables - template. Copy, fill in, paste into the Raw Editor.
+# NEVER commit a filled-in copy. Values below are placeholders.
+#
+# Every service (web, worker, beat) needs all of these. Only SERVICE_ROLE
+# differs: web / worker / beat.
+#
+# Production refuses to start while anything required is missing, and lists
+# every missing variable in the deploy logs at once.
+
+SERVICE_ROLE=web
+
+# --- Django ---
+DJANGO_SETTINGS_MODULE=config.settings.production
+# New for production. Generate each with:
+#   python -c "import secrets; print(secrets.token_urlsafe(50))"
+DJANGO_SECRET_KEY=
+JWT_SIGNING_KEY=
+# The Railway domain first; add the custom domain when it exists.
+DJANGO_ALLOWED_HOSTS=web-production-xxxx.up.railway.app
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain
+FRONTEND_URL=https://your-frontend-domain
+
+# --- Database (Neon, Singapore) ---
+DATABASE_URL=postgresql://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+
+# --- Redis (Railway Redis in the same project, private network) ---
+CELERY_BROKER_URL=${{Redis.REDIS_URL}}/1
+CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}/2
+REDIS_CACHE_URL=${{Redis.REDIS_URL}}/3
+
+# --- Secrets new for production (not the ones in your Mac's .env) ---
+# python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Back this one up outside Railway. Lose it and every 2FA user is locked out.
+FIELD_ENCRYPTION_KEY=
+# python -c "import secrets; print(secrets.token_urlsafe(32))"
+SALARY_IP_PEPPER=
+
+# --- Client IP ---
+# 1 = Railway only. Check /api/v1/admin/dashboard/client-ip/ after any change
+# (Cloudflare in front makes it 2).
+TRUSTED_PROXY_COUNT=1
+
+# --- Razorpay (test keys until launch) ---
+RAZORPAY_KEY_ID=rzp_test_xxxx
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+# Remove at launch, together with switching to rzp_live_ keys.
+RAZORPAY_ALLOW_TEST_KEYS=True
+# Required once keys are rzp_live_.
+INVOICE_GSTIN=
+
+# --- Email ---
+SENDGRID_API_KEY=
+DEFAULT_FROM_EMAIL=Career Intelligence <noreply@your-domain>
+SUPPORT_EMAIL=support@your-domain
+
+# --- File storage ---
+AWS_S3_USE_S3=True
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_STORAGE_BUCKET_NAME=
+AWS_S3_REGION_NAME=ap-south-1
+
+# --- Monitoring ---
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+
+# --- Sizing (optional, defaults shown) ---
+# WEB_CONCURRENCY=2
+# CELERY_CONCURRENCY=2

@@ -17,6 +17,9 @@ staticfiles/
 .idea/
 .DS_Store
 
+# Celery beat's schedule is local state, not source
+celerybeat-schedule*
+
 # Tests
 .coverage
 .pytest_cache/

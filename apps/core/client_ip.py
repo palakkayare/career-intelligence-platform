@@ -37,3 +37,19 @@ def client_ip(request):
         # A malformed value would otherwise reach an inet column and fail
         # the whole request.
         return remote_addr
+
+
+def proxy_diagnostics(request):
+    """
+    The raw forwarding headers next to the address client_ip() settles on.
+
+    Lives here, not in the view, so this stays the only module that reads
+    X-Forwarded-For.
+    """
+    return {
+        "remote_addr": request.META.get("REMOTE_ADDR"),
+        "x_forwarded_for": request.META.get("HTTP_X_FORWARDED_FOR", ""),
+        "cf_connecting_ip": request.META.get("HTTP_CF_CONNECTING_IP", ""),
+        "trusted_proxy_count": getattr(settings, "TRUSTED_PROXY_COUNT", 0),
+        "resolved_client_ip": client_ip(request),
+    }

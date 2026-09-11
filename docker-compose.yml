@@ -43,6 +43,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
       CELERY_BROKER_URL: redis://redis:6379/1
       REDIS_CACHE_URL: redis://redis:6379/3
+      SERVICE_ROLE: web
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.
@@ -71,15 +72,13 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
       CELERY_BROKER_URL: redis://redis:6379/1
       REDIS_CACHE_URL: redis://redis:6379/3
-      # The web container already ran these; doing it again would race it.
-      RUN_MIGRATIONS: "false"
-      COLLECT_STATIC: "false"
+      # Same switch the hosting platform uses. Only the web role migrates.
+      SERVICE_ROLE: worker
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.
       DJANGO_SETTINGS_MODULE: config.settings.production
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-    command: celery -A config worker --loglevel=info --concurrency=2
     volumes:
       - media_files:/app/media
     depends_on:
@@ -96,16 +95,14 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-career_user}:${POSTGRES_PASSWORD:-career_password}@db:5432/${POSTGRES_DB:-career_intel_db}
       CELERY_BROKER_URL: redis://redis:6379/1
       REDIS_CACHE_URL: redis://redis:6379/3
-      RUN_MIGRATIONS: "false"
-      COLLECT_STATIC: "false"
+      # Exactly one beat process, ever. Two would fire every scheduled task
+      # twice - duplicate digest emails, duplicate match-score recomputation.
+      SERVICE_ROLE: beat
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.
       DJANGO_SETTINGS_MODULE: config.settings.production
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-    # Exactly one beat process, ever. Two would fire every scheduled task
-    # twice - duplicate digest emails, duplicate match-score recomputation.
-    command: celery -A config beat --loglevel=info
     depends_on:
       db:
         condition: service_healthy

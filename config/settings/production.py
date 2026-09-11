@@ -2,12 +2,54 @@
 Production settings - strict security.
 """
 
+from django.core.exceptions import ImproperlyConfigured
+
+from apps.core.deploy_checks import production_config_errors
 from apps.core.log_format import build_logging
 from apps.core.observability import init_sentry
 
 from .base import *  # noqa: F401,F403
 
 DEBUG = False
+
+# ─── Hosts ───
+# Railway's deploy healthcheck sends "Host: healthcheck.railway.app". If that
+# host is not allowed Django answers 400, the healthcheck never passes and
+# every deploy is rolled back.
+ALLOWED_HOSTS_FROM_ENV = list(ALLOWED_HOSTS)  # noqa: F405
+ALLOWED_HOSTS = ALLOWED_HOSTS_FROM_ENV + ["healthcheck.railway.app"]
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])  # noqa: F405
+
+# ─── Static files ───
+# No nginx in front of the app on a hosting platform, so Gunicorn serves the
+# admin and browsable-API assets itself. Directly after SecurityMiddleware, so
+# the HTTPS redirect still applies to them.
+MIDDLEWARE.insert(  # noqa: F405
+    MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,  # noqa: F405
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+)
+STORAGES["staticfiles"] = {  # noqa: F405
+    "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+}
+
+# ─── Email ───
+# Without this Django falls back to SMTP on localhost:25, which does not exist
+# in a container: verification, password reset, invoices and digests would
+# all fail.
+INSTALLED_APPS += ["anymail"]  # noqa: F405
+EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")  # noqa: F405
+ANYMAIL = {"SENDGRID_API_KEY": SENDGRID_API_KEY}
+
+# ─── Database ───
+# Reuse connections for a minute instead of opening one per request; a managed
+# Postgres over TLS makes each new connection noticeably slow. Health checks
+# drop a connection the provider closed while it sat idle (Neon suspends).
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)  # noqa: F405
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True  # noqa: F405
+# Required behind a transaction-mode pooler (Neon's -pooler host, PgBouncer),
+# and harmless without one.
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True  # noqa: F405
 
 # Security headers
 SECURE_BROWSER_XSS_FILTER = True
@@ -38,6 +80,9 @@ SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ─── Error tracking ───
+# Railway builds from the repo, so the image's GIT_SHA build arg is empty
+# there. Railway sets the commit in the environment instead.
+SENTRY_RELEASE = SENTRY_RELEASE or env("RAILWAY_GIT_COMMIT_SHA", default="")  # noqa: F405
 init_sentry(
     dsn=SENTRY_DSN,  # noqa: F405
     environment=SENTRY_ENVIRONMENT,  # noqa: F405
@@ -59,3 +104,28 @@ PASSWORD_BREACH_CHECK = env.bool("PASSWORD_BREACH_CHECK", default=True)  # noqa:
 # front of that as well, set TRUSTED_PROXY_COUNT=2 in the environment.
 TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=1)  # noqa: F405
 REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_COUNT  # noqa: F405
+
+
+# ─── Refuse to start half-configured ───
+# Last, so it sees the final values. Every problem is listed at once: a deploy
+# that fails on one missing variable at a time takes six deploys to fix.
+_config_errors = production_config_errors(
+    {
+        "ALLOWED_HOSTS_FROM_ENV": ALLOWED_HOSTS_FROM_ENV,
+        "DATABASE_URL": env("DATABASE_URL", default=""),  # noqa: F405
+        "CELERY_BROKER_URL": CELERY_BROKER_URL,  # noqa: F405
+        "CELERY_RESULT_BACKEND": CELERY_RESULT_BACKEND,  # noqa: F405
+        "REDIS_CACHE_URL": CACHES["default"]["LOCATION"],  # noqa: F405
+        "FIELD_ENCRYPTION_KEY": FIELD_ENCRYPTION_KEY,  # noqa: F405
+        "SALARY_IP_PEPPER": SALARY_IP_PEPPER,  # noqa: F405
+        "SENDGRID_API_KEY": SENDGRID_API_KEY,
+        "RAZORPAY_KEY_ID": RAZORPAY_KEY_ID,  # noqa: F405
+        "RAZORPAY_KEY_SECRET": RAZORPAY_KEY_SECRET,  # noqa: F405
+        "RAZORPAY_WEBHOOK_SECRET": RAZORPAY_WEBHOOK_SECRET,  # noqa: F405
+        "INVOICE_GSTIN": INVOICE_GSTIN,  # noqa: F405
+    }
+)
+if _config_errors:
+    raise ImproperlyConfigured(
+        "Production settings are incomplete:\n  - " + "\n  - ".join(_config_errors)
+    )

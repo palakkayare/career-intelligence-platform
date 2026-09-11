@@ -1,3 +1,6 @@
 -r base.txt
 
 gunicorn==23.0.0
+# Serves admin and DRF static files straight from Gunicorn. Hosting
+# platforms have no nginx in front of the app.
+whitenoise==6.12.0

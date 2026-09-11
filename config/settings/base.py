@@ -228,11 +228,17 @@ if not RAZORPAY_KEY_ID and "test" not in " ".join(sys.argv):
 
     warnings.warn("RAZORPAY_KEY_ID not configured")
 
-# Production mein test keys ka use prevent
-if "rzp_test_" in RAZORPAY_KEY_ID and not DEBUG:
+# Production mein test keys ka use prevent. Before launch the live site runs
+# on test keys deliberately, so smoke tests can pay without real money;
+# RAZORPAY_ALLOW_TEST_KEYS says that out loud and comes off at launch.
+RAZORPAY_ALLOW_TEST_KEYS = env.bool("RAZORPAY_ALLOW_TEST_KEYS", default=False)
+if "rzp_test_" in RAZORPAY_KEY_ID and not DEBUG and not RAZORPAY_ALLOW_TEST_KEYS:
     from django.core.exceptions import ImproperlyConfigured
 
-    raise ImproperlyConfigured("Test Razorpay keys in production!")
+    raise ImproperlyConfigured(
+        "Test Razorpay keys in production! Before launch, set "
+        "RAZORPAY_ALLOW_TEST_KEYS=True to deploy with test keys on purpose."
+    )
 
 # ─── Celery Configuration ───
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")

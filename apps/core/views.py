@@ -63,6 +63,25 @@ class ReadinessCheckView(APIView):
         )
 
 
+class ClientIpView(APIView):
+    """
+    GET /api/v1/admin/dashboard/client-ip/
+
+    What the proxies in front of the app actually send, next to the address the
+    app settles on. TRUSTED_PROXY_COUNT has to equal the real number of
+    proxies, and the only reliable way to know it is to look at a real request
+    after every change to the hosting setup. Putting Cloudflare in front adds
+    one. Staff only: it shows infrastructure addresses.
+    """
+
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from .client_ip import proxy_diagnostics
+
+        return Response(proxy_diagnostics(request))
+
+
 class AdminDashboardView(APIView):
     """
     GET /api/v1/admin/dashboard/

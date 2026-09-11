@@ -55,15 +55,8 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 8000
 
-# Gunicorn defaults are tuned for a small box. Workers scale with CPU;
-# --timeout 60 is generous because resume parsing and match scoring are slow.
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "3", \
-     "--threads", "2", \
-     "--timeout", "60", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+# No CMD: the entrypoint starts Gunicorn, the worker or beat depending on
+# SERVICE_ROLE (default web). See docker/entrypoint.sh.
 
 # Git commit of this image, passed in by CI. Sentry tags every error with it,
 # so a bug can be traced to the deploy that introduced it. Kept last: a value

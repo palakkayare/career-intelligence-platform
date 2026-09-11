@@ -33,7 +33,8 @@ The gaps at the end are as much a part of it as the measures.
 | Applications and cover letters | The core product | `applications.Application` |
 | Search history, saved searches | Convenience features | `jobs.SearchHistory`, `SavedSearch` |
 | Salary submissions | Aggregate insights | `career_intel.SalarySubmission` |
-| Login history: IP, user agent | Security, account review | `accounts.LoginHistory` |
+| Login history: IP, user agent | Security, account review, login lockout | `accounts.LoginHistory` |
+| Two-factor secret, backup codes | Two-factor login | `accounts.TwoFactorAuth` (encrypted), `BackupCode` (hashed) |
 | FCM device token | Mobile push, when the app ships | `accounts.User.fcm_token` |
 | Company reviews | Employer transparency | `reviews.CompanyReview` |
 | Interview experiences | Helping the next candidate | `reviews.InterviewExperience` |
@@ -168,6 +169,12 @@ submitter's address.
 **Per-device rate limiting.** Three submissions per IP per 24 hours by default.
 One person with several accounts still has one machine.
 
+The address is the one delivered by the platform's own proxies
+(`core/client_ip.py`, see §5). Until 11 September it was the first
+`X-Forwarded-For` entry, which the client types: a different made-up address
+on each request walked straight past this limit, and with it the protection
+of the aggregates. Fixed before any production deployment.
+
 **Per-user deduplication.** One submission per role per year.
 
 ### The honest caveat
@@ -252,13 +259,36 @@ What is deliberately kept out of those events
 - **Salary figures** → `[Filtered]`, because they are collected on a promise
 - Cookies dropped entirely — there is no safe version of a session cookie
 - Scrubbing recurses through nested dictionaries and lists
+- The same scrubbing covers performance transactions
+  (`before_send_transaction`), not only error events. Before 10 September
+  it covered errors alone.
 
-Sentry receives stack traces and error messages. It does not receive user
-identities.
+Sentry receives stack traces, error messages, and timing data for a sample of
+requests. It also receives, deliberately:
+
+- **The internal user id and role** of the person whose request failed
+  (`core/authentication.py`, `core/observability.py::tag_user`, tested). No
+  email, no name. This is pseudonymous personal data leaving India and the
+  privacy notice should say so. It lets someone with admin access match a
+  reported error to an account, without a third party holding who that
+  account belongs to.
+- **A request id**, which is also returned to the client as `X-Request-ID`,
+  so a user reporting a problem can quote it.
+
+Tracing is sampled by path: health checks never, payment, subscription and
+webhook requests always, everything else at `SENTRY_TRACES_SAMPLE_RATE`.
 
 **Other third parties:** AWS S3 (resume files, region configurable), SendGrid
 or AWS SES (transactional email), Razorpay (payments, India). Each needs
 listing in the privacy notice with its region.
+
+**Have I Been Pwned** (breached-password check, production only). When a
+password is set, the first five characters of its SHA-1 hash are sent and the
+match is made locally against the list that comes back, with padding requested
+so the response size gives nothing away. The password, its full hash and any
+account identifier never leave the server (`accounts/validators.py`, tested).
+Whether this is a transfer of personal data at all is doubtful, but it is a
+third-party call made during signup, and a notice that lists it costs nothing.
 
 ---
 
@@ -267,17 +297,41 @@ listing in the privacy notice with its region.
 | Measure | Implementation |
 |---|---|
 | Password hashing | Django PBKDF2 |
-| Two-factor auth | TOTP (`pyotp`), backup codes stored as SHA-256 hashes |
+| Breached passwords | Rejected in production by a k-anonymous Have I Been Pwned lookup; fails open if the service is unreachable |
+| Two-factor auth | TOTP (`pyotp`); secret encrypted at rest with Fernet (`accounts/fields.py`); backup codes stored as SHA-256 hashes |
 | Session revocation | JWT blacklist; access 15 min, refresh 7 days, rotated on use |
 | OTP brute force | 3 attempts, then the code is burned; 10-minute expiry |
+| Login lockout | 5 failures for one email from one address in 15 minutes locks that pair until the oldest ages out; same response whether or not the account exists (`accounts/lockout.py`) |
 | Rate limiting | Login 5/min, OTP 3/hr, password reset 3/hr, search 60/min, apply 20/hr, payments 10/hr |
 | Transport | HSTS with preload, SSL redirect, secure cookies (`settings/production.py`) |
 | Payment integrity | Razorpay signature verification on the raw body; amount cross-checked before activation |
 | Audit trail | `audit.AuditLog` — actor, action, before/after values, IP, timestamp |
+| Client address | Only `X-Forwarded-For` entries appended by the platform's own proxies are trusted (`TRUSTED_PROXY_COUNT`). One definition used by rate limits, lockout, login history, the audit trail and salary limits (`core/client_ip.py`) |
+| Logging | JSON lines with a request id on each; secrets passed as structured fields are scrubbed; requests logged by URL pattern, never raw path (`core/log_format.py`, `core/middleware.py`) |
 
 The audit log excludes sensitive fields by name (`audit/signals.py`:
 passwords, tokens, secrets, salary figures) so the trail itself does not become
 a second copy of the data it is meant to protect.
+
+**Login lockout is keyed on email and address together, deliberately.** Keyed
+on email alone, anyone could lock an owner out of their own account with five
+wrong guesses, repeatably. Failures are counted for any email string, registered
+or not, so a lock reveals nothing about whether an account exists. The owner is
+not emailed when a lock happens: that would let anyone send them a message every
+fifteen minutes.
+
+**Client addresses before 11 September.** Until then, the IP recorded in login
+history, the audit trail and salary rate limiting was the first
+`X-Forwarded-For` entry, which a client can set to anything. Rate limits could
+be bypassed and a malformed value could fail the request. No production
+deployment existed at the time, but any data carried over from testing should
+not be treated as evidence of where a request came from.
+
+**The encryption key.** `FIELD_ENCRYPTION_KEY` comes from the environment, never
+from the database or the repository. Several keys can be listed to rotate: the
+first encrypts, all decrypt. A wrong or missing key fails loudly instead of
+quietly breaking two-factor checks. Losing every copy of the key makes every
+stored secret unrecoverable - see gap 9.
 
 ---
 
@@ -289,11 +343,13 @@ a second copy of the data it is meant to protect.
 | Applications | Indefinitely, soft deleted on withdrawal | Recruiter's hiring record |
 | Payments and invoices | Indefinitely | Financial and tax records |
 | Audit log | Indefinitely | Append-only by design |
-| Login history | Indefinitely | Export caps at the most recent 200 |
+| Login history | Indefinitely | Export caps at the most recent 200. Lockout reads only the last 15 minutes, so a short retention period would not weaken it |
 | Resume files | Until the user deletes them | S3 |
 | OTP codes | 10 minutes | Then expired and unusable |
 | Refresh tokens | 7 days | Blacklisted on logout or closure |
 | Salary submissions | Aggregates use a 2-year window | Older rows excluded from published figures |
+| Application logs | Not yet decided | Carry internal user ids and request metadata; storage depends on the hosting platform (gap 10) |
+| Sentry events | Set by the Sentry plan | Retention is Sentry's, not ours; confirm the plan's period before launch |
 
 **No automated purge exists.** Nothing is deleted on a schedule. A retention
 schedule with defined periods per category is one of the gaps below.
@@ -384,6 +440,25 @@ the platform qualifies depends on scale — worth deciding early.
 DPDP mandates notification to the Data Protection Board and affected users.
 Sentry gives detection; the procedure itself does not exist.
 
+### 9. Encryption key custody
+
+The code side is done: two-factor secrets are encrypted, and a missing or wrong
+key fails loudly. What does not exist is the procedure around the production
+key - where it is stored, who can read it, how it is backed up, and how a
+rotation is carried out. Without a backup, losing the key forces every user
+with two-factor authentication to enrol again.
+
+Only the two-factor secret is encrypted at field level. Everything else relies
+on the database host's encryption at rest, which needs confirming when the
+hosting provider is chosen.
+
+### 10. Application log storage and retention
+
+Structured logs carry internal user ids, URL patterns, status codes and
+timings. Where they are stored, who can read them and for how long depends on
+the hosting platform, and none of that is decided yet. They belong in the
+retention schedule (gap 2).
+
 ---
 
 ## 8. Where to verify each claim
@@ -402,10 +477,16 @@ Sentry gives detection; the procedure itself does not exist.
 | Review anonymity | `reviews/serializers.py` | `reviews/tests.py` |
 | Review moderation | `reviews/services.py` | `reviews/tests.py` |
 | Published percentiles | `career_intel/salary_algorithm.py` | `career_intel/test_salary.py` |
+| 2FA secret encryption | `accounts/fields.py`, migration `0006` | `accounts/test_security_hardening.py` |
+| Breached-password check | `accounts/validators.py` | `accounts/test_security_hardening.py` |
+| Login lockout | `accounts/lockout.py` | `accounts/test_login_lockout.py` |
+| Trusted client address | `core/client_ip.py` | `accounts/test_login_lockout.py`, `core/test_client_ip_everywhere.py` |
+| Sentry user context and sampling | `core/authentication.py`, `core/observability.py` | `core/test_request_tracing.py` |
+| Log scrubbing, request ids | `core/log_format.py`, `core/middleware.py` | `core/test_request_tracing.py` |
 
 Run `pytest -m regression` to exercise the behaviours these measures depend on.
 
 ---
 
-*Prepared 09 September 2026, revised 10 September | Backend at 882 tests*
+*Prepared 09 September 2026, revised 11 September | Backend at 955 tests*
 *Requires legal review before launch.*

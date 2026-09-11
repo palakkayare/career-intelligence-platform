@@ -1,0 +1,8 @@
+Hi {{ user_name }},
+
+{{ seeker_name }} has withdrawn their application for "{{ job_title }}".
+
+You can see the remaining applicants here: {{ link }}
+
+--
+Career Intelligence Team

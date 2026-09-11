@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Application Withdrawn</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>
+    <strong>{{ seeker_name }}</strong> has withdrawn their application for
+    <strong>{{ job_title }}</strong>.
+  </p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">View Applicants</a>
+  </p>
+{% endblock %}

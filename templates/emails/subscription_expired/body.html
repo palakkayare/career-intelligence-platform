@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Your Subscription Has Expired</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>
+    Your <strong>{{ plan_name }}</strong> subscription ended{% if expired_on %}
+    on <strong>{{ expired_on }}</strong>{% endif %}. Pro features are paused
+    until you renew.
+  </p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">Renew Subscription</a>
+  </p>
+{% endblock %}

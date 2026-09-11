@@ -1,0 +1,15 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Your Resume Analysis Is Ready</h2>
+  <p>Hi {{ user_name }},</p>
+  <p><strong>{{ resume_name }}</strong> has finished analysing.</p>
+
+  <div class="callout">
+    <p style="margin: 0;"><strong>ATS score: {{ ats_score }}/100</strong></p>
+    <p style="margin: 6px 0 0;">Skills detected: {{ skills_found }}</p>
+  </div>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">View Full Report</a>
+  </p>
+{% endblock %}

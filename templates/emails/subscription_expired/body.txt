@@ -1,0 +1,9 @@
+Hi {{ user_name }},
+
+Your {{ plan_name }} subscription ended{% if expired_on %} on {{ expired_on }}{% endif %}.
+Pro features are paused until you renew.
+
+Renew here: {{ link }}
+
+--
+Career Intelligence Team

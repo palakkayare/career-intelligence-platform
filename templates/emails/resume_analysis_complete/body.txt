@@ -1,0 +1,11 @@
+Hi {{ user_name }},
+
+"{{ resume_name }}" has finished analysing.
+
+ATS score: {{ ats_score }}/100
+Skills detected: {{ skills_found }}
+
+See the full breakdown and suggestions here: {{ link }}
+
+--
+Career Intelligence Team

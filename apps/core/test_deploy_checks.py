@@ -22,6 +22,7 @@ def complete_config(**overrides):
         "RAZORPAY_KEY_SECRET": "secret",
         "RAZORPAY_WEBHOOK_SECRET": "whsecret",
         "INVOICE_GSTIN": "",
+        "TRUSTED_PROXY_COUNT_SET": True,
     }
     config.update(overrides)
     return config
@@ -71,6 +72,17 @@ def test_required_secrets(name):
     errors = production_config_errors(complete_config(**{name: ""}))
 
     assert any(error.startswith(name) for error in errors)
+
+
+@pytest.mark.regression
+def test_the_proxy_count_must_be_set_explicitly():
+    """
+    Regression: production fell back to 1, which on Railway resolved every
+    user to the same edge address - one user's failed logins locked out all.
+    """
+    errors = production_config_errors(complete_config(TRUSTED_PROXY_COUNT_SET=False))
+
+    assert any(error.startswith("TRUSTED_PROXY_COUNT") for error in errors)
 
 
 def test_razorpay_secrets_are_required_alongside_the_key():

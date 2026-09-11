@@ -44,6 +44,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       REDIS_CACHE_URL: redis://redis:6379/3
       SERVICE_ROLE: web
+      # nginx is the only proxy in front of Gunicorn here.
+      TRUSTED_PROXY_COUNT: "1"
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.
@@ -74,6 +76,8 @@ services:
       REDIS_CACHE_URL: redis://redis:6379/3
       # Same switch the hosting platform uses. Only the web role migrates.
       SERVICE_ROLE: worker
+      # nginx is the only proxy in front of Gunicorn here.
+      TRUSTED_PROXY_COUNT: "1"
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.
@@ -98,6 +102,8 @@ services:
       # Exactly one beat process, ever. Two would fire every scheduled task
       # twice - duplicate digest emails, duplicate match-score recomputation.
       SERVICE_ROLE: beat
+      # nginx is the only proxy in front of Gunicorn here.
+      TRUSTED_PROXY_COUNT: "1"
       # env_file loads .env, which sets this to development. Compose applies
       # `environment` after `env_file`, so setting it here is what makes the
       # container actually run production settings.

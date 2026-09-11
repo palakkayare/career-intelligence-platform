@@ -82,6 +82,41 @@ class SentryTestView(APIView):
         raise SentryTestError("Sentry test error - triggered deliberately, safe to resolve")
 
 
+class DeployInfoView(APIView):
+    """
+    GET /api/v1/admin/dashboard/deploy-info/
+
+    The commit this process is running and the settings it actually loaded.
+    Railway's Variables tab shows what the next deploy will get, not what is
+    running - after a rollback the two differ, which is how an old setting can
+    come back unnoticed. Staff only.
+    """
+
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from django.conf import settings
+
+        key = getattr(settings, "RAZORPAY_KEY_ID", "") or ""
+        if key.startswith("rzp_live_"):
+            razorpay_mode = "live"
+        elif key.startswith("rzp_test_"):
+            razorpay_mode = "test"
+        else:
+            razorpay_mode = "not configured"
+
+        return Response(
+            {
+                "release": getattr(settings, "SENTRY_RELEASE", "") or "",
+                "environment": getattr(settings, "SENTRY_ENVIRONMENT", ""),
+                "trusted_proxy_count": getattr(settings, "TRUSTED_PROXY_COUNT", 0),
+                "razorpay_mode": razorpay_mode,
+                "s3_uploads": bool(getattr(settings, "AWS_S3_USE_S3", False)),
+                "sentry_enabled": bool(getattr(settings, "SENTRY_DSN", "")),
+            }
+        )
+
+
 class ClientIpView(APIView):
     """
     GET /api/v1/admin/dashboard/client-ip/
@@ -89,8 +124,8 @@ class ClientIpView(APIView):
     What the proxies in front of the app actually send, next to the address the
     app settles on. TRUSTED_PROXY_COUNT has to equal the real number of
     proxies, and the only reliable way to know it is to look at a real request
-    after every change to the hosting setup. Putting Cloudflare in front adds
-    one. Staff only: it shows infrastructure addresses.
+    after every change to the hosting setup (see DEPLOY.md, section 6).
+    Staff only: it shows infrastructure addresses.
     """
 
     permission_classes = [permissions.IsAdminUser]

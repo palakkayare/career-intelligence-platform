@@ -34,7 +34,7 @@ def test_non_staff_users_are_refused(seeker_user):
 
 @override_settings(TRUSTED_PROXY_COUNT=2)
 def test_it_shows_the_headers_and_the_address_chosen(staff_client):
-    """Cloudflare then Railway: client, Cloudflare edge. Two proxies."""
+    """Two entries, as Railway sends them: the client, then the platform edge."""
     response = staff_client.get(
         URL,
         HTTP_X_FORWARDED_FOR="203.0.113.7, 172.70.1.1",
@@ -54,7 +54,7 @@ def test_it_shows_the_headers_and_the_address_chosen(staff_client):
 
 @override_settings(TRUSTED_PROXY_COUNT=1)
 def test_a_wrong_count_is_visible(staff_client):
-    """Count 1 behind two proxies picks the Cloudflare edge, and says so."""
+    """Count 1 behind two entries picks the edge for everyone, and says so."""
     response = staff_client.get(
         URL,
         HTTP_X_FORWARDED_FOR="203.0.113.7, 172.70.1.1",

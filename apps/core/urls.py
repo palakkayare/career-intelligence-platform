@@ -4,6 +4,7 @@ from .views import (
     ActivityMetricsView,
     AdminDashboardView,
     ClientIpView,
+    DeployInfoView,
     HealthCheckView,
     ReadinessCheckView,
     RevenueMetricsView,
@@ -15,6 +16,7 @@ admin_dashboard_patterns = [
     path("revenue/", RevenueMetricsView.as_view(), name="dashboard-revenue"),
     path("activity/", ActivityMetricsView.as_view(), name="dashboard-activity"),
     path("client-ip/", ClientIpView.as_view(), name="dashboard-client-ip"),
+    path("deploy-info/", DeployInfoView.as_view(), name="dashboard-deploy-info"),
     path("sentry-test/", SentryTestView.as_view(), name="dashboard-sentry-test"),
 ]
 

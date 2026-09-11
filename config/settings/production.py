@@ -100,8 +100,11 @@ PASSWORD_BREACH_CHECK = env.bool("PASSWORD_BREACH_CHECK", default=True)  # noqa:
 
 
 # ─── Client IP ───
-# Hosting platforms put one proxy in front of the app. With Cloudflare in
-# front of that as well, set TRUSTED_PROXY_COUNT=2 in the environment.
+# How many X-Forwarded-For entries our own infrastructure adds. Measured, not
+# guessed: Railway sends 2. Cloudflare in front of Railway is not simply "one
+# more" - see DEPLOY.md, section 6. Required in production (deploy_checks):
+# the old silent default of 1 made every user share Railway's address.
+TRUSTED_PROXY_COUNT_SET = env("TRUSTED_PROXY_COUNT", default="") != ""  # noqa: F405
 TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=1)  # noqa: F405
 REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_COUNT  # noqa: F405
 
@@ -118,6 +121,7 @@ _config_errors = production_config_errors(
         "REDIS_CACHE_URL": CACHES["default"]["LOCATION"],  # noqa: F405
         "FIELD_ENCRYPTION_KEY": FIELD_ENCRYPTION_KEY,  # noqa: F405
         "SALARY_IP_PEPPER": SALARY_IP_PEPPER,  # noqa: F405
+        "TRUSTED_PROXY_COUNT_SET": TRUSTED_PROXY_COUNT_SET,
         "SENDGRID_API_KEY": SENDGRID_API_KEY,
         "RAZORPAY_KEY_ID": RAZORPAY_KEY_ID,  # noqa: F405
         "RAZORPAY_KEY_SECRET": RAZORPAY_KEY_SECRET,  # noqa: F405

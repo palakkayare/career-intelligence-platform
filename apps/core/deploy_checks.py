@@ -57,6 +57,13 @@ def production_config_errors(config):
             "SALARY_IP_PEPPER is not set. Without it the stored IP hashes can be reversed."
         )
 
+    if not config.get("TRUSTED_PROXY_COUNT_SET"):
+        errors.append(
+            "TRUSTED_PROXY_COUNT is not set. Measure it (DEPLOY.md, section 6) - "
+            "Railway is 2. A wrong value makes every user share one IP for "
+            "lockout and rate limits, or lets clients fake their IP."
+        )
+
     if not config.get("SENDGRID_API_KEY"):
         errors.append("SENDGRID_API_KEY is not set. No email could be sent.")
 

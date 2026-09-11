@@ -264,6 +264,9 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 4  # Worker ek baar mein kitne tasks uthaye
 CELERY_TASK_AUTORETRY_FOR = (Exception,)  # Kisi bhi exception pe auto-retry
 CELERY_TASK_MAX_RETRIES = 3
 CELERY_TASK_DEFAULT_RETRY_DELAY = 60  # Retries ke beech 1 minute
+# Keep retrying the broker while the worker starts. This is already the
+# default; saying so silences Celery 6's deprecation warning in the logs.
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # ─── AWS S3 Configuration ───
 AWS_S3_USE_S3 = env.bool("AWS_S3_USE_S3", default=False)

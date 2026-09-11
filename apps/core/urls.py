@@ -7,6 +7,7 @@ from .views import (
     HealthCheckView,
     ReadinessCheckView,
     RevenueMetricsView,
+    SentryTestView,
 )
 
 admin_dashboard_patterns = [
@@ -14,6 +15,7 @@ admin_dashboard_patterns = [
     path("revenue/", RevenueMetricsView.as_view(), name="dashboard-revenue"),
     path("activity/", ActivityMetricsView.as_view(), name="dashboard-activity"),
     path("client-ip/", ClientIpView.as_view(), name="dashboard-client-ip"),
+    path("sentry-test/", SentryTestView.as_view(), name="dashboard-sentry-test"),
 ]
 
 health_patterns = [

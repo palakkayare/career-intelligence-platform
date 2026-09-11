@@ -24,6 +24,7 @@ INITIAL_SKILLS = [
     ("PHP", SkillCategory.PROGRAMMING, []),
     ("Swift", SkillCategory.PROGRAMMING, []),
     ("Kotlin", SkillCategory.PROGRAMMING, []),
+    ("CSS", SkillCategory.PROGRAMMING, ["css3"]),
     # Frameworks
     ("Django", SkillCategory.FRAMEWORK, []),
     ("Flask", SkillCategory.FRAMEWORK, []),
@@ -52,11 +53,20 @@ INITIAL_SKILLS = [
     ("CI/CD", SkillCategory.CLOUD, []),
     ("Linux", SkillCategory.CLOUD, []),
     ("Git", SkillCategory.CLOUD, []),
+    ("Terraform", SkillCategory.CLOUD, []),
     # Design
     ("Figma", SkillCategory.DESIGN, []),
     ("Adobe XD", SkillCategory.DESIGN, []),
     ("Photoshop", SkillCategory.DESIGN, []),
     ("UI/UX Design", SkillCategory.DESIGN, ["ui design", "ux design"]),
+    # Domain Knowledge - referenced by the target-role, learning-resource and
+    # career-path seeds, whose links are skipped when a skill is missing here.
+    ("Microservices", SkillCategory.DOMAIN, []),
+    ("System Design", SkillCategory.DOMAIN, []),
+    ("Architecture", SkillCategory.DOMAIN, ["software architecture"]),
+    ("Machine Learning", SkillCategory.DOMAIN, []),
+    ("Statistics", SkillCategory.DOMAIN, []),
+    ("Strategy", SkillCategory.DOMAIN, []),
     # Soft Skills
     ("Leadership", SkillCategory.SOFT_SKILL, []),
     ("Communication", SkillCategory.SOFT_SKILL, []),

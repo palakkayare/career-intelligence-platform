@@ -63,6 +63,25 @@ class ReadinessCheckView(APIView):
         )
 
 
+class SentryTestError(RuntimeError):
+    """Raised on purpose by SentryTestView. Safe to resolve in Sentry."""
+
+
+class SentryTestView(APIView):
+    """
+    POST /api/v1/admin/dashboard/sentry-test/
+
+    Raises an unhandled error on purpose, so a deploy can prove that errors
+    reach Sentry with the right environment and release. POST rather than GET
+    so a crawler or a link preview can never fire it. Staff only.
+    """
+
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        raise SentryTestError("Sentry test error - triggered deliberately, safe to resolve")
+
+
 class ClientIpView(APIView):
     """
     GET /api/v1/admin/dashboard/client-ip/

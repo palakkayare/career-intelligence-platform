@@ -111,7 +111,7 @@ python scripts/check_deploy.py
 ```
 
 It reads `ADMIN_EMAIL` / `ADMIN_PASSWORD` from
-`~/Documents/career-intel-keys.txt` (override with `CAREER_INTEL_KEYS`) and
+`~/.career-intel/career-intel-keys.txt` (override with `CAREER_INTEL_KEYS`) and
 checks, against the running app rather than the dashboard:
 
 1. **Ready** - database and cache reachable.
@@ -212,8 +212,8 @@ subshell only, with test settings so Redis and email are never touched:
   promote the user in a shell (as Step 33 did for the admin account).
 - Seeds are safe to re-run; `apps/career_intel/test_seed_consistency.py`
   keeps them in agreement.
-- Never run `seed_jobs.py` or anything in `scripts/` that creates test data
-  against production.
+- Never run anything in `scripts/dev/` against production - it creates test
+  data.
 
 ---
 

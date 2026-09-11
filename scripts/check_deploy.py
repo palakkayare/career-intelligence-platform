@@ -3,7 +3,7 @@ Check a production deploy or rollback against the running app.
 
     python scripts/check_deploy.py
 
-Reads ADMIN_EMAIL / ADMIN_PASSWORD from ~/Documents/career-intel-keys.txt
+Reads ADMIN_EMAIL / ADMIN_PASSWORD from ~/.career-intel/career-intel-keys.txt
 (override with CAREER_INTEL_KEYS). CHECK_DEPLOY_URL overrides the address.
 Prints no secrets and no IP addresses. Exits 1 if any check fails.
 
@@ -22,7 +22,7 @@ DEFAULT_URL = "https://web-production-eab8b.up.railway.app"
 BASE = os.environ.get("CHECK_DEPLOY_URL", DEFAULT_URL).rstrip("/")
 API = f"{BASE}/api/v1"
 KEYS = Path(
-    os.environ.get("CAREER_INTEL_KEYS", Path.home() / "Documents" / "career-intel-keys.txt")
+    os.environ.get("CAREER_INTEL_KEYS", Path.home() / ".career-intel" / "career-intel-keys.txt")
 )
 FAKE_IP = "198.51.100.77"  # TEST-NET-2, never a real client
 

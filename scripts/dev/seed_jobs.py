@@ -4,7 +4,9 @@ with — different locations, salaries, work arrangements and skills.
 
 Run from the project root:
 
-    python manage.py shell < seed_jobs.py
+    python manage.py shell < scripts/dev/seed_jobs.py
+
+Development only - never against production.
 
 Safe to re-run: jobs are matched by title and updated instead of duplicated.
 """

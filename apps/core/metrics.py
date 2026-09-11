@@ -219,7 +219,11 @@ class ActivityMetrics:
         )
         counts = {row["day"]: row["count"] for row in rows}
 
-        today = timezone.now().date()
+        # The rows are bucketed by TruncDate in the project time zone (IST), so
+        # "today" must be the IST date too. timezone.now().date() is the UTC
+        # date, which is still yesterday between midnight and 05:30 IST - and
+        # today's activity silently fell off the end of the chart.
+        today = timezone.localdate()
         return [
             {
                 "date": (today - timedelta(days=offset)).isoformat(),

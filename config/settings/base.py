@@ -374,3 +374,21 @@ INVOICE_GST_RATE = env.float("INVOICE_GST_RATE", default=18.0)
 from apps.core.log_format import build_logging  # noqa: E402
 
 LOGGING = build_logging(json_output=env.bool("LOG_JSON", default=False))
+
+
+# ─── Field encryption ───
+# Fernet key for encrypted model fields (2FA secrets). Comma-separate several
+# to rotate: the first encrypts, all decrypt. Losing every key makes the
+# encrypted values unrecoverable, so back it up outside the server.
+FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY", default="")
+
+# ─── Password breach check ───
+# Off by default so development and tests never call a third-party API.
+# production.py switches it on.
+PASSWORD_BREACH_CHECK = env.bool("PASSWORD_BREACH_CHECK", default=False)
+AUTH_PASSWORD_VALIDATORS += [
+    {"NAME": "apps.accounts.validators.BreachedPasswordValidator"},
+]
+
+# Browsers hide response headers from frontend JavaScript unless listed here.
+CORS_EXPOSE_HEADERS = ["X-Request-ID"]

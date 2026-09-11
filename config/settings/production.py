@@ -48,3 +48,7 @@ init_sentry(
 
 # ─── Logging ───
 LOGGING = build_logging(json_output=env.bool("LOG_JSON", default=True))  # noqa: F405
+
+
+# ─── Password breach check ───
+PASSWORD_BREACH_CHECK = env.bool("PASSWORD_BREACH_CHECK", default=True)  # noqa: F405

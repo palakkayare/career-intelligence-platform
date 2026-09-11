@@ -54,3 +54,4 @@ sentry-sdk==2.69.0
 
 Django==5.2.17
 django-filter==26.1
+cryptography==50.0.0

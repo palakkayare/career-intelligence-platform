@@ -11,6 +11,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+from apps.accounts.fields import EncryptedTextField
 from apps.core.models import SoftDeleteModel
 
 
@@ -265,7 +266,9 @@ class TwoFactorAuth(models.Model):
         on_delete=models.CASCADE,
         related_name="two_factor",
     )
-    secret = models.CharField(max_length=32)  # Base32-encoded TOTP secret
+    # Base32-encoded TOTP secret. Encrypted in the database (see fields.py);
+    # plain text in Python, so the 2FA code paths are unchanged.
+    secret = EncryptedTextField()
     is_enabled = models.BooleanField(default=False)
 
     # Tracking

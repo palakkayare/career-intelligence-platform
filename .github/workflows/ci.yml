@@ -88,6 +88,7 @@ jobs:
           JWT_SIGNING_KEY=ci-jwt-signing-key-not-used-in-production
           DATABASE_URL=postgres://career_user:ci_password@localhost:5432/career_intel_db
           SALARY_IP_PEPPER=ci-pepper-not-used-in-production
+          FIELD_ENCRYPTION_KEY=ZEsyHM-1v2lwzgabZn9ohbKG2CMmKVivHQUQMuMQLgQ=
           EOF
 
       - name: Check for missing migrations

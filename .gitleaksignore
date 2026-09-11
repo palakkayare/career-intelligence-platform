@@ -1,0 +1,9 @@
+# Findings from `gitleaks git` that were reviewed and judged harmless.
+# One fingerprint per finding: commit:file:rule:line. Add a reason above
+# each. A real secret is never ignored - it is rotated, then removed.
+
+# CI-only Fernet key for the test database; production uses a separately generated key.
+503f0d056ffd987609afc756b91c4ff923159800:.github/workflows/ci.yml:generic-api-key:91
+
+# Expired (18 Aug 2026) access token for a test account, signed with the local development key; never valid in production. Removed from the file.
+5a62a0a503fd83132105000351418fa9649cb046:test_payment.html:jwt:12

@@ -79,6 +79,20 @@ setting silently reverts. `DEPLOY.md` section 7 records the procedure.
 
 ---
 
+## 4a. Secret scan of the git history
+
+12 Sep 2026, gitleaks 8.30.1, all 56 commits. **No real secrets found.**
+
+| Finding | Verdict |
+|---|---|
+| `generic-api-key` in `.github/workflows/ci.yml` | CI-only Fernet key for the test database. Production's key was generated separately. |
+| `jwt` in `test_payment.html` | Access token for a test account, local development signing key, expired 18 Aug 2026. Never valid in production. Removed from the file; left in history. |
+
+No `.env` file was ever committed (only `.env.example`). Both findings are in
+`.gitleaksignore`; CI now runs the same scan on every push.
+
+---
+
 ## 5. Open tech debt
 
 ### Before launch

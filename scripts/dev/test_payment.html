@@ -9,7 +9,8 @@
   <pre id="result"></pre>
 
   <script>
-    const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg3MDc2NzEyLCJpYXQiOjE3ODcwNzU4MTIsImp0aSI6IjdiMzAyOTRlY2Q1ZTQ0NmM5NTM0NmRlMDExMGI5YzM2IiwidXNlcl9pZCI6NDQsInJvbGUiOiJzZWVrZXIiLCJlbWFpbCI6InRyaWFsQHRlc3QuY29tIiwiaXNfZW1haWxfdmVyaWZpZWQiOnRydWV9.HssN9NNmGpC1Q6CszeERGJ2oTddiRYYQC8jII29ldtw';
+    // Paste a fresh access token from POST /api/v1/auth/login/ (local only).
+    const ACCESS_TOKEN = 'PASTE_A_FRESH_ACCESS_TOKEN_HERE';
     document.getElementById('pay').addEventListener('click', async () => {
       // Step 1: Create order
       const orderRes = await fetch('http://localhost:8000/api/v1/subscriptions/create-order/', {

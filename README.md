@@ -95,6 +95,8 @@ One Docker image runs all three services; `SERVICE_ROLE` picks the role
   with an 80% coverage gate. Regression tests are marked and name the bug they
   guard against.
 - **Fast feedback:** black, isort and flake8 in pre-commit and in CI.
+- **Secrets:** gitleaks scans the full git history on every push; reviewed
+  findings are recorded with reasons in `.gitleaksignore`.
 - **Safe configuration:** production refuses to start when a required setting
   is missing or points at localhost, and lists every problem at once.
 - **Deploy verification:** `scripts/check_deploy.py` checks the running app -

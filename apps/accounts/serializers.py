@@ -77,10 +77,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     @staticmethod
     def _get_client_ip(request):
         """Extract the real client IP, considering proxies."""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
+        # The first X-Forwarded-For entry is client-controlled; see
+        # apps/core/client_ip.py for the address that can be trusted.
+        from apps.core.client_ip import client_ip
+
+        return client_ip(request)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -152,10 +153,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @staticmethod
     def _get_client_ip(request):
         """Extract the real client IP, considering proxies."""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
+        # The first X-Forwarded-For entry is client-controlled; see
+        # apps/core/client_ip.py for the address that can be trusted.
+        from apps.core.client_ip import client_ip
+
+        return client_ip(request)
 
 
 class VerifyOTPSerializer(serializers.Serializer):

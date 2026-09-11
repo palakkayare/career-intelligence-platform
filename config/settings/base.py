@@ -392,3 +392,15 @@ AUTH_PASSWORD_VALIDATORS += [
 
 # Browsers hide response headers from frontend JavaScript unless listed here.
 CORS_EXPOSE_HEADERS = ["X-Request-ID"]
+
+
+# ─── Client IP ───
+# How many reverse proxies in front of the app append to X-Forwarded-For.
+# 0 trusts only the socket address: right locally, and the only safe answer
+# when unsure, because the header is otherwise typed by the client.
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=0)
+REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_COUNT
+
+# ─── Login lockout ───
+LOGIN_LOCKOUT_THRESHOLD = env.int("LOGIN_LOCKOUT_THRESHOLD", default=5)
+LOGIN_LOCKOUT_WINDOW_MINUTES = env.int("LOGIN_LOCKOUT_WINDOW_MINUTES", default=15)

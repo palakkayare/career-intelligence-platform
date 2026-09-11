@@ -249,6 +249,8 @@ class LoginHistory(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "-created_at"]),
+            # Lockout looks up recent attempts by address.
+            models.Index(fields=["ip_address", "-created_at"], name="login_hist_ip_created_idx"),
         ]
 
     def __str__(self):

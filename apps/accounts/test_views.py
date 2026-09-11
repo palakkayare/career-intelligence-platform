@@ -12,6 +12,7 @@ not trip the 5/min limit. apps/core/tests.py covers throttling itself.
 import pyotp
 import pytest
 from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import LoginHistory, OTPCode, User
@@ -330,6 +331,7 @@ def test_a_failed_login_is_recorded_too(api, seeker_user):
     assert entry.email_attempted == seeker_user.email
 
 
+@override_settings(TRUSTED_PROXY_COUNT=2)
 def test_the_forwarded_ip_is_preferred_over_the_socket_address(api, seeker_user):
     """Behind Nginx, REMOTE_ADDR is the proxy, not the client."""
     api.post(

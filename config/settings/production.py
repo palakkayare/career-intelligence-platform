@@ -52,3 +52,10 @@ LOGGING = build_logging(json_output=env.bool("LOG_JSON", default=True))  # noqa:
 
 # ─── Password breach check ───
 PASSWORD_BREACH_CHECK = env.bool("PASSWORD_BREACH_CHECK", default=True)  # noqa: F405
+
+
+# ─── Client IP ───
+# Hosting platforms put one proxy in front of the app. With Cloudflare in
+# front of that as well, set TRUSTED_PROXY_COUNT=2 in the environment.
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=1)  # noqa: F405
+REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_COUNT  # noqa: F405

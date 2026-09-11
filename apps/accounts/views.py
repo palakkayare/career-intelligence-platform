@@ -2,6 +2,8 @@
 Authentication views.
 """
 
+import math
+
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -98,6 +100,20 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Too many recent failures for this email from this address: refuse
+        # before the password is even checked, so guessing stops. The answer
+        # is identical whether or not the account exists.
+        from .lockout import LoginLockoutService
+
+        retry_after = LoginLockoutService.seconds_remaining(email, self._get_client_ip(request))
+        if retry_after:
+            minutes = math.ceil(retry_after / 60)
+            return Response(
+                {"error": f"Too many failed login attempts. Try again in {minutes} minutes."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+                headers={"Retry-After": str(retry_after)},
+            )
+
         # Authenticate (Django built-in)
         user = authenticate(request, email=email, password=password)
 
@@ -169,10 +185,11 @@ class LoginView(APIView):
 
     @staticmethod
     def _get_client_ip(request):
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
+        # The first X-Forwarded-For entry is client-controlled; see
+        # apps/core/client_ip.py for the address that can be trusted.
+        from apps.core.client_ip import client_ip
+
+        return client_ip(request)
 
 
 class Verify2FALoginView(APIView):
@@ -249,10 +266,11 @@ class Verify2FALoginView(APIView):
 
     @staticmethod
     def _get_client_ip(request):
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
+        # The first X-Forwarded-For entry is client-controlled; see
+        # apps/core/client_ip.py for the address that can be trusted.
+        from apps.core.client_ip import client_ip
+
+        return client_ip(request)
 
 
 class TwoFactorSetupView(APIView):
@@ -622,10 +640,11 @@ class GoogleAuthView(APIView):
 
     @staticmethod
     def _get_client_ip(request):
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
+        # The first X-Forwarded-For entry is client-controlled; see
+        # apps/core/client_ip.py for the address that can be trusted.
+        from apps.core.client_ip import client_ip
+
+        return client_ip(request)
 
 
 class DataExportView(APIView):

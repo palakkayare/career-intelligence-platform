@@ -442,6 +442,7 @@ class FakeRequest:
 
 
 @pytest.mark.regression
+@override_settings(TRUSTED_PROXY_COUNT=2)
 def test_the_forwarded_address_wins_over_the_socket():
     """Behind Nginx, REMOTE_ADDR is the proxy - every submission would
     otherwise share one hash and hit the device limit immediately."""

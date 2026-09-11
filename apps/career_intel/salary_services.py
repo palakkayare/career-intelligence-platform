@@ -56,16 +56,19 @@ def hash_ip(ip_address):
 
 def client_ip(request):
     """
-    Left-most X-Forwarded-For entry, which is the original client when the
-    app sits behind Nginx.
+    The submitter's address, as delivered by our own proxies; see
+    apps/core/client_ip.py.
+
+    This used to read the left-most X-Forwarded-For entry, which the client
+    types. A different made-up address per request walked straight past the
+    per-IP submission limit, and with it the protection of the aggregates.
     """
     if request is None:
         return None
 
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    from apps.core.client_ip import client_ip as trusted_client_ip
+
+    return trusted_client_ip(request)
 
 
 class SalaryService:

@@ -7,13 +7,14 @@ from .context import clear_context, set_context
 
 def _client_ip(request):
     """
-    Prefer the left-most X-Forwarded-For entry, which is the original client
-    when the app sits behind Nginx or a load balancer.
+    Only addresses appended by our own proxies are trusted; see
+    apps/core/client_ip.py. The left-most X-Forwarded-For entry is typed by
+    the client, and an audit trail that records whatever the client claims
+    is not evidence of anything.
     """
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    from apps.core.client_ip import client_ip
+
+    return client_ip(request)
 
 
 class AuditContextMiddleware:

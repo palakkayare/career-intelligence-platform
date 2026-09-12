@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -330,6 +333,46 @@ def get_ats_rating(score):
     return "Poor"
 
 
+# An analysis that has not finished within this long is not coming: the task
+# retries three times over a few minutes, so anything beyond it has given up.
+ADVANCED_ATS_PATIENCE = timedelta(minutes=30)
+
+
+def advanced_ats_state(resume):
+    """
+    Why there is no advanced ATS result yet, in words that are true.
+
+    One field used to answer this - the absence of a result - and it cannot
+    tell four different situations apart. Each returns its own state so the
+    frontend can decide between "wait" and "offer the retry button".
+    """
+    if resume.status == Resume.Status.FAILED:
+        return (
+            "parse_failed",
+            "This resume could not be read, so it cannot be analysed. Try uploading it again.",
+        )
+
+    if resume.status != Resume.Status.PARSED:
+        return (
+            "parsing",
+            "The resume is still being read. The ATS analysis starts once that finishes.",
+        )
+
+    if resume.advanced_ats_queued_at is None:
+        return (
+            "never_started",
+            "This resume has not been analysed yet. Ask for an analysis to get your ATS score.",
+        )
+
+    if timezone.now() - resume.advanced_ats_queued_at > ADVANCED_ATS_PATIENCE:
+        return (
+            "gave_up",
+            "The analysis did not finish. Ask for it again, and tell us if it keeps failing.",
+        )
+
+    return ("running", "The ATS analysis is running. Check back in a moment.")
+
+
 class AdvancedAtsView(APIView):
     """GET /api/v1/resumes/<uuid:public_id>/advanced-ats/"""
 
@@ -344,12 +387,14 @@ class AdvancedAtsView(APIView):
         )
 
         if not resume.advanced_ats_analyzed_at:
+            state, message = advanced_ats_state(resume)
             return Response(
                 {
                     "has_analysis": False,
-                    "message": (
-                        "Advanced ATS analysis is still running. " "Check back in a moment."
-                    ),
+                    "state": state,
+                    "message": message,
+                    # True only when POST re-analyze-ats/ would actually help.
+                    "can_retry": state in ("never_started", "gave_up"),
                 },
                 status=status.HTTP_202_ACCEPTED,
             )
@@ -383,12 +428,14 @@ class ReAnalyzeAdvancedAtsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        from .tasks import advanced_ats_task
+        from .tasks import queue_advanced_ats
 
-        advanced_ats_task.delay(resume.id)
+        # Records the queue time as well, so the GET endpoint reports this as
+        # running rather than as never started.
+        queue_advanced_ats(resume)
 
         return Response(
-            {"message": "Advanced ATS re-analysis queued."},
+            {"message": "Advanced ATS analysis queued."},
             status=status.HTTP_202_ACCEPTED,
         )
 

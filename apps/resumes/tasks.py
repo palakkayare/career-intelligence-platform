@@ -74,7 +74,7 @@ def parse_resume_task(self, resume_id):
         # on_commit, not a bare delay(): the worker could otherwise pick the
         # job up before this transaction commits and find a resume that is
         # not marked PARSED yet.
-        transaction.on_commit(lambda: advanced_ats_task.delay(resume.id))
+        queue_advanced_ats(resume)
 
 
 def _extract_text(resume):
@@ -112,6 +112,18 @@ def _extract_docx(file):
     with file.open("rb") as f:
         doc = Document(f)
     return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+
+
+def queue_advanced_ats(resume):
+    """
+    Queue the advanced analysis and record when.
+
+    The timestamp is what lets the endpoint say "running" only while that is
+    true. Written before the task is sent, so a worker that picks the job up
+    immediately still finds it set.
+    """
+    Resume.objects.filter(pk=resume.pk).update(advanced_ats_queued_at=timezone.now())
+    transaction.on_commit(lambda: advanced_ats_task.delay(resume.pk))
 
 
 @shared_task(bind=True, max_retries=2)

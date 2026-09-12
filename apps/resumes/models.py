@@ -72,6 +72,11 @@ class Resume(TimestampedModel, SoftDeleteModel):
     )
     advanced_ats_breakdown = models.JSONField(default=dict, blank=True)
     advanced_ats_analyzed_at = models.DateTimeField(null=True, blank=True)
+    # Set when the analysis is queued, so "running" can be told apart from
+    # "never started" (resumes parsed before the feature existed) and from
+    # "queued long ago and never finished". Without it the endpoint reported
+    # every one of those as still running, forever.
+    advanced_ats_queued_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "resumes"

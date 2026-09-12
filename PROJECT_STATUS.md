@@ -19,7 +19,7 @@ the frontend - decisions rather than commits.
 | Docker, CI, Sentry, security hardening (Phase 4) | Done |
 | Production deploy on Railway + Neon | Done, smoke-tested, rollback practised |
 | API documentation | `/api/docs/` (Swagger UI), generated from the code |
-| Frontend | **Not started** |
+| Frontend | Built ([separate repository](https://github.com/palakkayare/career-platform-frontend)): 40 pages, 73 tests, calling 135 of the 177 API routes. **Not deployed** |
 | Custom domain, Cloudflare | **Not done** - needs a code change for client IPs (DEPLOY.md, 6) |
 | Razorpay live mode | **Not done** - waits on legal review and GSTIN |
 | Privacy policy, terms, refund policy | **Not written** - for the lawyer |
@@ -138,7 +138,7 @@ None of these is blocked on code alone.
 | L2 | SendGrid domain authentication (SPF, DKIM) | A domain |
 | L3 | `DATA_PROTECTION.md` gaps: retention schedule, consent records, breach procedure, DPO decision, key custody procedure, log retention | A lawyer: the retention periods and consent record set the code |
 | L5 | Delete or clearly label the smoke-test accounts in production | Launch day |
-| L6 | `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` | The frontend |
+| L6 | `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` | Deploying the frontend |
 | L7 | Razorpay live keys, webhook, and one real ₹1 payment; remove `RAZORPAY_ALLOW_TEST_KEYS` | GSTIN and the lawyer |
 | L8 | Review copy in the frontend against gap 4 as it is written | The frontend |
 
@@ -158,6 +158,7 @@ None of these is blocked on code alone.
 | M2 | No health monitoring for `worker` and `beat` (no HTTP to probe) |
 | M3 | 130 of 215 API operations have no documented response body. The ratchet test keeps the number falling; annotate views with `@extend_schema` |
 | M4 | The title matcher's synonyms are a hand-written list. It fails safe - no match rather than a wrong one - but new roles need new entries |
+| M5 | Five shipped features have no UI: company reviews, interview prep, gamification, talent pools, saved jobs. Also unreachable from the client: account deactivation and the GDPR data export, which the frontend needs before launch |
 
 ### Low
 

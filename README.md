@@ -7,12 +7,15 @@ A two-sided career platform backend: job seekers get resume parsing, job
 matching and career guidance; recruiters get job posting, candidate discovery
 and applicant management. Built with Django REST Framework, Celery and spaCy.
 
+The React client lives in
+**[career-platform-frontend](https://github.com/palakkayare/career-platform-frontend)**.
+
 ## Status
 
 | | |
 |---|---|
 | Backend | **Deployed** to Railway (web, worker, beat), Neon Postgres, Redis, S3. Feature work complete. |
-| Frontend | Not built yet - this repository is the API |
+| Frontend | Built in [its own repository](https://github.com/palakkayare/career-platform-frontend); not deployed yet |
 | Payments | Razorpay integration complete, running in **test mode** |
 | Launch | **Not launched.** Legal review, GSTIN and custom domain are outstanding |
 

@@ -131,6 +131,21 @@ parsing and S3, Razorpay test order) are the model for this.
 
 ---
 
+## 5a. API documentation
+
+`/api/docs/` (Swagger UI) and `/api/schema/` are generated from the code, so
+they cannot drift from the endpoints.
+
+In production both need a **staff login**: sign in at `/admin/` first, then
+open `/api/docs/` in the same browser. Locally they are open.
+
+Schema generation walks every view and serializer, so `pytest` fails on the
+kind of mistake that otherwise surfaces as a 500 for a user. A ratchet test
+holds the number of operations with no documented response body, so it can
+only fall.
+
+---
+
 ## 6. Client IP and proxies
 
 Login lockout, rate limits and the salary submission limit all key on the

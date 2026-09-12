@@ -260,6 +260,13 @@ SPECTACULAR_SETTINGS = {
     # Group operations by the first path segment after the version.
     "SCHEMA_PATH_PREFIX": "/api/v1",
     "SORT_OPERATIONS": True,
+    # A browser has a session cookie, not a bearer token. Without session
+    # authentication here, signing in at /admin/ does nothing for the docs -
+    # which is exactly what happened when they were first locked down.
+    "SERVE_AUTHENTICATION": [
+        "rest_framework.authentication.SessionAuthentication",
+        "apps.core.authentication.ObservedJWTAuthentication",
+    ],
     "SWAGGER_UI_SETTINGS": {"persistAuthorization": True, "displayRequestDuration": True},
 }
 

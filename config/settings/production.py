@@ -81,7 +81,8 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ─── API docs ───
 # A full endpoint list is a map for anyone probing the API, so in production
-# the schema and the UI need a staff login (sign in at /admin/ first).
+# the schema and the UI need a staff login: sign in at /admin/, then open
+# /api/docs/ in the same browser.
 SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] = ["rest_framework.permissions.IsAdminUser"]  # noqa
 
 # ─── Error tracking ───

@@ -120,12 +120,19 @@ class SeekerProfileSerializer(serializers.ModelSerializer):
             "educations",
             "skills_detail",
             "profile_strength",
+            # Declared above and computed below. Leaving it out of this tuple
+            # made DRF assert, so both profile endpoints returned 500.
+            "profile_strength_detail",
             # Feature 16 — recruiter search visibility controls
             "is_open_to_opportunities",
             "hide_current_company",
             "searchable_until_date",
         )
-        read_only_fields = ("profile_strength", "profile_photo")
+        read_only_fields = (
+            "profile_strength",
+            "profile_strength_detail",
+            "profile_photo",
+        )
 
     def get_profile_strength_detail(self, obj):
         from .services import ProfileStrengthService

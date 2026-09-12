@@ -11,7 +11,7 @@ and applicant management. Built with Django REST Framework, Celery and spaCy.
 
 | | |
 |---|---|
-| Backend | **Deployed** to Railway (web, worker, beat), Neon Postgres, Redis, S3 |
+| Backend | **Deployed** to Railway (web, worker, beat), Neon Postgres, Redis, S3. Feature work complete. |
 | Frontend | Not built yet - this repository is the API |
 | Payments | Razorpay integration complete, running in **test mode** |
 | Launch | **Not launched.** Legal review, GSTIN and custom domain are outstanding |
@@ -46,14 +46,14 @@ export and account closure.
 
 ## Numbers
 
-Measured from the code, 11 Sep 2026.
+Measured from the code, 12 Sep 2026.
 
 | | |
 |---|---|
 | Django apps | 18 |
 | Models | 67 |
-| API routes | 175 |
-| Automated tests | 1007 (CI fails below 80% coverage) |
+| API routes | 177 |
+| Automated tests | 1195 (CI fails below 80% coverage) |
 | Celery tasks / scheduled jobs | 12 / 7 |
 | Application code / test code | ~29,000 / ~13,000 lines of Python |
 
@@ -91,7 +91,7 @@ One Docker image runs all three services; `SERVICE_ROLE` picks the role
 
 ## Engineering practices
 
-- **Tests:** 1007, run in CI against real Postgres and Redis service containers,
+- **Tests:** 1195, run in CI against real Postgres and Redis service containers,
   with an 80% coverage gate. Regression tests are marked and name the bug they
   guard against.
 - **Fast feedback:** black, isort and flake8 in pre-commit and in CI.

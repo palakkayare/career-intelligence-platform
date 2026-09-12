@@ -36,6 +36,7 @@ from .serializers import (
     UserLearningSerializer,
 )
 from .services import SkillGapService
+from .title_matching import TitleMatcher
 
 # Feature-flag permission built in Step 15
 HasSkillGap = HasFeature.create("skill_gap")
@@ -651,28 +652,28 @@ class FromCurrentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # First try an exact name match, then fall back to a loose match on the
-        # first word so that "Backend Developer at Acme" still resolves.
-        node = CareerPathNode.objects.filter(is_active=True, name__iexact=current_title).first()
+        nodes = {node.name: node for node in CareerPathNode.objects.filter(is_active=True)}
+        matcher = TitleMatcher(nodes.keys())
+        matched_name = matcher.best(current_title)
 
-        if not node:
-            node = CareerPathNode.objects.filter(
-                is_active=True, name__icontains=current_title.split()[0]
-            ).first()
-
-        if not node:
+        if not matched_name:
             return Response(
                 {
                     "error": (
                         f'Could not match "{current_title}" to any role in the career '
                         f"graph. Browse /career-path/nodes/ to find yours."
                     ),
-                    "suggestions": list(
-                        CareerPathNode.objects.filter(is_active=True).values("slug", "name")[:10]
-                    ),
+                    # The closest names rather than the first ten alphabetically,
+                    # so the list is worth reading.
+                    "suggestions": [
+                        {"slug": nodes[name].slug, "name": name}
+                        for name in matcher.suggestions(current_title)
+                    ],
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        node = nodes[matched_name]
 
         try:
             max_hops = int(request.query_params.get("max_hops", 3))
@@ -682,6 +683,11 @@ class FromCurrentView(APIView):
 
         result = CareerPathService.reachable_from(node.slug, max_hops=max_hops)
         result["matched_from_title"] = current_title
+        # Which node the title resolved to, said out loud. A wrong match used
+        # to be invisible: the person saw somebody else's career path and had
+        # no way to tell.
+        result["matched_node"] = {"slug": node.slug, "name": node.name}
+        result["matched_exactly"] = node.name.lower() == current_title.lower()
         return Response(result)
 
 

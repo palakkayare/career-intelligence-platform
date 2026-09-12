@@ -238,6 +238,24 @@ class SalaryService:
 
         return qs
 
+    @staticmethod
+    def _not_enough_data(k):
+        """
+        The only answer given below the K threshold.
+
+        One shape for every suppressed query, carrying no count: two queries
+        that both fall short must be indistinguishable, or the difference
+        between them leaks the very thing the threshold protects.
+        """
+        return {
+            "has_data": False,
+            "k_threshold": k,
+            "message": (
+                f"Not enough data to publish a figure. At least {k} submissions are "
+                "needed to protect privacy. Try broadening your filters."
+            ),
+        }
+
     @classmethod
     def get_insights(cls, filters: dict) -> dict:
         """
@@ -264,15 +282,12 @@ class SalaryService:
         count = qs.count()
 
         if count < k:
-            return {
-                "has_data": False,
-                "count": count,
-                "k_threshold": k,
-                "message": (
-                    f"Not enough data ({count} submissions found, at least {k} are "
-                    f"needed to protect privacy). Try broadening your filters."
-                ),
-            }
+            # Deliberately no count. Below the threshold the exact size of the
+            # group is the most identifying thing left: 1 rather than 0 says a
+            # specific person submitted, and narrowing the filters repeatedly
+            # maps the population one query at a time. k_threshold is fine to
+            # publish - the rule is public and says nothing about who is in it.
+            return cls._not_enough_data(k)
 
         # --- Compute the aggregates ---
         salaries = list(qs.values_list("salary_inr", flat=True))
@@ -285,13 +300,11 @@ class SalaryService:
         )
 
         # Re-check K: trimming may have pushed the sample below the threshold.
+        # Same response as above, for the same reason - and deliberately
+        # indistinguishable from it, so the reply does not reveal that a
+        # different number of rows matched before trimming.
         if len(salaries) < k:
-            return {
-                "has_data": False,
-                "count": len(salaries),
-                "k_threshold": k,
-                "message": "Not enough valid data left after filtering out invalid values.",
-            }
+            return cls._not_enough_data(k)
 
         aggregates = salary_algorithm.calculate_aggregates(salaries)
 

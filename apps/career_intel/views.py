@@ -430,8 +430,10 @@ class SubmitSalaryView(APIView):
     """
     POST /api/v1/salary/submit/
 
-    Anonymous submission. The user is stored internally for de-duplication
-    only and is never exposed through any aggregation endpoint.
+    The submitter is recorded internally for de-duplication and is never
+    exposed through any aggregation endpoint. That makes a submission
+    pseudonymous rather than anonymous - see DATA_PROTECTION.md gap 4 for why
+    the link cannot be removed, and for the wording used in the response.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -450,7 +452,14 @@ class SubmitSalaryView(APIView):
 
         return Response(
             {
-                "message": "Thank you for contributing. Your data stays anonymous.",
+                # Accurate wording from DATA_PROTECTION.md gap 4. Calling this
+                # anonymous would overstate what the system does: an author
+                # link is kept so one person cannot move a published median.
+                "message": (
+                    "Thank you for contributing. Your name is never shown and only "
+                    "aggregate figures are published. We keep a private record of who "
+                    "submitted, to prevent duplicates and abuse."
+                ),
                 "submission_id": submission.id,
             },
             status=status.HTTP_201_CREATED,

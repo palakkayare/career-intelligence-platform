@@ -442,11 +442,16 @@ class UserLearning(TimestampedModel):
 
 class SalarySubmission(TimestampedModel):
     """
-    An anonymous salary submission.
+    A salary submission, published only in aggregate.
 
     The submitting user is stored internally so we can prevent duplicate
     entries and let people manage their own data, but the user is NEVER
     exposed through any aggregation endpoint.
+
+    This makes a submission **pseudonymous, not anonymous** - deduplication
+    requires linkability, and "one submission per person" and "truly
+    anonymous" cannot both hold. DATA_PROTECTION.md gap 4 records the
+    reasoning and the wording user-facing copy must use.
     """
 
     class CompanySizeBucket(models.TextChoices):

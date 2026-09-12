@@ -43,6 +43,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_filters",
     "storages",
+    "drf_spectacular",
 ]
 
 LOCAL_APPS = [
@@ -157,6 +158,7 @@ REST_FRAMEWORK = {
         "subscription": "10/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "PAGE_SIZE": 20,
 }
 
@@ -239,6 +241,27 @@ if "rzp_test_" in RAZORPAY_KEY_ID and not DEBUG and not RAZORPAY_ALLOW_TEST_KEYS
         "Test Razorpay keys in production! Before launch, set "
         "RAZORPAY_ALLOW_TEST_KEYS=True to deploy with test keys on purpose."
     )
+
+# ─── API schema ───
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Career Intelligence Platform API",
+    "DESCRIPTION": (
+        "Backend for a two-sided career platform: job seekers get resume "
+        "parsing, matching and career guidance; recruiters get job posting, "
+        "candidate discovery and applicant management.\n\n"
+        "Authenticate with `POST /api/v1/auth/login/` and send the `access` "
+        "token as `Authorization: Bearer <token>`.\n\n"
+        "Endpoints that build their response by hand show no response body "
+        "here yet - the path, method, auth and parameters are still accurate."
+    ),
+    "VERSION": "1.0.0",
+    # The schema is served from its own endpoint, not embedded in the UI page.
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Group operations by the first path segment after the version.
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+    "SORT_OPERATIONS": True,
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True, "displayRequestDuration": True},
+}
 
 # ─── Celery Configuration ───
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")

@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.applications.urls import applications_patterns, apply_patterns
 from apps.career_intel.urls import (
@@ -86,6 +87,10 @@ urlpatterns = [
     path("api/v1/interview-prep/", include((interview_prep_patterns, "interview-prep"))),
     path("api/v1/gamification/", include((gamification_patterns, "gamification"))),
     path("api/v1/reviews/", include((reviews_patterns, "reviews"))),
+    # API documentation. Generated from the code, so it cannot drift from the
+    # endpoints. Staff only in production - see SPECTACULAR_SETTINGS.
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 
 if settings.DEBUG:

@@ -6,6 +6,9 @@ django-cors-headers==4.3.1
 
 # Authentication
 djangorestframework-simplejwt==5.3.1
+# Generates the OpenAPI schema and serves Swagger UI from the code itself,
+# so the docs cannot drift from the endpoints.
+drf-spectacular==0.30.0
 
 # Database
 psycopg2-binary==2.9.9

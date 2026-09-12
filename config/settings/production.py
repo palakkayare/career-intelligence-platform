@@ -79,6 +79,11 @@ CSRF_COOKIE_SECURE = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
+# ─── API docs ───
+# A full endpoint list is a map for anyone probing the API, so in production
+# the schema and the UI need a staff login (sign in at /admin/ first).
+SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] = ["rest_framework.permissions.IsAdminUser"]  # noqa
+
 # ─── Error tracking ───
 # Railway builds from the repo, so the image's GIT_SHA build arg is empty
 # there. Railway sets the commit in the environment instead.

@@ -26,8 +26,16 @@ STREAK_MILESTONES = {4: 25, 12: 75, 26: 200}
 
 
 def week_start(when=None):
-    """Monday of the week containing `when`. The unit everything here uses."""
-    day = (when or timezone.now()).date()
+    """
+    Monday of the week containing `when`. The unit everything here uses.
+
+    The date has to be the local one. Progress is counted with `__date`
+    lookups, which bucket by the project time zone, and `now().date()` is the
+    UTC date - still yesterday between midnight and 05:30 IST. On a Monday in
+    that window this returned last Monday, and a user's week appeared to
+    reset.
+    """
+    day = timezone.localdate(when) if when else timezone.localdate()
     return day - timedelta(days=day.weekday())
 
 

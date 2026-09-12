@@ -271,11 +271,14 @@ def check_expiring_subscriptions():
 
     from apps.payments.models import Subscription
 
-    target_date = timezone.now() + timedelta(days=3)
+    # localdate, not now().date(): the lookup below buckets by the project
+    # time zone, and the UTC date is still yesterday until 05:30 IST. Correct
+    # at the current 09:30 schedule, and wrong as soon as that moves.
+    target_date = timezone.localdate() + timedelta(days=3)
 
     expiring_subs = Subscription.objects.filter(
         status=Subscription.Status.ACTIVE,
-        current_period_end__date=target_date.date(),
+        current_period_end__date=target_date,
         auto_renew=False,  # Auto-renewing subscriptions do not need a warning
     )
 

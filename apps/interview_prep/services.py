@@ -141,6 +141,11 @@ class InterviewPrepService:
         """
         return list(
             ChecklistProgress.objects.filter(user=user)
+            # order_by() clears Meta.ordering. Without it Django adds
+            # completed_at to the SELECT for the ordering, DISTINCT then runs
+            # over (label, completed_at), and every tick comes back as its own
+            # row - one interview appearing once per item ticked.
+            .order_by("interview_label")
             .values_list("interview_label", flat=True)
             .distinct()
         )

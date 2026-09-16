@@ -118,6 +118,7 @@ class TalentPoolService:
         Returns the number reported. The marker moves even when nothing was
         found, so an idle pool does not re-scan the same window forever.
         """
+        from apps.notifications import links
         from apps.notifications.models import NotificationKind
         from apps.notifications.service import NotificationService
 
@@ -138,7 +139,7 @@ class TalentPoolService:
                     if len(new_members) > 1
                     else f'{first.full_name or "A candidate"} matches ' f'"{pool.name}".'
                 ),
-                link=f"/candidates/pools/{pool.pk}/",
+                link=links.candidate_search(),
                 context={
                     "pool_name": pool.name,
                     "new_count": len(new_members),

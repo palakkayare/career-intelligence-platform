@@ -65,6 +65,7 @@ LOCAL_APPS = [
     "apps.interview_prep",
     "apps.gamification",
     "apps.reviews",
+    "apps.dashboard",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

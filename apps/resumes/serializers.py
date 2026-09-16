@@ -1,9 +1,46 @@
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.skills.models import Skill
 from apps.skills.serializers import SkillSerializer
 
+from .analysis_state import FEATURE, analysis_state, can_reanalyse
 from .models import Resume, ResumeSkill
+
+
+class AnalysisStateMixin(serializers.Serializer):
+    """
+    Adds `analysis_state` and `can_reanalyse` (see analysis_state.py).
+
+    The plan lookup is cached in the serializer context, which a list
+    serializer shares with every row, so a list costs one lookup per user
+    rather than one per resume.
+    """
+
+    analysis_state = serializers.SerializerMethodField()
+    can_reanalyse = serializers.SerializerMethodField()
+
+    def _has_analysis(self, obj):
+        cache = self.context.setdefault("_resume_analysis_by_user", {})
+        if obj.user_id not in cache:
+            from apps.payments.services import FeatureGateService
+
+            cache[obj.user_id] = FeatureGateService.has_feature(obj.user, FEATURE)
+        return cache[obj.user_id]
+
+    @extend_schema_field(
+        serializers.ChoiceField(
+            choices=["ready", "failed", "analysing", "queued", "stuck", "not_included"]
+        )
+    )
+    def get_analysis_state(self, obj):
+        return analysis_state(obj, has_analysis=self._has_analysis(obj))
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_can_reanalyse(self, obj):
+        has = self._has_analysis(obj)
+        return can_reanalyse(analysis_state(obj, has_analysis=has), has_analysis=has)
 
 
 class ResumeUploadSerializer(serializers.ModelSerializer):
@@ -15,7 +52,7 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
         fields = ("name", "file", "set_as_primary")
 
 
-class ResumeDetailSerializer(serializers.ModelSerializer):
+class ResumeDetailSerializer(AnalysisStateMixin, serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -33,6 +70,8 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
             "failure_reason",
             "download_url",
             "created_at",
+            "analysis_state",
+            "can_reanalyse",
         )
         read_only_fields = fields
 
@@ -42,7 +81,7 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
         return ResumeService.get_download_url(obj)
 
 
-class ResumeListSerializer(serializers.ModelSerializer):
+class ResumeListSerializer(AnalysisStateMixin, serializers.ModelSerializer):
     """Compact for list view."""
 
     class Meta:
@@ -54,6 +93,9 @@ class ResumeListSerializer(serializers.ModelSerializer):
             "is_primary",
             "status",
             "created_at",
+            "analysis_state",
+            "can_reanalyse",
+            "failure_reason",
         )
         read_only_fields = fields
 

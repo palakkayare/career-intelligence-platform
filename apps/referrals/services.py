@@ -226,6 +226,7 @@ class ReferralService:
     @classmethod
     def _notify_conversion(cls, referral) -> None:
         """Send an in-app notification to both sides of the referral."""
+        from apps.notifications import links
         from apps.notifications.models import NotificationKind
         from apps.notifications.service import NotificationService
 
@@ -238,7 +239,7 @@ class ReferralService:
                     f"{referral.referee.email} just subscribed using your code. "
                     f"You earned {REFERRER_PRO_DAYS} days of Pro on your next renewal."
                 ),
-                link="/referrals/my-rewards/",
+                link=links.referrals(),
                 context={"referee_email": referral.referee.email},
             )
 
@@ -250,7 +251,7 @@ class ReferralService:
                     f"You signed up with a referral code. "
                     f"Enjoy {REFEREE_DISCOUNT_PCT}% off your next subscription."
                 ),
-                link="/referrals/my-rewards/",
+                link=links.referrals(),
                 context={},
             )
         except Exception as exc:

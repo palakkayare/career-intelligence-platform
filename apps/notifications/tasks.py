@@ -34,6 +34,26 @@ KIND_TEMPLATES = {
 }
 
 
+def _greeting_name(user):
+    """
+    The name to open an email with.
+
+    Seekers and recruiters usually fill in their name on their profile, not on
+    the account, so both are checked before giving up. An email address is
+    never used as a name: "Hi seeker1@test.com" reads like a mail merge that
+    went wrong.
+    """
+    for source in (
+        user,
+        getattr(user, "seeker_profile", None),
+        getattr(user, "recruiter_profile", None),
+    ):
+        name = (getattr(source, "full_name", "") or "").strip() if source is not None else ""
+        if name:
+            return name.split()[0]
+    return "there"
+
+
 def _build_context(notif):
     """Build the template context from the notification and its user."""
     user = notif.user
@@ -45,7 +65,7 @@ def _build_context(notif):
 
     context = {
         "user": user,
-        "user_name": getattr(user, "full_name", "") or user.email,
+        "user_name": _greeting_name(user),
         "notification": notif,
         "title": notif.title,
         "message": notif.message,
@@ -229,7 +249,7 @@ def _send_user_digest(user):
 
     context = {
         "user": user,
-        "user_name": getattr(user, "full_name", "") or user.email,
+        "user_name": _greeting_name(user),
         "grouped_notifs": grouped,
         "total_count": len(digest_notifs),
         "frontend_url": settings.FRONTEND_URL,

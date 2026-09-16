@@ -6,6 +6,7 @@ Keeping them in one module means business logic never imports
 notification internals directly.
 """
 
+from . import links
 from .models import NotificationKind
 from .service import NotificationService
 
@@ -22,7 +23,7 @@ def notify_application_status_change(application, old_status, new_status):
             f'Your application for "{application.job.title}" at '
             f"{application.job.company.name} is now {new_status}."
         ),
-        link=f"/applications/me/{application.id}",
+        link=links.seeker_application(application.id),
         context={
             "job_title": application.job.title,
             "company_name": application.job.company.name,
@@ -43,7 +44,7 @@ def notify_application_received(application):
         kind=NotificationKind.APPLICATION_RECEIVED,
         title="New application received",
         message=f'{seeker_name} applied to "{application.job.title}".',
-        link=f"/jobs/{application.job.public_id}/applications/",
+        link=links.recruiter_job_applications(application.job.public_id),
         context={
             "job_title": application.job.title,
             "seeker_name": seeker_name,
@@ -61,7 +62,7 @@ def notify_payment_success(transaction):
             f"Your payment of Rs. {transaction.amount_inr} for "
             f"{transaction.plan.name} has been received."
         ),
-        link=f"/payments/me/{transaction.id}/invoice/",
+        link=links.invoice(transaction.id),
         context={
             "plan_name": transaction.plan.name,
             "amount_inr": str(transaction.amount_inr),
@@ -83,7 +84,7 @@ def notify_payment_failed(transaction):
             f"{transaction.plan.name} could not be processed. "
             f'Reason: {transaction.failure_reason or "Unknown"}'
         ),
-        link="/subscriptions/",
+        link=links.pricing(),
         context={
             "plan_name": transaction.plan.name,
             "amount_inr": str(transaction.amount_inr),
@@ -102,7 +103,7 @@ def notify_subscription_expiring(subscription, days_remaining):
             f"Your {subscription.plan.name} subscription will end on "
             f'{subscription.current_period_end.strftime("%d %b %Y")}.'
         ),
-        link="/subscriptions/me/",
+        link=links.subscription(),
         context={
             "plan_name": subscription.plan.name,
             "days_remaining": days_remaining,
@@ -120,7 +121,7 @@ def notify_job_approved(job):
         message=(
             f'Your posting "{job.title}" has been approved and is now ' f"visible to job seekers."
         ),
-        link=f"/jobs/{job.public_id}/",
+        link=links.job(job.public_id),
         context={"job_title": job.title},
     )
 
@@ -132,7 +133,7 @@ def notify_job_rejected(job, reason):
         kind=NotificationKind.JOB_REJECTED,
         title="Job posting needs revision",
         message=f'Your posting "{job.title}" was not approved. Reason: {reason}',
-        link=f"/jobs/{job.public_id}/edit/",
+        link=links.recruiter_job_edit(job.public_id),
         context={"job_title": job.title, "rejection_reason": reason},
     )
 
@@ -153,7 +154,7 @@ def notify_application_withdrawn(application):
         kind=NotificationKind.APPLICATION_WITHDRAWN,
         title="An application was withdrawn",
         message=(f"{seeker_name} withdrew their application for " f'"{application.job.title}".'),
-        link=f"/jobs/{application.job.public_id}/applications/",
+        link=links.recruiter_job_applications(application.job.public_id),
         context={
             "job_title": application.job.title,
             "seeker_name": seeker_name,
@@ -176,7 +177,7 @@ def notify_subscription_expired(subscription):
             f"Your {subscription.plan.name} subscription has ended. "
             f"Renew to get your Pro features back."
         ),
-        link="/payments/plans/",
+        link=links.pricing(),
         context={
             "plan_name": subscription.plan.name,
             "expired_on": (
@@ -200,7 +201,7 @@ def notify_resume_analysis_complete(resume):
         kind=NotificationKind.RESUME_ANALYSIS_COMPLETE,
         title="Your resume analysis is ready",
         message=(f'"{resume.name}" has been analysed. ' f"ATS score: {resume.ats_score}/100."),
-        link=f"/resumes/{resume.public_id}/",
+        link=links.resume_analysis(resume.public_id),
         context={
             "resume_name": resume.name,
             "ats_score": resume.ats_score,
@@ -230,7 +231,7 @@ def notify_new_matching_jobs(seeker_user, matches):
             f'Your best match is "{top["job_title"]}" at '
             f'{top["company_name"]} ({top["score"]}% fit).'
         ),
-        link="/jobs/matches/",
+        link=links.job_matches(),
         context={
             "match_count": len(matches),
             "matches": matches[:5],

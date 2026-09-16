@@ -323,6 +323,7 @@ class CandidateProfileService:
     @staticmethod
     def _notify_seeker(recruiter, seeker):
         """Tell the seeker their contact details were unlocked."""
+        from apps.notifications import links
         from apps.notifications.models import NotificationKind
         from apps.notifications.service import NotificationService
 
@@ -336,7 +337,7 @@ class CandidateProfileService:
                     f"{recruiter.full_name} from {company_name} viewed your "
                     f"contact information. They may reach out to you soon."
                 ),
-                link="/seekers/me/who-viewed/",
+                link=links.who_viewed_me(),
                 context={
                     "recruiter_name": recruiter.full_name,
                     "company_name": company_name,

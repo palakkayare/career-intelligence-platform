@@ -168,7 +168,7 @@ class ReparseResumeView(APIView):
         # Reset status so it goes through the pipeline again
         resume.status = Resume.Status.PENDING
         resume.failure_reason = ""
-        resume.save(update_fields=["status", "failure_reason"])
+        resume.save(update_fields=["status", "failure_reason", "updated_at"])
 
         from .tasks import parse_resume_task
 

@@ -28,7 +28,10 @@ def parse_resume_task(self, resume_id):
 
     resume.status = Resume.Status.PARSING
     resume.parse_attempts += 1
-    resume.save(update_fields=["status", "parse_attempts"])
+    # updated_at is listed explicitly: auto_now fields are skipped when
+    # update_fields is given, and the resume page uses it to tell a live
+    # parse from a stuck one.
+    resume.save(update_fields=["status", "parse_attempts", "updated_at"])
 
     try:
         # Step A: Extract text (already implemented in Step 16)

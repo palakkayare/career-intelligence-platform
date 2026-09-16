@@ -87,6 +87,8 @@ urlpatterns = [
     path("api/v1/interview-prep/", include((interview_prep_patterns, "interview-prep"))),
     path("api/v1/gamification/", include((gamification_patterns, "gamification"))),
     path("api/v1/reviews/", include((reviews_patterns, "reviews"))),
+    # Seeker home screen: one aggregated read plus a "seen" marker.
+    path("api/v1/dashboard/", include("apps.dashboard.urls")),
     # API documentation. Generated from the code, so it cannot drift from the
     # endpoints. Staff only in production - see SPECTACULAR_SETTINGS.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

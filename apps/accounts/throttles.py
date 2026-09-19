@@ -33,3 +33,9 @@ class TwoFAThrottle(UserRateThrottle):
     """10 2FA attempts per minute per user (post-auth)."""
 
     scope = "2fa"
+
+
+class PasswordChangeThrottle(UserRateThrottle):
+    """Password changes per user; a wrong current password counts too."""
+
+    scope = "password_change"

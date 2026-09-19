@@ -32,7 +32,9 @@ class ApplicationStatusService:
             Application.Status.OFFERED,
             Application.Status.REJECTED,
         ],
-        Application.Status.OFFERED: [],  # Terminal
+        Application.Status.OFFERED: [],  # the candidate answers this one
+        Application.Status.OFFER_ACCEPTED: [],  # Terminal
+        Application.Status.OFFER_DECLINED: [],  # Terminal
         Application.Status.REJECTED: [],  # Terminal
         Application.Status.WITHDRAWN: [],  # Terminal
     }
@@ -43,6 +45,13 @@ class ApplicationStatusService:
         Application.Status.REVIEWING,
         Application.Status.SHORTLISTED,
         Application.Status.INTERVIEW,
+    }
+
+    # The candidate's answer to an offer. Only from OFFERED, and only theirs
+    # to make: a recruiter cannot accept on someone's behalf.
+    SEEKER_OFFER_ANSWERS = {
+        Application.Status.OFFER_ACCEPTED,
+        Application.Status.OFFER_DECLINED,
     }
 
     @classmethod
@@ -67,11 +76,14 @@ class ApplicationStatusService:
 
         # Validate transition based on actor
         if is_seeker:
-            if new_status != Application.Status.WITHDRAWN:
+            if new_status in cls.SEEKER_OFFER_ANSWERS:
+                if old_status != Application.Status.OFFERED:
+                    raise ValidationError("There is no offer to answer on this application.")
+            elif new_status != Application.Status.WITHDRAWN:
                 raise ValidationError(
-                    f"Seeker can only withdraw an application, not change to {new_status}."
+                    f"Seeker can only withdraw or answer an offer, not change to {new_status}."
                 )
-            if old_status not in cls.NON_TERMINAL:
+            elif old_status not in cls.NON_TERMINAL:
                 raise ValidationError(f"Cannot withdraw from {old_status} state.")
         elif is_recruiter:
             allowed = cls.RECRUITER_TRANSITIONS.get(old_status, [])

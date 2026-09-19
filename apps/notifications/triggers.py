@@ -10,9 +10,21 @@ from . import links
 from .models import NotificationKind
 from .service import NotificationService
 
+OFFER_ANSWERS = ("offer_accepted", "offer_declined")
+
 
 def notify_application_status_change(application, old_status, new_status):
-    """Called from ApplicationStatusService.update_status()"""
+    """
+    Called from ApplicationStatusService.update_status().
+
+    Most changes are the employer's doing and are news for the candidate.
+    An answer to an offer is the other way round, so it goes to the recruiter
+    instead - telling candidates what they themselves just clicked is noise.
+    """
+    if new_status in OFFER_ANSWERS:
+        notify_offer_answered(application, new_status)
+        return
+
     seeker_user = application.seeker.user
 
     NotificationService.create(
@@ -29,7 +41,30 @@ def notify_application_status_change(application, old_status, new_status):
             "company_name": application.job.company.name,
             "old_status": old_status,
             "new_status": new_status,
-            "recruiter_notes": application.recruiter_notes,
+            # The recruiter's private notes stay out of anything addressed to
+            # the candidate, stored or not.
+        },
+    )
+
+
+def notify_offer_answered(application, new_status):
+    """The candidate accepted or declined an offer; the recruiter needs to know."""
+    accepted = new_status == "offer_accepted"
+    seeker_name = application.seeker.full_name or "The candidate"
+
+    NotificationService.create(
+        user=application.job.posted_by.user,
+        kind=NotificationKind.APPLICATION_STATUS_CHANGE,
+        title="Offer accepted" if accepted else "Offer declined",
+        message=(
+            f'{seeker_name} {"accepted" if accepted else "declined"} your offer for '
+            f'"{application.job.title}".'
+        ),
+        link=links.recruiter_application(application.id),
+        context={
+            "job_title": application.job.title,
+            "seeker_name": seeker_name,
+            "new_status": new_status,
         },
     )
 

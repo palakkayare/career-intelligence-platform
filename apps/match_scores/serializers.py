@@ -64,10 +64,18 @@ class SavedCandidateSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "seeker_info", "created_at")
 
     def get_seeker_info(self, obj):
+        """
+        Both ids, because they open different screens: `public_id` is the
+        account (the public profile, which a seeker can keep private), and
+        `profile_public_id` is what the recruiter-facing candidate endpoints
+        use. A recruiter's shortlist should lead to the candidate screen.
+        """
         return {
             "public_id": str(obj.seeker.user.public_id),
+            "profile_public_id": str(obj.seeker.public_id),
             "full_name": obj.seeker.full_name,
             "current_title": obj.seeker.current_title,
+            "location": obj.seeker.location,
         }
 
 

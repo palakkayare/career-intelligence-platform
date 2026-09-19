@@ -1,3 +1,4 @@
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.response import Response
@@ -25,12 +26,30 @@ from .permissions import IsRecruiter
 HasCandidateSearch = HasFeature.create("candidate_search")
 
 
-def _searchable_seeker_or_404(public_id):
-    """Fetch a seeker who is currently discoverable, else 404."""
-    return get_object_or_404(
-        SeekerProfile.discoverable(),
-        public_id=public_id,
-    )
+def _searchable_seeker_or_404(public_id, recruiter):
+    """
+    The seeker this recruiter is allowed to open.
+
+    Normally that means discoverable: the seeker is listed in candidate
+    search. Someone who applied to one of this recruiter's jobs is also
+    visible to them, even with search switched off - they chose to send
+    their name, resume and cover letter to this employer, and the
+    application screen already shows all of it.
+    """
+    seeker = get_object_or_404(SeekerProfile.all_objects, public_id=public_id, is_deleted=False)
+
+    if SeekerProfile.discoverable().filter(pk=seeker.pk).exists():
+        return seeker
+
+    from apps.applications.models import Application
+
+    applied_here = Application.all_objects.filter(
+        seeker=seeker, job__posted_by=recruiter, job__is_deleted=False
+    ).exists()
+    if applied_here:
+        return seeker
+
+    raise Http404("No seeker matches the given query.")
 
 
 class CandidateSearchView(APIView):
@@ -99,7 +118,7 @@ class CandidateDetailView(APIView):
 
     def get(self, request, public_id):
         recruiter = request.user.recruiter_profile
-        seeker = _searchable_seeker_or_404(public_id)
+        seeker = _searchable_seeker_or_404(public_id, recruiter)
 
         target_job_id = None
         target_job_uuid = request.query_params.get("target_job_uuid")
@@ -117,9 +136,22 @@ class CandidateDetailView(APIView):
             target_job_id=target_job_id,
         )
 
+        from apps.applications.models import Application
+
+        application = (
+            Application.all_objects.filter(
+                seeker=seeker, job__posted_by=recruiter, job__is_deleted=False
+            )
+            .order_by("-submitted_at")
+            .first()
+        )
+
         serializer = CandidateDetailSerializer(
             seeker,
-            context={"contact_revealed": result["contact_revealed"]},
+            context={
+                "contact_revealed": result["contact_revealed"],
+                "application_id": application.id if application else None,
+            },
         )
         return Response(serializer.data)
 
@@ -133,10 +165,11 @@ class RevealContactView(APIView):
     permission_classes = [IsRecruiter, HasCandidateSearch]
 
     def post(self, request, public_id):
-        seeker = _searchable_seeker_or_404(public_id)
+        recruiter = request.user.recruiter_profile
+        seeker = _searchable_seeker_or_404(public_id, recruiter)
 
         result = CandidateProfileService.reveal_contact(
-            recruiter=request.user.recruiter_profile,
+            recruiter=recruiter,
             seeker=seeker,
         )
 

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.pagination import FlexiblePagination
+from apps.core.permissions import IsPlatformAdmin
 from apps.recruiters.models import Company
 from apps.recruiters.permissions import IsRecruiter
 from apps.seekers.permissions import IsSeeker
@@ -245,7 +246,7 @@ class ModerationQueueView(APIView):
     Admin only. Reviews hidden by reports, waiting on a decision.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         queue = ModerationService.queue()
@@ -279,7 +280,7 @@ class ModerationDecisionView(APIView):
     decision is 'restore' or 'remove'.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def post(self, request, pk, decision):
         review = get_object_or_404(CompanyReview, pk=pk)

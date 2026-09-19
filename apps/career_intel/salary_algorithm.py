@@ -244,10 +244,20 @@ def determine_market_position(user_salary, percentiles: Dict) -> str:
     return "top_of_market"
 
 
-def market_position_message(position: str, user_salary, percentiles: Dict) -> str:
-    """Build a short, human-readable summary of the user's market position."""
+def market_position_message(position: str, user_salary, published: Dict) -> str:
+    """
+    A short summary of where the user's salary sits.
+
+    `published` must be the rounded figures that the response publishes
+    (p25, median, p75). Quoting the internal, unrounded percentiles here
+    would put an exact individual salary into the message - with a handful
+    of submissions the median *is* one person's pay - and would contradict
+    the rounded numbers shown beside it. There is no published 90th
+    percentile, so the top band is described without a figure.
+    """
     user_val = float(user_salary)
-    median = percentiles.get("median") or 0
+    median = float(published.get("median") or 0)
+    p75 = float(published.get("p75") or 0)
 
     # Guard against a division by zero if the median is somehow 0.
     diff_pct = ((user_val - median) / median * 100) if median else 0
@@ -255,22 +265,19 @@ def market_position_message(position: str, user_salary, percentiles: Dict) -> st
     messages = {
         "below_market": (
             f"Your salary is below the 25th percentile. "
-            f"The market median is ₹{median / 100000:.1f}L and you are at "
+            f"The market median is about ₹{median / 100000:.1f}L and you are at "
             f"₹{user_val / 100000:.1f}L ({abs(diff_pct):.0f}% below the median). "
             f"This may be worth negotiating."
         ),
         "fair_market": (
             f"Your salary sits in the fair range, between the 25th and 75th percentile. "
-            f"The market median is ₹{median / 100000:.1f}L."
+            f"The market median is about ₹{median / 100000:.1f}L."
         ),
         "above_market": (
-            f"You are paid above market. The 75th percentile is "
-            f"₹{percentiles['p75'] / 100000:.1f}L and you are at ₹{user_val / 100000:.1f}L."
+            f"You are paid above market: the 75th percentile is about "
+            f"₹{p75 / 100000:.1f}L and you are at ₹{user_val / 100000:.1f}L."
         ),
-        "top_of_market": (
-            f"Top earner. You are in the top 10%: the 90th percentile is "
-            f"₹{percentiles['p90'] / 100000:.1f}L."
-        ),
+        "top_of_market": "Top earner: your salary is in the top 10% of this market.",
     }
 
     return messages.get(position, "Market position calculated.")

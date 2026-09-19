@@ -6,6 +6,8 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.permissions import IsPlatformAdmin
+
 
 class HealthCheckView(APIView):
     """
@@ -76,7 +78,7 @@ class SentryTestView(APIView):
     so a crawler or a link preview can never fire it. Staff only.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def post(self, request):
         raise SentryTestError("Sentry test error - triggered deliberately, safe to resolve")
@@ -92,7 +94,7 @@ class DeployInfoView(APIView):
     come back unnoticed. Staff only.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         from django.conf import settings
@@ -128,7 +130,7 @@ class ClientIpView(APIView):
     Staff only: it shows infrastructure addresses.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         from .client_ip import proxy_diagnostics
@@ -145,7 +147,7 @@ class AdminDashboardView(APIView):
     per day".
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         from .metrics import dashboard_snapshot
@@ -156,7 +158,7 @@ class AdminDashboardView(APIView):
 class RevenueMetricsView(APIView):
     """GET /api/v1/admin/dashboard/revenue/"""
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         from .metrics import RevenueMetrics
@@ -167,7 +169,7 @@ class RevenueMetricsView(APIView):
 class ActivityMetricsView(APIView):
     """GET /api/v1/admin/dashboard/activity/"""
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
         from .metrics import ActivityMetrics

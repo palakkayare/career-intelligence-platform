@@ -9,6 +9,7 @@ from .views import (
     LoginView,
     LogoutView,
     MeView,
+    PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RegenerateBackupCodesView,
@@ -39,6 +40,7 @@ urlpatterns = [
         PasswordResetConfirmView.as_view(),
         name="password-reset-confirm",
     ),
+    path("password/change/", PasswordChangeView.as_view(), name="password-change"),
     # Profile
     path("me/", MeView.as_view(), name="me"),
     path("login-history/", LoginHistoryView.as_view(), name="login-history"),

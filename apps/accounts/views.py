@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -23,6 +24,8 @@ from .serializers import (
     AccountDeactivationSerializer,
     GoogleAuthSerializer,
     LoginHistorySerializer,
+    PasswordChangeResponseSerializer,
+    PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
@@ -34,6 +37,7 @@ from .services import GoogleOAuthService, OTPService, PendingAuthService, TwoFac
 from .throttles import (
     LoginThrottle,
     OTPRequestThrottle,
+    PasswordChangeThrottle,
     PasswordResetThrottle,
     RegisterThrottle,
     TwoFAThrottle,
@@ -563,6 +567,40 @@ class PasswordResetConfirmView(APIView):
 
         return Response(
             {"message": "Password reset successful. Please log in."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordChangeView(APIView):
+    """
+    POST /api/v1/auth/password/change/
+    Body: { "current_password", "new_password", "new_password_confirm" }
+
+    Every other session is signed out. The response carries fresh tokens so
+    the device that made the change stays signed in.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [PasswordChangeThrottle]
+
+    @extend_schema(
+        request=PasswordChangeSerializer, responses={200: PasswordChangeResponseSerializer}
+    )
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        from .sessions import revoke_all_sessions
+
+        revoke_all_sessions(user)
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "message": "Password changed. You have been signed out on your other devices.",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
             status=status.HTTP_200_OK,
         )
 

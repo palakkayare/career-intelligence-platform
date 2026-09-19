@@ -16,6 +16,12 @@ class Application(TimestampedModel, SoftDeleteModel):
         SHORTLISTED = "shortlisted", "Shortlisted"
         INTERVIEW = "interview", "Interview"
         OFFERED = "offered", "Offered"
+        # What the candidate did with the offer. Without these, an offer was
+        # the end of the story in the product while the real decision -
+        # accepted or declined - happened over email, and "offers made" was
+        # the closest thing to a hiring count.
+        OFFER_ACCEPTED = "offer_accepted", "Offer accepted"
+        OFFER_DECLINED = "offer_declined", "Offer declined"
         REJECTED = "rejected", "Rejected"
         WITHDRAWN = "withdrawn", "Withdrawn"
 

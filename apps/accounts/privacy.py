@@ -402,20 +402,9 @@ class AccountDeactivationService:
     @staticmethod
     def _revoke_sessions(user):
         """Blacklist outstanding refresh tokens so every device is logged out."""
-        try:
-            from rest_framework_simplejwt.token_blacklist.models import (
-                BlacklistedToken,
-                OutstandingToken,
-            )
-        except ImportError:
-            return 0
+        from .sessions import revoke_all_sessions
 
-        count = 0
-        for token in OutstandingToken.objects.filter(user=user):
-            _, created = BlacklistedToken.objects.get_or_create(token=token)
-            if created:
-                count += 1
-        return count
+        return revoke_all_sessions(user)
 
     @staticmethod
     def _hide_profile(user):

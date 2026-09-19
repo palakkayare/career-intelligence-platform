@@ -13,13 +13,17 @@ class JobSearchService:
     """Encapsulates search query construction."""
 
     @classmethod
-    def build_queryset(cls, query_text="", sort="relevance", seeker=None):
+    def build_queryset(cls, query_text="", sort="relevance", seeker=None, with_match_score=False):
         """
         Returns base queryset with full-text search + ranking applied.
         Filtering is done separately by FilterSet.
 
         `seeker` is only needed for match_score sorting, which is per-person
         by definition. Everything else works the same for anyone.
+
+        `with_match_score` adds the seeker's score to every row even when the
+        sort is something else, so a results list can show "92% match" next
+        to each job.
         """
         qs = (
             Job.objects.filter(
@@ -42,7 +46,7 @@ class JobSearchService:
 
         # Match score lives on its own table and is per-seeker, so it has to
         # be pulled in as an annotation before sorting can use it.
-        if sort == "match_score" and seeker is not None:
+        if seeker is not None and (sort == "match_score" or with_match_score):
             from apps.match_scores.models import MatchScore
 
             qs = qs.annotate(

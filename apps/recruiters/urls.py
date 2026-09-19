@@ -12,6 +12,8 @@ from .candidate_views import (
 )
 from .views import (
     CompanyDetailView,
+    CompanyJoinRequestDecideView,
+    CompanyJoinRequestListView,
     CompanyJoinView,
     CompanyLeaveView,
     CompanyListCreateView,
@@ -31,6 +33,12 @@ companies_patterns = [
     path("<int:pk>/", CompanyDetailView.as_view(), name="company-detail"),
     path("<int:pk>/logo/", CompanyLogoView.as_view(), name="company-logo"),
     path("<int:pk>/team/", CompanyTeamView.as_view(), name="company-team"),
+    path("join-requests/", CompanyJoinRequestListView.as_view(), name="company-join-requests"),
+    path(
+        "join-requests/<int:pk>/<str:action>/",
+        CompanyJoinRequestDecideView.as_view(),
+        name="company-join-request-decide",
+    ),
     path("<int:pk>/join/", CompanyJoinView.as_view(), name="company-join"),
     path("<int:pk>/leave/", CompanyLeaveView.as_view(), name="company-leave"),
     path(

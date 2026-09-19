@@ -417,3 +417,24 @@ def test_response_matches_the_documented_shape(dash_seeker, make_pro, job_factor
     assert set(body["skill_to_learn"]) == set(
         DashboardResponseSerializer().fields["skill_to_learn"].fields
     )
+
+
+def test_saving_a_skill_gap_snapshot_refreshes_the_cached_dashboard(dash_seeker):
+    from apps.career_intel.models import SkillGapSnapshot, TargetRole
+
+    client = client_for(dash_seeker)
+    client.get(URL)
+    assert cache.get(f"dashboard:seeker:{dash_seeker.pk}") is not None
+
+    role = TargetRole.objects.create(name="Backend", slug="backend-x")
+    SkillGapSnapshot.objects.create(
+        seeker=dash_seeker.seeker_profile,
+        target_role=role,
+        gap_score=40,
+        total_required_skills=5,
+        matched_count=3,
+        missing_critical_count=1,
+        missing_important_count=1,
+    )
+
+    assert cache.get(f"dashboard:seeker:{dash_seeker.pk}") is None

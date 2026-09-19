@@ -9,6 +9,7 @@ from celery import shared_task
 from apps.jobs.models import Job
 from apps.seekers.models import SeekerProfile
 
+from .models import MatchScore
 from .services import MatchScoreService
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,75 @@ def recompute_match_scores_for_job(self, job_id):
 
     logger.info(f"Job {job_id}: computed {count} match scores")
     return count
+
+
+def seeker_lock_key(seeker_id):
+    return f"match_scores:seeker-recompute:{seeker_id}"
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def recompute_match_scores_for_seeker(self, seeker_id):
+    """
+    Recompute one seeker x every active job that shares a required skill.
+
+    Triggered when the seeker's skills or profile change. Without it a score
+    only appeared when a job was saved (for seekers who had a matching skill
+    at that moment) or at the next six-hourly batch, so a seeker who added
+    skills saw scores on some jobs and none on others.
+
+    Scores for jobs the seeker no longer shares a skill with are removed, so
+    a deleted skill does not leave an old score behind.
+    """
+    # Clear the de-duplication lock first: a change made while this task is
+    # running must be able to queue the next run.
+    from django.core.cache import cache
+
+    cache.delete(seeker_lock_key(seeker_id))
+
+    try:
+        seeker = SeekerProfile.objects.get(pk=seeker_id, is_deleted=False)
+    except SeekerProfile.DoesNotExist:
+        return 0
+
+    skill_ids = list(seeker.seeker_skills.values_list("skill_id", flat=True))
+    active = Job.objects.filter(status=Job.Status.ACTIVE, is_deleted=False)
+    jobs = (
+        active.filter(required_skills__id__in=skill_ids).distinct() if skill_ids else active.none()
+    )
+
+    count = 0
+    for job in jobs:
+        try:
+            MatchScoreService.compute_and_save(seeker, job)
+            count += 1
+        except Exception as e:  # noqa: BLE001 - one bad job must not stop the rest
+            logger.error(f"Failed for seeker {seeker_id}, job {job.id}: {e}")
+
+    MatchScore.objects.filter(seeker=seeker, job__in=active).exclude(job__in=jobs).delete()
+
+    logger.info(f"Seeker {seeker_id}: computed {count} match scores")
+    return count
+
+
+def queue_seeker_recompute(seeker_id, delay_seconds=30):
+    """
+    Queue a recompute for one seeker, at most once per burst of changes.
+
+    Adding five skills in a row saves five rows; this queues one task, which
+    runs after `delay_seconds` and reads the final state.
+    """
+    from django.core.cache import cache
+    from django.db import transaction
+
+    if not seeker_id:
+        return
+    if not cache.add(seeker_lock_key(seeker_id), 1, timeout=delay_seconds + 300):
+        return  # already queued
+    transaction.on_commit(
+        lambda: recompute_match_scores_for_seeker.apply_async(
+            args=[seeker_id], countdown=delay_seconds
+        )
+    )
 
 
 @shared_task

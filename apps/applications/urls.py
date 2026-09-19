@@ -3,6 +3,7 @@ from django.urls import path
 from apps.resumes.views import ApplicationJdMatchView
 
 from .views import (
+    AnswerOfferView,
     ApplicationHistoryView,
     ApplyToJobView,
     JobApplicationsView,
@@ -32,6 +33,11 @@ applications_patterns = [
     path("me/quota/", QuotaStatusView.as_view(), name="my-quota"),
     path("me/<int:pk>/", MyApplicationDetailView.as_view(), name="my-detail"),
     path("me/<int:pk>/withdraw/", WithdrawApplicationView.as_view(), name="withdraw"),
+    path(
+        "me/<int:pk>/offer/<str:answer>/",
+        AnswerOfferView.as_view(),
+        name="answer-offer",
+    ),
     path("me/<int:pk>/history/", ApplicationHistoryView.as_view(), name="my-history"),
     # Recruiter
     path("<int:pk>/", RecruiterApplicationDetailView.as_view(), name="recruiter-detail"),

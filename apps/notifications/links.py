@@ -22,6 +22,11 @@ def recruiter_job_applications(job_public_id):
     return f"/recruiter/jobs/{job_public_id}/applications"
 
 
+def recruiter_application(application_id):
+    """The employer's view of one application."""
+    return f"/recruiter/applications/{application_id}"
+
+
 def recruiter_job_edit(job_public_id):
     return f"/recruiter/jobs/{job_public_id}/edit"
 

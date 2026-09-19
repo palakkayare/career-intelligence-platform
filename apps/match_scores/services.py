@@ -117,13 +117,20 @@ class RecommendationService:
 
     @classmethod
     def top_candidates_for_job(cls, job, limit=20, min_score=50):
-        """Return seekers with the highest match score for this job."""
+        """
+        Return seekers with the highest match score for this job.
+
+        Only seekers who can be discovered at all: someone who switched off
+        "appear in recruiter search", made the profile private or let the
+        visibility window lapse must not be recommended either.
+        """
+        from apps.seekers.models import SeekerProfile
+
         scores = (
             MatchScore.objects.filter(
                 job=job,
                 overall_score__gte=min_score,
-                seeker__is_deleted=False,
-                seeker__user__is_active=True,
+                seeker__in=SeekerProfile.discoverable(),
             )
             .select_related("seeker__user")
             .prefetch_related("seeker__seeker_skills__skill")

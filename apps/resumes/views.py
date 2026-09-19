@@ -462,17 +462,22 @@ class ApplicationJdMatchView(APIView):
             seeker=request.user.seeker_profile,  # ADJUST if named differently
         )
 
-        # Applications store only a resume URL snapshot, not a foreign key,
-        # so score the seeker's current primary resume against this job.
-        resume = (
-            Resume.objects.filter(
-                user=request.user,
-                status=Resume.Status.PARSED,
-                is_deleted=False,
+        # Score the resume that was sent with this application. Fall back to
+        # the seeker's best current resume only when that one is gone or was
+        # never parsed (or the application carried just a link).
+        sent = application.resume
+        if sent is not None and not sent.is_deleted and sent.status == Resume.Status.PARSED:
+            resume = sent
+        else:
+            resume = (
+                Resume.objects.filter(
+                    user=request.user,
+                    status=Resume.Status.PARSED,
+                    is_deleted=False,
+                )
+                .order_by("-is_primary", "-created_at")
+                .first()
             )
-            .order_by("-is_primary", "-created_at")
-            .first()
-        )
 
         if resume is None or not resume.extracted_text:
             return Response(
@@ -515,6 +520,11 @@ class ApplicationJdMatchView(APIView):
             {
                 "application_id": application.id,
                 "job_title": job.title,
+                "resume": {
+                    "public_id": str(resume.public_id),
+                    "name": resume.name,
+                    "is_the_one_sent": resume.pk == application.resume_id,
+                },
                 "analysis": result,
             }
         )

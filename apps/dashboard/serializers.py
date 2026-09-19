@@ -192,3 +192,66 @@ class DashboardResponseSerializer(serializers.Serializer):
 
 class DashboardSeenSerializer(serializers.Serializer):
     last_seen_at = serializers.DateTimeField()
+
+
+# ── Recruiter dashboard (documentation) ───────────────────────────────
+
+
+class _RecruiterTilesSerializer(serializers.Serializer):
+    active_jobs = serializers.IntegerField()
+    jobs_total = serializers.IntegerField()
+    applicants_30d = serializers.IntegerField()
+    applicants_change_pct = serializers.IntegerField()
+    applicants_total = serializers.IntegerField()
+    in_progress = serializers.IntegerField(help_text="shortlisted + interview")
+    in_progress_this_week = serializers.IntegerField()
+    offers = serializers.IntegerField()
+    offers_this_month = serializers.IntegerField()
+
+
+class _WeekDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    count = serializers.IntegerField()
+
+
+class _RecentApplicantSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    candidate_name = serializers.CharField()
+    candidate_title = serializers.CharField(allow_blank=True, allow_null=True)
+    job_title = serializers.CharField()
+    job_public_id = serializers.UUIDField()
+    status = serializers.CharField()
+    submitted_at = serializers.DateTimeField()
+    match_score = serializers.IntegerField(allow_null=True, help_text="Only with candidate search")
+
+
+class _ReviewJobSerializer(serializers.Serializer):
+    public_id = serializers.UUIDField()
+    title = serializers.CharField()
+    new_count = serializers.IntegerField()
+    total = serializers.IntegerField()
+
+
+class RecruiterDashboardSerializer(serializers.Serializer):
+    generated_at = serializers.DateTimeField()
+    company_name = serializers.CharField(allow_null=True)
+    recruiter_name = serializers.CharField(allow_null=True)
+    tiles = _RecruiterTilesSerializer()
+    week = _WeekDaySerializer(many=True)
+    pipeline = serializers.DictField(child=serializers.IntegerField())
+    recent_applicants = _RecentApplicantSerializer(many=True)
+    jobs_needing_review = _ReviewJobSerializer(many=True)
+    can_see_match_scores = serializers.BooleanField()
+    applicants_view_limit = serializers.IntegerField(allow_null=True)
+
+
+class RecruiterAnalyticsSerializer(serializers.Serializer):
+    """Shape of the analytics response (for the API schema)."""
+
+    generated_at = serializers.DateTimeField()
+    totals = serializers.DictField()
+    months = serializers.ListField(child=serializers.DictField())
+    per_job = serializers.ListField(child=serializers.DictField())
+    funnel = serializers.DictField(child=serializers.IntegerField())
+    top_skills = serializers.ListField(child=serializers.DictField())
+    rates = serializers.DictField()

@@ -17,11 +17,14 @@ from .models import Job, JobCategory, SavedJob, SavedSearch, SearchHistory, Tag
 from .permissions import IsAdminUser, IsJobOwnerOrReadOnly
 from .search import JobSearchService
 from .serializers import (
+    AdminPendingJobSerializer,
     JobCategorySerializer,
     JobCreateUpdateSerializer,
     JobDetailSerializer,
     JobListSerializer,
+    JobSearchResultSerializer,
     PublicJobDetailSerializer,
+    ReaderJobDetailSerializer,
     SavedJobSerializer,
     SavedSearchSerializer,
     SaveJobSerializer,
@@ -74,7 +77,7 @@ class PublicJobListView(generics.ListAPIView):
     else still needs a login.
     """
 
-    serializer_class = JobListSerializer
+    serializer_class = JobSearchResultSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [SearchThrottle]
 
@@ -99,9 +102,25 @@ class JobDetailView(generics.RetrieveAPIView):
     lookup_field = "public_id"
 
     def get_serializer_class(self):
-        if self.request.user.is_authenticated:
+        # Used without an instance (schema generation); the per-job choice is
+        # made in retrieve().
+        return JobDetailSerializer
+
+    def _serializer_class_for(self, job):
+        user = self.request.user
+        if not user.is_authenticated:
+            return PublicJobDetailSerializer
+        owner = getattr(user, "recruiter_profile", None)
+        if (owner is not None and job.posted_by_id == owner.pk) or (
+            user.role == "admin" or user.is_superuser
+        ):
             return JobDetailSerializer
-        return PublicJobDetailSerializer
+        return ReaderJobDetailSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        job = self.get_object()
+        serializer_class = self._serializer_class_for(job)
+        return Response(serializer_class(job, context=self.get_serializer_context()).data)
 
     def get_queryset(self):
         # Recruiters can see their own (any status). Others only ACTIVE.
@@ -257,7 +276,7 @@ class BackToDraftView(_ActionView):
 class AdminPendingJobsView(generics.ListAPIView):
     """GET /api/v1/admin/jobs/pending/"""
 
-    serializer_class = JobListSerializer
+    serializer_class = AdminPendingJobSerializer
     permission_classes = [IsAdminUser]
 
     def get_queryset(self):
@@ -306,7 +325,7 @@ class JobSearchView(generics.ListAPIView):
     - page, page_size
     """
 
-    serializer_class = JobListSerializer
+    serializer_class = JobSearchResultSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [SearchThrottle]
     filter_backends = [DjangoFilterBackend]
@@ -317,14 +336,21 @@ class JobSearchView(generics.ListAPIView):
         query_text = self.request.query_params.get("q", "").strip()
         sort = self.request.query_params.get("sort", "relevance")
 
-        # Match-score sorting only means something for a seeker; a recruiter
-        # or an anonymous visitor has no scores of their own.
-        seeker = getattr(self.request.user, "seeker_profile", None)
+        # Match scores are per-seeker and a Pro feature. A recruiter, an
+        # anonymous visitor or a Free seeker gets no scores and no match sort
+        # (the service falls back to recency for them).
+        from apps.payments.services import FeatureGateService
+
+        seeker = None
+        user = self.request.user
+        if user.is_authenticated and FeatureGateService.has_feature(user, "match_score"):
+            seeker = getattr(user, "seeker_profile", None)
 
         return JobSearchService.build_queryset(
             query_text=query_text,
             sort=sort,
             seeker=seeker,
+            with_match_score=seeker is not None,
         )
 
     def list(self, request, *args, **kwargs):

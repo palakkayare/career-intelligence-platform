@@ -158,3 +158,48 @@ class RecruiterProfileUpdateSerializer(serializers.ModelSerializer):
             "linkedin_url",
             "contact_visibility",
         )
+
+
+class CompanyJoinRequestSerializer(serializers.ModelSerializer):
+    """A pending request, as the deciding admin sees it."""
+
+    recruiter_name = serializers.SerializerMethodField()
+    recruiter_email = serializers.SerializerMethodField()
+    recruiter_position = serializers.CharField(source="recruiter.position", read_only=True)
+
+    class Meta:
+        from .models import CompanyJoinRequest
+
+        model = CompanyJoinRequest
+        fields = (
+            "id",
+            "status",
+            "message",
+            "created_at",
+            "decided_at",
+            "recruiter_name",
+            "recruiter_email",
+            "recruiter_position",
+        )
+        read_only_fields = fields
+
+    def get_recruiter_name(self, obj):
+        return (obj.recruiter.full_name or "").strip() or "Recruiter"
+
+    def get_recruiter_email(self, obj):
+        # The admin is about to hand them the company's data; they should see
+        # who is asking.
+        return obj.recruiter.user.email
+
+
+class CompanyJoinInputSerializer(serializers.Serializer):
+    message = serializers.CharField(required=False, allow_blank=True, max_length=300)
+
+
+class CompanyJoinResultSerializer(serializers.Serializer):
+    """`joined` when it went through at once, `pending` when an admin has to approve."""
+
+    status = serializers.ChoiceField(choices=["joined", "pending"])
+    message = serializers.CharField()
+    request_id = serializers.IntegerField(required=False)
+    company = CompanyListSerializer(required=False)

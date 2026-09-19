@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,7 +16,9 @@ from .serializers import (
     ApplicationSeekerSerializer,
     ApplicationStatusHistorySerializer,
     ApplyJobSerializer,
+    OfferAnswerResultSerializer,
     RecruiterNotesSerializer,
+    SeekerStatusHistorySerializer,
     StatusUpdateSerializer,
 )
 from .services import ApplicationCreationService, ApplicationStatusService, QuotaService
@@ -131,6 +134,40 @@ class WithdrawApplicationView(APIView):
         )
 
 
+class AnswerOfferView(APIView):
+    """
+    POST /api/v1/applications/me/<id>/offer/<accept|decline>/
+
+    The candidate's answer to an offer. Only they can give it, and only while
+    the application actually sits at "offered".
+    """
+
+    permission_classes = [IsSeeker, IsApplicationOwner]
+
+    @extend_schema(
+        request=None, responses={200: OfferAnswerResultSerializer}, tags=["applications"]
+    )
+    def post(self, request, pk, answer):
+        application = get_object_or_404(Application.all_objects, pk=pk)
+        self.check_object_permissions(request, application)
+
+        accepted = answer == "accept"
+        ApplicationStatusService.update_status(
+            application,
+            new_status=(
+                Application.Status.OFFER_ACCEPTED if accepted else Application.Status.OFFER_DECLINED
+            ),
+            actor=request.user,
+            notes=(request.data.get("notes") or "")[:500],
+        )
+        return Response(
+            {
+                "message": "Offer accepted." if accepted else "Offer declined.",
+                "status": application.status,
+            }
+        )
+
+
 class ApplicationHistoryView(generics.ListAPIView):
     """
     GET /api/v1/applications/me/<id>/history/
@@ -155,7 +192,18 @@ class ApplicationHistoryView(generics.ListAPIView):
         if not (is_owner or is_recruiter):
             self.permission_denied(self.request)
 
-        return application.status_history.all()
+        self._is_owner = is_owner
+        return application.status_history.select_related("application__seeker")
+
+    def get_serializer_class(self):
+        # The candidate gets a timeline without the recruiter's email or notes.
+        if getattr(self, "_is_owner", False):
+            return SeekerStatusHistorySerializer
+        return ApplicationStatusHistorySerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()  # sets _is_owner before the class is picked
+        return Response(self.get_serializer(queryset, many=True).data)
 
 
 class QuotaStatusView(APIView):

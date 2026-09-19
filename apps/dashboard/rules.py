@@ -65,7 +65,9 @@ def build_attention(*, applications, saved_jobs, new_view_companies, last_seen, 
                     "kind": "offer",
                     "tone": "green",
                     "text": f"Offer from {_company(app)} for {_title(app)}",
-                    "cta": "Respond",
+                    # The employer follows up outside the app; there is no
+                    # accept/decline here, so the button only promises a view.
+                    "cta": "View offer",
                     "link": f"/me/applications/{app['id']}",
                     "_rank": 0,
                 }
@@ -179,8 +181,8 @@ def build_next_action(
         return action(
             "offer",
             f"You have an offer from {_company(offer)}",
-            "Review the details and reply before it expires.",
-            "Review offer",
+            "The employer will contact you with the details.",
+            "View offer",
             f"/me/applications/{offer['id']}",
         )
 

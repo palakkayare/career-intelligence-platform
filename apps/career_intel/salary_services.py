@@ -393,7 +393,7 @@ class SalaryService:
         if not submission:
             return {
                 "has_submission": False,
-                "message": "Submit your own salary first at /salary/submit/.",
+                "message": "Share your salary to see how it compares with the market.",
             }
 
         # First attempt: role + city + experience bucket.
@@ -418,7 +418,12 @@ class SalaryService:
                     "Invite others to contribute so these insights improve."
                 ),
                 "your_submission": {
+                    "role_title": submission.role_title,
+                    "location_city": submission.location_city,
                     "salary_lpa": salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
+                    # The person's own figure, returned only to them, so the
+                    # page can place them on the market range.
+                    "salary_inr": int(submission.salary_inr),
                 },
             }
 
@@ -435,10 +440,12 @@ class SalaryService:
             submission.salary_inr,
             raw,
         )
+        # The position is decided on the unrounded figures, but the message
+        # quotes only what the response publishes.
         message = salary_algorithm.market_position_message(
             position,
             submission.salary_inr,
-            raw,
+            insights["salary_range_inr"],
         )
 
         return {
@@ -448,6 +455,7 @@ class SalaryService:
                 "role_title": submission.role_title,
                 "location_city": submission.location_city,
                 "salary_lpa": salary_algorithm.format_inr_lpa(float(submission.salary_inr)),
+                "salary_inr": int(submission.salary_inr),
                 "experience": submission.experience_years_bucket,
                 "effective_year": submission.effective_year,
             },

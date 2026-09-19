@@ -9,6 +9,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from apps.applications.models import Application
+from apps.career_intel.models import SkillGapSnapshot
 from apps.jobs.models import SavedJob
 from apps.payments.models import Subscription
 from apps.resumes.models import Resume
@@ -64,3 +65,9 @@ def _on_saved_job_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Subscription)
 def _on_subscription_save(sender, instance, **kwargs):
     invalidate(instance.user_id)
+
+
+@receiver(post_save, sender=SkillGapSnapshot)
+def _on_gap_snapshot_save(sender, instance, **kwargs):
+    # "One skill to learn" reads the latest snapshot.
+    invalidate(_seeker_user_id(instance.seeker_id))

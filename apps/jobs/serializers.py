@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.recruiters.serializers import CompanyListSerializer
@@ -62,6 +63,38 @@ class JobListSerializer(serializers.ModelSerializer):
         )
 
 
+class PublicJobListSerializer(JobListSerializer):
+    """
+    A job row for anyone who is not its recruiter: search results, a seeker's
+    own applications. The recruiter-side counters and the moderation note on
+    JobListSerializer stay out.
+    """
+
+    class Meta(JobListSerializer.Meta):
+        fields = tuple(
+            f
+            for f in JobListSerializer.Meta.fields
+            if f not in ("rejection_reason", "view_count", "application_count")
+        )
+
+
+class JobSearchResultSerializer(PublicJobListSerializer):
+    """
+    One row of the public search. `match_score` is the signed-in seeker's own
+    score when their plan includes it, otherwise null.
+    """
+
+    match_score = serializers.SerializerMethodField()
+
+    class Meta(PublicJobListSerializer.Meta):
+        fields = PublicJobListSerializer.Meta.fields + ("match_score",)
+
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_match_score(self, obj):
+        score = getattr(obj, "seeker_match_score", None)
+        return round(float(score), 1) if score is not None else None
+
+
 class JobDetailSerializer(serializers.ModelSerializer):
     """Full job detail."""
 
@@ -105,22 +138,68 @@ class JobDetailSerializer(serializers.ModelSerializer):
         )
 
 
+# Fields only the job's own recruiter (and admins) should see: the posting's
+# traffic and the moderation note.
+OWNER_ONLY_FIELDS = ("view_count", "application_count", "rejection_reason")
+
+
+class ReaderJobDetailSerializer(JobDetailSerializer):
+    """
+    Job detail for a signed-in reader who does not own the job - a seeker, or
+    a recruiter from another company.
+
+    Keeps `posted_by_name` (a seeker may want to know who is hiring) but not
+    the owner-only fields. For a seeker, `my_application` is their live
+    application to this job, so the page can say "Applied" instead of
+    offering to apply again. A withdrawn application does not count: the
+    seeker may apply again after withdrawing.
+    """
+
+    my_application = serializers.SerializerMethodField()
+
+    class Meta(JobDetailSerializer.Meta):
+        fields = tuple(f for f in JobDetailSerializer.Meta.fields if f not in OWNER_ONLY_FIELDS) + (
+            "my_application",
+        )
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "nullable": True,
+            "properties": {
+                "id": {"type": "integer"},
+                "status": {"type": "string"},
+                "submitted_at": {"type": "string", "format": "date-time"},
+            },
+        }
+    )
+    def get_my_application(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated or getattr(user, "role", None) != "seeker":
+            return None
+        from apps.applications.models import Application
+
+        return (
+            Application.objects.filter(seeker__user=user, job=obj)
+            .values("id", "status", "submitted_at")
+            .first()
+        )
+
+
 class PublicJobDetailSerializer(JobDetailSerializer):
     """
     Job detail for anonymous readers.
 
-    Two fields come out. `posted_by_name` puts a recruiter's name in front
-    of every scraper on the internet, and `rejection_reason` is internal
-    moderation notes - a rejected job is not publicly visible today, but a
-    field that leaks the moment a status check changes is worth removing
-    rather than relying on.
+    `posted_by_name` would put a recruiter's name in front of every scraper
+    on the internet, and the owner-only fields are the recruiter's business.
     """
 
     class Meta(JobDetailSerializer.Meta):
         fields = tuple(
             field
             for field in JobDetailSerializer.Meta.fields
-            if field not in ("posted_by_name", "rejection_reason")
+            if field not in ("posted_by_name",) + OWNER_ONLY_FIELDS
         )
 
 
@@ -317,3 +396,19 @@ class SaveJobSerializer(serializers.Serializer):
     """For POST /jobs/<uuid>/save/"""
 
     note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+
+class AdminPendingJobSerializer(JobListSerializer):
+    """
+    A job waiting for approval.
+
+    The queue is where someone decides whether this posting goes live, so it
+    carries the description and the submission time: the compact list
+    serializer has neither, and an approval made without reading the text is
+    not a review.
+    """
+
+    submitted_at = serializers.DateTimeField(read_only=True)
+
+    class Meta(JobListSerializer.Meta):
+        fields = JobListSerializer.Meta.fields + ("description", "submitted_at")

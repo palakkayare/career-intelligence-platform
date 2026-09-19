@@ -152,6 +152,7 @@ REST_FRAMEWORK = {
         "login": "5/min",
         "register": "10/hour",
         "password_reset": "3/hour",
+        "password_change": "10/hour",
         "otp_request": "3/hour",
         "2fa": "10/min",
         "search": "60/min",

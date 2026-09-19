@@ -215,7 +215,64 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def save(self):
         self.user.set_password(self.validated_data["new_password"])
         self.user.save()
+        # A reset is often the answer to "someone else is in my account":
+        # every existing session has to end with it.
+        from .sessions import revoke_all_sessions
+
+        revoke_all_sessions(self.user)
         return self.user
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Change the password of the signed-in user.
+
+    The current password is required even though the request is
+    authenticated: a borrowed laptop or a stolen token must not be enough to
+    lock the owner out.
+    """
+
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    new_password_confirm = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+
+        if not user.has_usable_password():
+            raise serializers.ValidationError(
+                {
+                    "current_password": (
+                        "This account signs in with Google and has no password yet. "
+                        'Use "Forgot password" to set one.'
+                    )
+                }
+            )
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError(
+                {"current_password": "Your current password is not correct."}
+            )
+        if attrs["new_password"] != attrs["new_password_confirm"]:
+            raise serializers.ValidationError({"new_password_confirm": "Passwords don't match."})
+        if attrs["new_password"] == attrs["current_password"]:
+            raise serializers.ValidationError(
+                {"new_password": "Choose a password different from the current one."}
+            )
+        # Validators see the user, so "too similar to your email" works.
+        validate_password(attrs["new_password"], user=user)
+        return attrs
+
+    def save(self):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return user
+
+
+class PasswordChangeResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
 
 
 class LoginHistorySerializer(serializers.ModelSerializer):

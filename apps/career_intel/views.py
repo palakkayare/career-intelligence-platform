@@ -191,7 +191,7 @@ HasLearningRecs = HasFeature.create("skill_gap")
 class LearningResourceListView(generics.ListAPIView):
     """
     GET /api/v1/learning/resources/
-    Filters: ?kind=course&difficulty=beginner&is_free=true&q=python
+    Filters: ?kind=course&difficulty=beginner&is_free=true&q=python&skill=12
     """
 
     serializer_class = LearningResourceListSerializer
@@ -222,6 +222,13 @@ class LearningResourceListView(generics.ListAPIView):
         q = self.request.query_params.get("q")
         if q:
             qs = qs.filter(title__icontains=q)
+
+        # "Courses for this skill", linked from the skill gap page. Combines
+        # with every other filter and keeps pagination, unlike the per-skill
+        # endpoint. A non-numeric value is ignored rather than a 500.
+        skill = self.request.query_params.get("skill", "")
+        if skill.isdigit():
+            qs = qs.filter(resource_skills__skill_id=int(skill)).distinct()
 
         return qs
 

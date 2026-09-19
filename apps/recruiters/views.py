@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -8,6 +9,9 @@ from .models import Company, RecruiterProfile
 from .permissions import IsCompanyAdminOrReadOnly, IsRecruiter
 from .serializers import (
     CompanyDetailSerializer,
+    CompanyJoinInputSerializer,
+    CompanyJoinRequestSerializer,
+    CompanyJoinResultSerializer,
     CompanyListSerializer,
     CompanyLogoSerializer,
     RecruiterProfileSerializer,
@@ -114,39 +118,88 @@ class CompanyTeamView(generics.ListAPIView):
 class CompanyJoinView(APIView):
     """
     POST /api/v1/companies/<id>/join/
-    Recruiter (not in any company) joins this company.
-    Phase 1: no approval flow — direct join. Phase 2 mein add karenge.
+
+    Asks to join. An admin of that company approves, except when the company
+    has no members yet or the recruiter's email domain matches the company's
+    website - see CompanyJoinService.
     """
 
     permission_classes = [IsRecruiter]
 
+    @extend_schema(
+        request=CompanyJoinInputSerializer,
+        responses={200: CompanyJoinResultSerializer, 202: CompanyJoinResultSerializer},
+        tags=["companies"],
+    )
     def post(self, request, pk):
         company = get_object_or_404(Company, pk=pk, is_deleted=False)
         recruiter = request.user.recruiter_profile
 
-        if recruiter.company_id:
+        from .services import CompanyJoinService
+
+        join_request, joined = CompanyJoinService.request_to_join(
+            recruiter, company, message=request.data.get("message", "")
+        )
+
+        if joined:
             return Response(
-                {"error": "You are already part of a company. Leave first."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "status": "joined",
+                    "message": f"Joined {company.name} successfully.",
+                    "company": CompanyListSerializer(company).data,
+                }
             )
-
-        # Plan model has carried max_team_members since Phase 2 (FREE=1,
-        # BUSINESS=5) but nothing ever read it, so a free company could
-        # collect unlimited recruiters.
-        from .services import CompanyTeamService
-
-        CompanyTeamService.check_can_add(company)
-
-        recruiter.company = company
-        recruiter.is_company_admin = False  # Joining → not admin
-        recruiter.save(update_fields=["company", "is_company_admin"])
-
         return Response(
             {
-                "message": f"Joined {company.name} successfully.",
-                "company": CompanyListSerializer(company).data,
-            }
+                "status": "pending",
+                "message": (
+                    f"Your request to join {company.name} is waiting for " "one of their admins."
+                ),
+                "request_id": join_request.id,
+            },
+            status=status.HTTP_202_ACCEPTED,
         )
+
+
+class CompanyJoinRequestListView(APIView):
+    """
+    GET /api/v1/companies/join-requests/
+
+    Pending requests for the admin's own company, plus the recruiter's own
+    request while it waits.
+    """
+
+    permission_classes = [IsRecruiter]
+
+    @extend_schema(responses={200: CompanyJoinRequestSerializer(many=True)}, tags=["companies"])
+    def get(self, request):
+        from .models import CompanyJoinRequest
+
+        recruiter = request.user.recruiter_profile
+        qs = CompanyJoinRequest.objects.filter(status=CompanyJoinRequest.Status.PENDING)
+        if recruiter.company_id and recruiter.is_company_admin:
+            qs = qs.filter(company_id=recruiter.company_id)
+        else:
+            qs = qs.filter(recruiter=recruiter)
+        qs = qs.select_related("recruiter", "recruiter__user")
+        return Response(CompanyJoinRequestSerializer(qs, many=True).data)
+
+
+class CompanyJoinRequestDecideView(APIView):
+    """POST /api/v1/companies/join-requests/<id>/<approve|reject>/"""
+
+    permission_classes = [IsRecruiter]
+
+    @extend_schema(request=None, responses={200: CompanyJoinRequestSerializer}, tags=["companies"])
+    def post(self, request, pk, action):
+        from .models import CompanyJoinRequest
+        from .services import CompanyJoinService
+
+        join_request = get_object_or_404(CompanyJoinRequest, pk=pk)
+        decided = CompanyJoinService.decide(
+            join_request, request.user.recruiter_profile, approve=(action == "approve")
+        )
+        return Response(CompanyJoinRequestSerializer(decided).data)
 
 
 class CompanyLeaveView(APIView):

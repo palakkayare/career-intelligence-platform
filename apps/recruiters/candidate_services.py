@@ -206,16 +206,29 @@ class CandidateProfileService:
     """Profile detail view and credit-gated contact reveal."""
 
     @classmethod
+    @staticmethod
+    def applied_to_recruiter(recruiter, seeker):
+        """Has this seeker applied to one of this recruiter's jobs?"""
+        from apps.applications.models import Application
+
+        return Application.all_objects.filter(
+            seeker=seeker, job__posted_by=recruiter, job__is_deleted=False
+        ).exists()
+
+    @classmethod
     def get_profile(cls, recruiter, seeker, target_job_id=None):
         """
         Return the seeker with contact still masked, unless this recruiter
-        has already paid a credit for them. Logs a 'detail' view.
+        has already paid a credit for them - or the seeker applied to one of
+        their jobs, in which case the name and contact came with the
+        application and charging a credit for them makes no sense.
+        Logs a 'detail' view.
         """
         previously_revealed = CandidateView.objects.filter(
             recruiter=recruiter,
             seeker=seeker,
             contact_revealed=True,
-        ).exists()
+        ).exists() or cls.applied_to_recruiter(recruiter, seeker)
 
         target_job = Job.objects.filter(pk=target_job_id).first() if target_job_id else None
 
@@ -253,11 +266,15 @@ class CandidateProfileService:
         if credits.is_cycle_expired():
             credits.reset_cycle()
 
-        already_revealed = CandidateView.objects.filter(
-            recruiter=recruiter,
-            seeker=seeker,
-            contact_revealed=True,
-        ).exists()
+        already_revealed = (
+            CandidateView.objects.filter(
+                recruiter=recruiter,
+                seeker=seeker,
+                contact_revealed=True,
+            ).exists()
+            # An applicant's details are already in the recruiter's hands.
+            or cls.applied_to_recruiter(recruiter, seeker)
+        )
 
         if already_revealed:
             logger.info(

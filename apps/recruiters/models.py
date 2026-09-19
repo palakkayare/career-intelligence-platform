@@ -299,3 +299,52 @@ class TalentPool(TimestampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.recruiter.full_name})"
+
+
+class CompanyJoinRequest(TimestampedModel):
+    """
+    A recruiter asking to join an existing company.
+
+    Joining used to be immediate: anyone could put themselves inside any
+    company and read its jobs, applicants and team. An admin of the company
+    decides instead. Two cases skip the wait, and both are safe:
+      - the company has no members at all, so nobody could ever approve;
+      - the recruiter's email domain matches the company's website domain.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        CANCELLED = "cancelled", "Cancelled"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="join_requests")
+    recruiter = models.ForeignKey(
+        RecruiterProfile, on_delete=models.CASCADE, related_name="join_requests"
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    message = models.CharField(max_length=300, blank=True)
+    decided_by = models.ForeignKey(
+        RecruiterProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="join_requests_decided",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            # One open request per recruiter per company; decided ones can pile up.
+            models.UniqueConstraint(
+                fields=["company", "recruiter"],
+                condition=models.Q(status="pending"),
+                name="uniq_pending_join_request",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.recruiter_id} -> {self.company_id} ({self.status})"

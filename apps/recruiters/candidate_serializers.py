@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.seekers.models import SeekerProfile
@@ -117,10 +118,44 @@ class CandidatePreviewSerializer(serializers.ModelSerializer):
         }
 
 
+class CandidateExperienceSerializer(serializers.Serializer):
+    """
+    One role in the candidate's history.
+
+    A seeker who asked to hide their current employer keeps it hidden here
+    too, until the recruiter has their contact - the company name is the
+    thing a stealth job search is hiding.
+    """
+
+    id = serializers.IntegerField()
+    job_title = serializers.CharField()
+    company_name = serializers.SerializerMethodField()
+    location = serializers.CharField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField(allow_null=True)
+    is_current = serializers.BooleanField()
+
+    def get_company_name(self, obj):
+        hide = self.context.get("hide_current_company") and obj.is_current
+        return "Stealth" if hide else obj.company_name
+
+
+class CandidateEducationSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    institution_name = serializers.CharField()
+    degree = serializers.CharField()
+    field_of_study = serializers.CharField()
+    start_year = serializers.IntegerField()
+    end_year = serializers.IntegerField(allow_null=True)
+
+
 class CandidateDetailSerializer(serializers.ModelSerializer):
     """Detail view: full bio and skills, contact only after a reveal."""
 
     skills = SkillSerializer(many=True, read_only=True)
+    experiences = serializers.SerializerMethodField()
+    educations = serializers.SerializerMethodField()
+    application_id = serializers.SerializerMethodField()
     full_name_masked = serializers.SerializerMethodField()
     company = serializers.SerializerMethodField()
     contact_revealed = serializers.SerializerMethodField()
@@ -140,6 +175,9 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
             "skills",
             "contact_revealed",
             "contact",  # null until the recruiter spends a credit
+            "experiences",
+            "educations",
+            "application_id",  # their latest application to this recruiter, if any
             "updated_at",
         )
         read_only_fields = fields
@@ -153,6 +191,25 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         if not obj.full_name:
             return "Anonymous Seeker"
         return _initials(obj.full_name)
+
+    @extend_schema_field(CandidateExperienceSerializer(many=True))
+    def get_experiences(self, obj):
+        rows = obj.experiences.filter(is_deleted=False).order_by("-is_current", "-start_date")
+        return CandidateExperienceSerializer(
+            rows,
+            many=True,
+            context={"hide_current_company": obj.hide_current_company and not self._is_revealed()},
+        ).data
+
+    @extend_schema_field(CandidateEducationSerializer(many=True))
+    def get_educations(self, obj):
+        rows = obj.educations.filter(is_deleted=False).order_by("-end_year", "-start_year")
+        return CandidateEducationSerializer(rows, many=True).data
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_application_id(self, obj):
+        """So the recruiter can jump to the application they already have."""
+        return self.context.get("application_id")
 
     def get_company(self, obj):
         if obj.hide_current_company and not self._is_revealed():

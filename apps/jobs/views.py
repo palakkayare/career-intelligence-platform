@@ -16,6 +16,7 @@ from .filters import JobFilterSet
 from .models import Job, JobCategory, SavedJob, SavedSearch, SearchHistory, Tag
 from .permissions import IsAdminUser, IsJobOwnerOrReadOnly
 from .search import JobSearchService
+from .search_history import record_search
 from .serializers import (
     AdminPendingJobSerializer,
     JobCategorySerializer,
@@ -376,24 +377,9 @@ class JobSearchView(generics.ListAPIView):
             if k not in ("q", "sort", "page", "page_size")
         }
 
-        # Skip if both empty
-        if not query_text and not filters:
-            return
-
-        SearchHistory.objects.create(
-            user=request.user,
-            query_text=query_text,
-            filters=filters,
-            result_count=result_count,
-        )
-
-        # Prune to last 10
-        cutoff = (
-            SearchHistory.objects.filter(user=request.user)
-            .order_by("-created_at")
-            .values_list("id", flat=True)[SearchHistory.MAX_PER_USER :]
-        )
-        SearchHistory.objects.filter(id__in=list(cutoff)).delete()
+        # Collapsing a refinement into the previous row lives in
+        # search_history.py, with the reasoning.
+        record_search(request.user, query_text, filters, result_count)
 
 
 # ───── Saved Searches ─────

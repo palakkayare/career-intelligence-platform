@@ -12,12 +12,14 @@ from .views import (
     ReparseResumeView,
     ResumeDetailView,
     ResumeListUploadView,
+    ResumeStatusView,
     SetPrimaryResumeView,
 )
 
 resumes_patterns = [
     path("", ResumeListUploadView.as_view(), name="list-upload"),
     path("<uuid:public_id>/", ResumeDetailView.as_view(), name="detail"),
+    path("<uuid:public_id>/status/", ResumeStatusView.as_view(), name="status"),
     path(
         "<uuid:public_id>/set-primary/",
         SetPrimaryResumeView.as_view(),

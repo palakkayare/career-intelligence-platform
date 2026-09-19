@@ -17,6 +17,7 @@ from .serializers import (
     ResumeListSerializer,
     ResumeParsedSerializer,
     ResumeSkillSerializer,
+    ResumeStatusSerializer,
     ResumeUploadSerializer,
 )
 from .services import ResumeService
@@ -60,6 +61,23 @@ class ResumeListUploadView(generics.ListCreateAPIView):
             ResumeDetailSerializer(resume).data,
             status=status.HTTP_202_ACCEPTED,  # 202 = accepted, processing async
         )
+
+
+class ResumeStatusView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/resumes/<uuid:public_id>/status/
+
+    The polling endpoint. Same object as the detail view, minus the extracted
+    text and parsed payload, so waiting for a parse costs a few hundred bytes
+    a request instead of tens of kilobytes.
+    """
+
+    serializer_class = ResumeStatusSerializer
+    permission_classes = [IsSeeker]
+    lookup_field = "public_id"
+
+    def get_queryset(self):
+        return Resume.objects.filter(user=self.request.user)
 
 
 class ResumeDetailView(generics.RetrieveDestroyAPIView):

@@ -188,3 +188,26 @@ class AdvancedAtsResultSerializer(serializers.ModelSerializer):
             "advanced_ats_analyzed_at",
         )
         read_only_fields = fields
+
+
+class ResumeStatusSerializer(AnalysisStateMixin, serializers.ModelSerializer):
+    """
+    Just enough to answer "is it done yet?".
+
+    The detail serializer carries `extracted_text` and `parsed_data` - tens of
+    kilobytes. The upload screen polls while parsing runs, so it was pulling
+    the whole resume down every few seconds to read one status field.
+    """
+
+    class Meta:
+        model = Resume
+        fields = (
+            "public_id",
+            "status",
+            "analysis_state",
+            "can_reanalyse",
+            "ats_score",
+            "failure_reason",
+            "updated_at",
+        )
+        read_only_fields = fields

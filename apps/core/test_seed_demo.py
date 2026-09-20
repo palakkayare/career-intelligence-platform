@@ -34,9 +34,8 @@ def test_it_creates_both_sides_of_the_market():
 
     assert Company.objects.count() == 3
     assert Job.objects.filter(status=Job.Status.ACTIVE).count() == len(JOBS)
-    assert SeekerProfile.objects.filter(user__email__endswith=DEMO_DOMAIN).count() == len(
-        CANDIDATES
-    )
+    demo_seekers = SeekerProfile.objects.filter(user__email__endswith=DEMO_DOMAIN)
+    assert demo_seekers.count() == len(CANDIDATES)
     assert Application.objects.exists()
 
 
@@ -107,3 +106,54 @@ def test_every_recruiter_runs_their_company():
     for profile in RecruiterProfile.objects.filter(user__email__endswith=DEMO_DOMAIN):
         assert profile.company is not None
         assert profile.is_company_admin, "someone has to be able to approve join requests"
+
+
+def test_it_runs_with_no_message_broker(settings, monkeypatch):
+    """
+    Seeding is usually run from a laptop against a remote database, where the
+    broker is not reachable at all. Saving a job normally queues a Celery
+    task, so without care the command dies on the first job with a Redis
+    connection error.
+    """
+    from apps.match_scores.tasks import recompute_match_scores_for_job
+
+    def explode(*args, **kwargs):  # what an unreachable broker looks like
+        raise AssertionError("seed_demo must not touch the queue")
+
+    monkeypatch.setattr(recompute_match_scores_for_job, "delay", explode)
+
+    seed()  # must not raise
+
+    assert Job.objects.exists()
+
+
+def test_match_scores_are_computed_anyway():
+    """Removing the queue must not mean losing the scores it would have made."""
+    from apps.match_scores.models import MatchScore
+
+    seed()
+
+    assert MatchScore.objects.exists()
+
+
+def test_it_runs_with_no_cache_either(monkeypatch):
+    """
+    Seeding from a laptop cannot reach Redis at all, and Redis is both the
+    broker and the cache. Saving a profile clears a cached dashboard; saving
+    a skill takes a debounce lock. Neither may stop the seed.
+    """
+
+    class BrokenCache:
+        def __getattr__(self, _name):
+            def raiser(*args, **kwargs):
+                raise ConnectionError("Redis is unreachable")
+
+            return raiser
+
+    monkeypatch.setattr("apps.dashboard.services.cache", BrokenCache())
+    monkeypatch.setattr("django.core.cache.cache", BrokenCache())
+
+    seed(wipe=True)  # must not raise
+
+    assert Job.objects.exists()
+    assert demo_users().exists()

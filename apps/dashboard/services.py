@@ -39,8 +39,20 @@ def cache_key(user_id):
 
 
 def invalidate(user_id):
-    if user_id:
+    """
+    Drop a user's cached dashboard.
+
+    A cache is an optimisation, so losing it must never cost a write: this
+    runs from a post_save signal, and if the cache is unreachable the save
+    that triggered it would fail too. The worst case of swallowing the error
+    is a dashboard that stays stale for CACHE_SECONDS.
+    """
+    if not user_id:
+        return
+    try:
         cache.delete(cache_key(user_id))
+    except Exception:  # noqa: BLE001 - any cache backend failure
+        logger.warning("Could not invalidate the dashboard cache for user %s", user_id)
 
 
 @dataclass

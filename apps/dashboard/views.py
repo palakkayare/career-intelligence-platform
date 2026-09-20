@@ -1,3 +1,5 @@
+import logging
+
 from django.core.cache import cache
 from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
@@ -15,6 +17,8 @@ from .serializers import (
 )
 from .services import CACHE_SECONDS, build_dashboard, cache_key, mark_seen
 
+logger = logging.getLogger(__name__)
+
 
 class SeekerDashboardView(APIView):
     """
@@ -30,14 +34,24 @@ class SeekerDashboardView(APIView):
     @extend_schema(responses={200: DashboardResponseSerializer}, tags=["dashboard"])
     def get(self, request):
         key = cache_key(request.user.pk)
-        data = cache.get(key)
+        # The cache saves work; it is not allowed to cost the whole screen.
+        # If it is unreachable the dashboard is simply built every time.
+        try:
+            data = cache.get(key)
+        except Exception:  # noqa: BLE001 - any cache backend failure
+            logger.warning("Dashboard cache unavailable on read")
+            data = None
+
         if data is None:
             profile = request.user.seeker_profile
             data = build_dashboard(request.user, profile, request=request)
             # A response with a broken section is not cached, so the next
             # request gets a fresh attempt instead of a minute of the error.
             if not data["errors"]:
-                cache.set(key, data, CACHE_SECONDS)
+                try:
+                    cache.set(key, data, CACHE_SECONDS)
+                except Exception:  # noqa: BLE001
+                    logger.warning("Dashboard cache unavailable on write")
 
         response = Response(data)
         response["Cache-Control"] = "private, max-age=30"

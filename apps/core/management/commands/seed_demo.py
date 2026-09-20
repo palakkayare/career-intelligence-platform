@@ -17,12 +17,14 @@ Not for production traffic: passwords are shared and deliberately simple.
 """
 
 import random
+from contextlib import contextmanager
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models.signals import post_delete, post_save
 from django.utils import timezone
 
 from apps.applications.models import Application, ApplicationStatusHistory
@@ -278,6 +280,38 @@ PIPELINE = [
 ]
 
 
+@contextmanager
+def _without_match_score_signals():
+    """
+    Run a block with the match-score signals disconnected.
+
+    They exist to keep scores fresh when one row changes. During seeding they
+    fire hundreds of times and each one needs a broker, so the command would
+    only work from inside the cluster. Scores are computed once, at the end,
+    instead.
+    """
+    from apps.jobs.models import Job as JobModel
+    from apps.match_scores import signals as match_signals
+    from apps.seekers.models import SeekerProfile, SeekerSkill
+
+    connections = [
+        (match_signals.trigger_recompute_for_job, post_save, JobModel),
+        (match_signals.recompute_on_skill_saved, post_save, SeekerSkill),
+        (match_signals.recompute_on_skill_deleted, post_delete, SeekerSkill),
+        (match_signals.recompute_on_profile_saved, post_save, SeekerProfile),
+    ]
+
+    disconnected = []
+    for receiver, signal, sender in connections:
+        if receiver is not None and signal.disconnect(receiver, sender=sender):
+            disconnected.append((receiver, signal, sender))
+    try:
+        yield
+    finally:
+        for receiver, signal, sender in disconnected:
+            signal.connect(receiver, sender=sender)
+
+
 class Command(BaseCommand):
     help = "Create a demo dataset: companies, jobs, candidates and a live pipeline."
 
@@ -292,22 +326,54 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         random.seed(7)  # same demo every time
 
-        if options["wipe"]:
-            self._wipe()
+        # Saving a job or a skill normally queues a Celery task to recompute
+        # match scores. Seeding is often run from a laptop against a remote
+        # database, where the broker is not reachable at all, so the queue is
+        # taken out of the loop and the scores are computed here instead.
+        with _without_match_score_signals():
+            # Deleting rows fires the same signals as creating them.
+            if options["wipe"]:
+                self._wipe()
 
-        recruiters = self._companies_and_recruiters()
-        jobs = self._jobs(recruiters)
-        candidates = self._candidates()
-        applications = self._pipeline(candidates, jobs)
+            recruiters = self._companies_and_recruiters()
+            jobs = self._jobs(recruiters)
+            candidates = self._candidates()
+            applications = self._pipeline(candidates, jobs)
+
+        scores = self._match_scores(jobs)
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Demo ready: {len(recruiters)} companies, {len(jobs)} live jobs, "
-                f"{len(candidates)} candidates, {applications} applications.\n"
+                f"{len(candidates)} candidates, {applications} applications, "
+                f"{scores} match scores.\n"
                 f"Everyone's password is {DEMO_PASSWORD!r}; "
                 f"emails look like ananya.iyer@{DEMO_DOMAIN}."
             )
         )
+
+    def _match_scores(self, jobs):
+        """
+        Compute the scores the queue would normally have produced.
+
+        Same pairing rule as the task: a seeker is scored against a job when
+        they share at least one of its required skills.
+        """
+        from apps.match_scores.services import MatchScoreService
+        from apps.seekers.models import SeekerProfile
+
+        made = 0
+        for job in jobs:
+            skill_ids = list(job.required_skills.values_list("id", flat=True))
+            if not skill_ids:
+                continue
+            seekers = SeekerProfile.objects.filter(
+                seeker_skills__skill_id__in=skill_ids, is_deleted=False
+            ).distinct()
+            for seeker in seekers:
+                MatchScoreService.compute_and_save(seeker, job)
+                made += 1
+        return made
 
     # ── helpers ───────────────────────────────────────────────────────
 

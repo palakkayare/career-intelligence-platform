@@ -121,8 +121,15 @@ def queue_seeker_recompute(seeker_id, delay_seconds=30):
 
     if not seeker_id:
         return
-    if not cache.add(seeker_lock_key(seeker_id), 1, timeout=delay_seconds + 300):
-        return  # already queued
+
+    # The lock only stops duplicate work. If the cache is unreachable, queue
+    # the task anyway: a repeated recompute is waste, a skipped one is a
+    # wrong score on someone's screen.
+    try:
+        if not cache.add(seeker_lock_key(seeker_id), 1, timeout=delay_seconds + 300):
+            return  # already queued
+    except Exception:  # noqa: BLE001 - any cache backend failure
+        logger.warning("Match-score debounce cache unavailable for seeker %s", seeker_id)
     transaction.on_commit(
         lambda: recompute_match_scores_for_seeker.apply_async(
             args=[seeker_id], countdown=delay_seconds

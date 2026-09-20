@@ -177,3 +177,26 @@ def test_time_to_offer_stops_at_the_offer(django_user_model, recruiter):
     Application.objects.filter(pk=accepted.pk).update(last_status_change_at=timezone.now())
 
     assert get(recruiter.user)["totals"]["avg_days_to_offer"] == 5
+
+
+def test_the_skills_chart_names_the_skills(django_user_model, recruiter):
+    """
+    Regression: the chart showed five skills and swept the rest into
+    "Others", which took two thirds of the donut on a normal set of jobs -
+    a chart whose biggest slice is "everything else" answers nothing.
+    """
+    from apps.skills.models import Skill
+
+    for n in range(14):
+        j = job(recruiter, f"Role {n}")
+        j.required_skills.add(Skill.objects.create(name=f"Skill {n}"))
+        apply(seeker(django_user_model, n), j)
+
+    skills = get(recruiter.user)["top_skills"]
+
+    named = [s for s in skills if s["name"] != "Others"]
+    others = next((s for s in skills if s["name"] == "Others"), None)
+
+    assert len(named) == 10
+    # Either there is no "Others" at all, or it is a small remainder.
+    assert others is None or others["share_pct"] <= 10

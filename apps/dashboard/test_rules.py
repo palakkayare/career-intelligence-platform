@@ -186,3 +186,24 @@ def test_new_user_definition():
     assert rules.is_new_user(total_applications=0, strength_score=30)
     assert not rules.is_new_user(total_applications=1, strength_score=30)
     assert not rules.is_new_user(total_applications=0, strength_score=60)
+
+
+def test_an_offer_asks_to_be_answered():
+    """
+    Regression: the copy predated the accept/decline flow and told people the
+    employer would contact them. It is their move now, and the dashboard is
+    where they find that out.
+    """
+    result = next_action(applications=[app(7, "offered", company_name="Nimbus Systems")])
+
+    assert "Nimbus Systems" in result["title"]
+    assert result["cta"] == "Answer offer"
+    assert "contact you" not in result["detail"].lower()
+    assert result["link"] == "/me/applications/7"
+
+
+def test_the_attention_list_offers_the_same_move():
+    items = attention(applications=[app(7, "offered")])
+
+    offers = [i for i in items if i["kind"] == "offer"]
+    assert offers and offers[0]["cta"] == "Answer offer"

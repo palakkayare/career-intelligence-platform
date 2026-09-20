@@ -340,17 +340,62 @@ class Command(BaseCommand):
             candidates = self._candidates()
             applications = self._pipeline(candidates, jobs)
 
+        plans = self._subscriptions(recruiters, candidates)
+
         scores = self._match_scores(jobs)
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Demo ready: {len(recruiters)} companies, {len(jobs)} live jobs, "
                 f"{len(candidates)} candidates, {applications} applications, "
-                f"{scores} match scores.\n"
+                f"{scores} match scores, {plans} paid plans.\n"
                 f"Everyone's password is {DEMO_PASSWORD!r}; "
                 f"emails look like ananya.iyer@{DEMO_DOMAIN}."
             )
         )
+
+    def _subscriptions(self, recruiters, candidates):
+        """
+        Put the demo accounts on paid plans.
+
+        On the free plan the screens worth showing are all upgrade walls:
+        match scores, skill gap, career path, salary insights, candidate
+        search and analytics. A demo that hides the product's distinctive
+        half is not a demo. Real free accounts are unaffected.
+        """
+        from apps.payments.models import Plan, Subscription
+
+        now = timezone.now()
+        granted = 0
+
+        wanted = [
+            (["pro_monthly", "pro-monthly"], [c.user for c in candidates]),
+            (["business_monthly", "business-monthly"], [r.user for r in recruiters]),
+        ]
+
+        for slugs, users in wanted:
+            plan = Plan.objects.filter(slug__in=slugs).first()
+            if plan is None:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"No plan found for {slugs[0]}; run seed_plans first if the demo "
+                        "should show the paid features."
+                    )
+                )
+                continue
+            for user in users:
+                Subscription.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        "plan": plan,
+                        "status": "active",
+                        "current_period_start": now - timedelta(days=5),
+                        "current_period_end": now + timedelta(days=25),
+                        "auto_renew": False,
+                    },
+                )
+                granted += 1
+        return granted
 
     def _match_scores(self, jobs):
         """

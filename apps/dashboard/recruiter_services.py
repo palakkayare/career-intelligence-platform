@@ -174,7 +174,12 @@ def build_recruiter_dashboard(recruiter, now=None):
 # ── Hiring analytics ──────────────────────────────────────────────────
 
 MONTHS_BACK = 8
-TOP_SKILLS = 5
+# How many skills the chart names. Jobs list 4-8 required skills each, so a
+# short list leaves most of the weight in an "Others" slice that says nothing:
+# with four jobs it was two thirds of the chart.
+TOP_SKILLS = 10
+# Below this, "Others" is noise rather than information.
+OTHERS_MIN_SHARE = 0.05
 IN_PIPELINE = ("shortlisted", "interview", "offered")
 
 
@@ -286,8 +291,13 @@ def build_recruiter_analytics(recruiter, now=None):
     ranked = sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))
     top = [{"name": n, "weight": w} for n, w in ranked[:TOP_SKILLS]]
     rest = sum(w for _, w in ranked[TOP_SKILLS:])
-    if rest:
+    total_weight = sum(w for _, w in ranked) or 1
+
+    # An "Others" slice is only worth drawing when it is genuinely small; a
+    # large one hides the answer the chart was asked for.
+    if rest and rest / total_weight <= OTHERS_MIN_SHARE:
         top.append({"name": "Others", "weight": rest})
+
     weight_total = sum(row["weight"] for row in top) or 1
     for row in top:
         row["share_pct"] = round(row["weight"] / weight_total * 100)

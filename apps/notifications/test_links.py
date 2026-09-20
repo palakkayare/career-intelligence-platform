@@ -113,3 +113,40 @@ def test_emails_greet_by_profile_name_not_email(django_user_model):
 
     user.full_name = "Priya S."
     assert _greeting_name(user) == "Priya"
+
+
+# ── join request emails ────────────────────────────────────────────────
+
+
+def test_join_request_emails_have_their_templates():
+    """
+    Both kinds are sent instantly, and an instant kind without templates
+    means the notification appears in-app while the email quietly never goes.
+    """
+    from django.template.loader import get_template
+
+    from apps.notifications.tasks import KIND_TEMPLATES
+
+    for kind in ("company_join_request", "company_join_decided"):
+        directory = KIND_TEMPLATES.get(kind)
+        assert directory, f"{kind} has no template directory"
+        for name in ("subject.txt", "body.txt", "body.html"):
+            get_template(f"emails/{directory}/{name}")
+
+
+def test_the_decision_email_reads_differently_when_declined():
+    from django.template.loader import render_to_string
+
+    approved = render_to_string(
+        "emails/company_join_decided/body.txt",
+        {"user_name": "Vikram", "company_name": "Acme", "approved": True, "link": "/x"},
+    )
+    declined = render_to_string(
+        "emails/company_join_decided/body.txt",
+        {"user_name": "Vikram", "company_name": "Acme", "approved": False, "link": "/x"},
+    )
+
+    assert "was approved" in approved
+    assert "not approved" in declined
+    # A declined person should not be pointed at a team they are not part of.
+    assert "your own" in declined

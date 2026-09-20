@@ -177,3 +177,72 @@ def test_someone_already_in_a_company_cannot_ask(django_user_model, owner):
     response = client_for(colleague).post(JOIN.format(other.id))
 
     assert response.status_code == 400
+
+
+# ── notifications ──────────────────────────────────────────────────────
+
+
+def notifications_for(user, kind=None):
+    from apps.notifications.models import Notification
+
+    qs = Notification.objects.filter(user=user)
+    return list(qs.filter(kind=kind) if kind else qs)
+
+
+def test_every_admin_is_told_that_someone_is_waiting(django_user_model, owner):
+    """
+    Regression: the request sat on the Team page until an admin happened to
+    open it, and the person who asked had no way to tell whether anyone saw it.
+    """
+    second_admin = recruiter(
+        django_user_model, "boss2@acme.example.com", company=owner.company, admin=True
+    )
+    plain_member = recruiter(django_user_model, "member@acme.example.com", company=owner.company)
+    outsider = recruiter(django_user_model, "stranger@other.test")
+
+    client_for(outsider).post(JOIN.format(owner.company_id))
+
+    for admin in (owner, second_admin):
+        notes = notifications_for(admin.user, "company_join_request")
+        assert len(notes) == 1
+        assert "stranger" in notes[0].message.lower() or "stranger" in str(notes[0].context)
+        assert notes[0].link == "/recruiter/team"
+
+    # Not everyone in the company — only the people who can decide.
+    assert notifications_for(plain_member.user, "company_join_request") == []
+
+
+def test_the_asker_is_told_when_it_is_approved(django_user_model, owner):
+    outsider = recruiter(django_user_model, "stranger@other.test")
+    client_for(outsider).post(JOIN.format(owner.company_id))
+    request_id = CompanyJoinRequest.objects.get().id
+
+    client_for(owner).post(DECIDE.format(request_id, "approve"))
+
+    notes = notifications_for(outsider.user, "company_join_decided")
+    assert len(notes) == 1
+    assert "Acme Corp" in notes[0].title
+    assert notes[0].link == "/recruiter/team"
+
+
+def test_the_asker_is_told_when_it_is_rejected(django_user_model, owner):
+    outsider = recruiter(django_user_model, "stranger@other.test")
+    client_for(outsider).post(JOIN.format(owner.company_id))
+    request_id = CompanyJoinRequest.objects.get().id
+
+    client_for(owner).post(DECIDE.format(request_id, "reject"))
+
+    notes = notifications_for(outsider.user, "company_join_decided")
+    assert len(notes) == 1
+    assert "declined" in notes[0].title.lower()
+    # Somewhere useful to go next, not the team page of a company they are not in.
+    assert notes[0].link == "/recruiter/companies"
+
+
+def test_joining_straight_away_raises_no_request_notification(django_user_model, owner):
+    """A matching email domain joins on the spot; there is nothing to approve."""
+    colleague = recruiter(django_user_model, "new.hire@acme.example.com")
+
+    client_for(colleague).post(JOIN.format(owner.company_id))
+
+    assert notifications_for(owner.user, "company_join_request") == []

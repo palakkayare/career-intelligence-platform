@@ -221,6 +221,10 @@ class CompanyJoinService:
             return join_request, True
 
         join_request.save()
+
+        from apps.notifications.triggers import notify_company_join_requested
+
+        notify_company_join_requested(join_request)
         return join_request, False
 
     @classmethod
@@ -253,6 +257,10 @@ class CompanyJoinService:
         join_request.decided_by = admin
         join_request.decided_at = timezone.now()
         join_request.save()
+
+        from apps.notifications.triggers import notify_company_join_decided
+
+        notify_company_join_decided(join_request, approved=approve)
         return join_request
 
     @staticmethod

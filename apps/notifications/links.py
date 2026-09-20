@@ -27,6 +27,16 @@ def recruiter_application(application_id):
     return f"/recruiter/applications/{application_id}"
 
 
+def recruiter_team():
+    """Where join requests are decided."""
+    return "/recruiter/team"
+
+
+def recruiter_companies():
+    """The list a recruiter without a company browses."""
+    return "/recruiter/companies"
+
+
 def recruiter_job_edit(job_public_id):
     return f"/recruiter/jobs/{job_public_id}/edit"
 

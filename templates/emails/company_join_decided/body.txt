@@ -1,0 +1,11 @@
+Hi {{ user_name }},
+
+{% if approved %}Your request to join {{ company_name }} was approved. Their jobs,
+applicants and team are now yours to work on.
+
+Open your team: {{ link }}{% else %}Your request to join {{ company_name }} was not approved.
+
+You can ask another company, or create your own: {{ link }}{% endif %}
+
+--
+Career Intelligence Team

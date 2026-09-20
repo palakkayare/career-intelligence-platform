@@ -272,3 +272,63 @@ def notify_new_matching_jobs(seeker_user, matches):
             "matches": matches[:5],
         },
     )
+
+
+def notify_company_join_requested(join_request):
+    """
+    Tell the company's admins that someone is waiting.
+
+    Without this the request sits on the Team page until an admin happens to
+    open it, and the person who asked has no way to tell whether anyone saw
+    it. Every admin is told, so one person being away does not block it.
+    """
+    from apps.recruiters.models import RecruiterProfile
+
+    company = join_request.company
+    asker = join_request.recruiter
+    name = (asker.full_name or "").strip() or asker.user.email
+
+    admins = RecruiterProfile.objects.filter(company=company, is_company_admin=True).select_related(
+        "user"
+    )
+
+    for admin in admins:
+        if admin.user_id == asker.user_id:
+            continue  # nobody needs to be told about their own request
+        NotificationService.create(
+            user=admin.user,
+            kind=NotificationKind.COMPANY_JOIN_REQUEST,
+            title="Someone asked to join your company",
+            message=f"{name} asked to join {company.name}. Approve or reject it from Team Members.",
+            link=links.recruiter_team(),
+            context={
+                "company_name": company.name,
+                "requester_name": name,
+                "requester_email": asker.user.email,
+                "request_id": join_request.id,
+            },
+        )
+
+
+def notify_company_join_decided(join_request, approved):
+    """Tell the person who asked what was decided."""
+    company = join_request.company
+
+    NotificationService.create(
+        user=join_request.recruiter.user,
+        kind=NotificationKind.COMPANY_JOIN_DECIDED,
+        title=f"You are now part of {company.name}" if approved else "Join request declined",
+        message=(
+            (
+                f"Your request to join {company.name} was approved. "
+                "Their jobs and applicants are now yours to work on."
+            )
+            if approved
+            else (
+                f"Your request to join {company.name} was not approved. "
+                "You can ask another company, or create your own."
+            )
+        ),
+        link=links.recruiter_team() if approved else links.recruiter_companies(),
+        context={"company_name": company.name, "approved": approved},
+    )

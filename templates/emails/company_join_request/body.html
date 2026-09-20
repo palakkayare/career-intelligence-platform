@@ -1,0 +1,17 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h2>Someone asked to join your company</h2>
+  <p>Hi {{ user_name }},</p>
+  <p>
+    <strong>{{ requester_name }}</strong> ({{ requester_email }}) has asked to join
+    <strong>{{ company_name }}</strong>.
+  </p>
+  <p>
+    Approving them gives them access to your company&rsquo;s jobs, applicants and team,
+    so check the address above before you do.
+  </p>
+
+  <p style="margin-top: 30px;">
+    <a href="{{ link }}" class="btn">Review the request</a>
+  </p>
+{% endblock %}

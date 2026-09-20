@@ -1,0 +1,1 @@
+{% if approved %}You are now part of {{ company_name }}{% else %}Your request to join {{ company_name }} was declined{% endif %}

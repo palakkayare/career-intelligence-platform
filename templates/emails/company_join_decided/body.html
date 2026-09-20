@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  {% if approved %}
+    <h2>You are now part of {{ company_name }}</h2>
+    <p>Hi {{ user_name }},</p>
+    <p>
+      Your request to join <strong>{{ company_name }}</strong> was approved. Their jobs,
+      applicants and team are now yours to work on.
+    </p>
+    <p style="margin-top: 30px;">
+      <a href="{{ link }}" class="btn">Open your team</a>
+    </p>
+  {% else %}
+    <h2>Your request was declined</h2>
+    <p>Hi {{ user_name }},</p>
+    <p>
+      Your request to join <strong>{{ company_name }}</strong> was not approved.
+      You can ask another company, or create your own.
+    </p>
+    <p style="margin-top: 30px;">
+      <a href="{{ link }}" class="btn">Browse companies</a>
+    </p>
+  {% endif %}
+{% endblock %}

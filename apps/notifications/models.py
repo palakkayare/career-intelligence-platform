@@ -31,6 +31,10 @@ class NotificationKind(models.TextChoices):
     PROFILE_VIEWED = "profile_viewed", "Profile Viewed (Seeker)"
     JOB_APPROVED = "job_approved", "Job Approved (Recruiter)"
     JOB_REJECTED = "job_rejected", "Job Rejected (Recruiter)"
+    # Somebody is waiting on a decision, so it cannot sit unseen on a page
+    # nobody opens.
+    COMPANY_JOIN_REQUEST = "company_join_request", "Join Request (Company Admin)"
+    COMPANY_JOIN_DECIDED = "company_join_decided", "Join Request Decided (Recruiter)"
 
 
 class DeliveryPriority(models.TextChoices):
@@ -144,6 +148,10 @@ class NotificationPreferences(TimestampedModel):
             NotificationKind.PROFILE_VIEWED: "email_profile_views",
             NotificationKind.JOB_APPROVED: "email_application_updates",
             NotificationKind.JOB_REJECTED: "email_application_updates",
+            # Team changes ride along with application updates rather than
+            # adding a switch nobody would look for.
+            NotificationKind.COMPANY_JOIN_REQUEST: "email_application_updates",
+            NotificationKind.COMPANY_JOIN_DECIDED: "email_application_updates",
         }
         attr = kind_map.get(kind)
         # Unknown kinds default to enabled

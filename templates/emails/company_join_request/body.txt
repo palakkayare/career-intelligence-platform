@@ -1,0 +1,11 @@
+Hi {{ user_name }},
+
+{{ requester_name }} ({{ requester_email }}) has asked to join {{ company_name }}.
+
+Approving them gives them access to your company's jobs, applicants and team,
+so check the address above before you do.
+
+Approve or reject the request: {{ link }}
+
+--
+Career Intelligence Team

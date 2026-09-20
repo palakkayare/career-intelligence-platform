@@ -29,6 +29,10 @@ KIND_PRIORITIES = {
     NotificationKind.PROFILE_VIEWED: DeliveryPriority.NONE,  # In-app only
     NotificationKind.JOB_APPROVED: DeliveryPriority.INSTANT,
     NotificationKind.JOB_REJECTED: DeliveryPriority.INSTANT,
+    # Someone is blocked until an admin answers, and the answer matters to
+    # the person who asked, so neither of these waits for a digest.
+    NotificationKind.COMPANY_JOIN_REQUEST: DeliveryPriority.INSTANT,
+    NotificationKind.COMPANY_JOIN_DECIDED: DeliveryPriority.INSTANT,
 }
 
 

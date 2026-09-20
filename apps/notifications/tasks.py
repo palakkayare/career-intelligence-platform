@@ -28,6 +28,8 @@ KIND_TEMPLATES = {
     "job_rejected": "job_rejected",
     "app_withdrawn": "application_withdrawn",
     "resume_analysed": "resume_analysis_complete",
+    "company_join_request": "company_join_request",
+    "company_join_decided": "company_join_decided",
     # These two are only ever sent as part of the daily digest
     "new_matching_job": "new_matching_jobs_digest",
     "new_matching_candidate": "new_matching_candidates_digest",

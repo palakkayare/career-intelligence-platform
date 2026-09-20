@@ -54,7 +54,11 @@ class SeekerDashboardView(APIView):
                     logger.warning("Dashboard cache unavailable on write")
 
         response = Response(data)
-        response["Cache-Control"] = "private, max-age=30"
+        # Never "private, max-age": the browser keys its cache on the URL, not
+        # on who asked, so after a logout and a login on the same machine the
+        # next person was served the previous person's dashboard. The
+        # server-side cache above is keyed per user and does the real saving.
+        response["Cache-Control"] = "no-store"
         return response
 
 
@@ -92,7 +96,11 @@ class RecruiterDashboardView(APIView):
 
         profile = request.user.recruiter_profile
         response = Response(build_recruiter_dashboard(profile))
-        response["Cache-Control"] = "private, max-age=30"
+        # Never "private, max-age": the browser keys its cache on the URL, not
+        # on who asked, so after a logout and a login on the same machine the
+        # next person was served the previous person's dashboard. The
+        # server-side cache above is keyed per user and does the real saving.
+        response["Cache-Control"] = "no-store"
         return response
 
 
@@ -114,5 +122,5 @@ class RecruiterAnalyticsView(APIView):
         from .recruiter_services import build_recruiter_analytics
 
         response = Response(build_recruiter_analytics(request.user.recruiter_profile))
-        response["Cache-Control"] = "private, max-age=60"
+        response["Cache-Control"] = "no-store"  # per-user payload; see above
         return response

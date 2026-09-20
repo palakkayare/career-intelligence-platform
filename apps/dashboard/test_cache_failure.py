@@ -71,3 +71,40 @@ def test_the_cache_is_still_used_when_it_works(seeker):
     client.get("/api/v1/dashboard/me/")
 
     assert cache.get(f"dashboard:seeker:{seeker.pk}") is not None
+
+
+def test_a_dashboard_is_never_stored_by_the_browser(seeker, django_user_model):
+    """
+    Regression: the response carried "private, max-age=30". A browser keys its
+    cache on the URL, not on who asked, so after a logout and a login on the
+    same machine the next person was served the previous person's dashboard -
+    their name, their applications, their offers - for half a minute.
+    """
+    client = APIClient()
+    client.force_authenticate(seeker)
+
+    response = client.get("/api/v1/dashboard/me/")
+
+    assert response.status_code == 200
+    cache_control = response["Cache-Control"]
+    assert "no-store" in cache_control
+    assert "max-age" not in cache_control
+
+
+def test_no_per_user_endpoint_lets_the_browser_keep_it(seeker, django_user_model):
+    """The same reasoning covers every dashboard response, not just the first."""
+    recruiter_user = django_user_model.objects.create_user(
+        email="cache-recruiter@test.com",
+        password="pw-12345678",
+        role="recruiter",
+        is_email_verified=True,
+    )
+    checks = [(seeker, "/api/v1/dashboard/me/"), (recruiter_user, "/api/v1/dashboard/recruiter/")]
+
+    for user, url in checks:
+        client = APIClient()
+        client.force_authenticate(user)
+        response = client.get(url)
+        if response.status_code != 200:
+            continue  # plan-gated endpoints are covered by their own tests
+        assert "max-age" not in response["Cache-Control"], url

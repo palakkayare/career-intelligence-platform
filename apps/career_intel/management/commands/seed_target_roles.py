@@ -134,12 +134,30 @@ ROLE_DATA = [
         "avg_salary_inr": Decimal("1500000"),
         "skills": [
             ("Figma", "critical", "easy", None),
-            ("UI/UX Design", "critical", "medium", None),
+            # Two separate crafts in the taxonomy: what it looks like, and how
+            # it behaves.
+            ("UI Design", "critical", "medium", "Interface craft"),
+            ("UX Design", "critical", "medium", "Research and flows"),
             ("Adobe XD", "preferred", "easy", None),
             ("Photoshop", "optional", "easy", None),
         ],
     },
 ]
+
+
+def _find_skill(name):
+    """
+    Resolve a skill the way a person would.
+
+    The role lists are written by hand, so they say "Google Cloud" and
+    "Photoshop" where the taxonomy stores "Google Cloud Platform" and
+    "Adobe Photoshop". Aliases exist for exactly this; without checking them
+    the link is dropped and the role quietly loses a required skill.
+    """
+    skill = Skill.objects.filter(name__iexact=name).first()
+    if skill:
+        return skill
+    return Skill.objects.filter(aliases__icontains=name.lower()).first()
 
 
 class Command(BaseCommand):
@@ -168,9 +186,8 @@ class Command(BaseCommand):
 
             # Wire up the required skills
             for skill_name, importance, difficulty, rationale in skills_data:
-                try:
-                    skill = Skill.objects.get(name__iexact=skill_name)
-                except Skill.DoesNotExist:
+                skill = _find_skill(skill_name)
+                if skill is None:
                     missing_skills.append((role.name, skill_name))
                     self.stderr.write(
                         f"WARNING: skill '{skill_name}' not found, " f"skipping it for {role.name}"

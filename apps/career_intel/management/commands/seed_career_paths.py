@@ -493,6 +493,22 @@ EDGES = [
 ]
 
 
+def _find_skill(name):
+    """
+    Resolve a skill by name, then by alias.
+
+    The edge lists are written by hand and use shorthand - "architecture",
+    "strategy", "ui/ux design" - where the taxonomy stores the full names.
+    Without the alias step the edge is seeded with no skills at all, which is
+    invisible until someone looks at a career path and wonders why it asks
+    for nothing.
+    """
+    skill = Skill.objects.filter(name__iexact=name).first()
+    if skill:
+        return skill
+    return Skill.objects.filter(aliases__icontains=name.lower()).first()
+
+
 class Command(BaseCommand):
     help = "Seed the curated career path nodes and edges"
 
@@ -550,7 +566,7 @@ class Command(BaseCommand):
             # Re-wire the required skills from scratch each run.
             edge.required_skills.clear()
             for skill_name in skill_names:
-                skill = Skill.objects.filter(name__iexact=skill_name).first()
+                skill = _find_skill(skill_name)
                 if skill:
                     edge.required_skills.add(skill)
                 else:

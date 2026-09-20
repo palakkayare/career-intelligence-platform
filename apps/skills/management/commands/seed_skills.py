@@ -1,105 +1,70 @@
 """
-Seed initial skills into the database.
-Usage: python manage.py seed_skills
+Seed the skill taxonomy.
+
+    python manage.py seed_skills
+
+Safe to run again: existing skills are updated in place, nothing is
+duplicated, and skills people added themselves are left alone.
+
+Three features read from this table and nothing else - match scores, the
+skill gap, and learning resources - so a thin table does not break them, it
+quietly empties them.
 """
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
-from apps.skills.models import Skill, SkillCategory
-
-SLUG_OVERRIDES = {
-    "C++": "cpp",
-    "C#": "csharp",
-}
-INITIAL_SKILLS = [
-    # Programming Languages
-    ("Python", SkillCategory.PROGRAMMING, ["py"]),
-    ("JavaScript", SkillCategory.PROGRAMMING, ["js", "javascript"]),
-    ("TypeScript", SkillCategory.PROGRAMMING, ["ts"]),
-    ("Java", SkillCategory.PROGRAMMING, []),
-    ("C++", SkillCategory.PROGRAMMING, ["cpp"]),
-    ("C#", SkillCategory.PROGRAMMING, ["csharp"]),
-    ("Go", SkillCategory.PROGRAMMING, ["golang"]),
-    ("Ruby", SkillCategory.PROGRAMMING, []),
-    ("PHP", SkillCategory.PROGRAMMING, []),
-    ("Swift", SkillCategory.PROGRAMMING, []),
-    ("Kotlin", SkillCategory.PROGRAMMING, []),
-    ("CSS", SkillCategory.PROGRAMMING, ["css3"]),
-    # Frameworks
-    ("Django", SkillCategory.FRAMEWORK, []),
-    ("Flask", SkillCategory.FRAMEWORK, []),
-    ("FastAPI", SkillCategory.FRAMEWORK, []),
-    ("React", SkillCategory.FRAMEWORK, ["reactjs"]),
-    ("Vue.js", SkillCategory.FRAMEWORK, ["vue"]),
-    ("Angular", SkillCategory.FRAMEWORK, []),
-    ("Next.js", SkillCategory.FRAMEWORK, ["nextjs"]),
-    ("Express.js", SkillCategory.FRAMEWORK, ["express"]),
-    ("Spring Boot", SkillCategory.FRAMEWORK, ["spring"]),
-    ("Ruby on Rails", SkillCategory.FRAMEWORK, ["rails"]),
-    ("Laravel", SkillCategory.FRAMEWORK, []),
-    # Databases
-    ("PostgreSQL", SkillCategory.DATABASE, ["postgres"]),
-    ("MySQL", SkillCategory.DATABASE, []),
-    ("MongoDB", SkillCategory.DATABASE, ["mongo"]),
-    ("Redis", SkillCategory.DATABASE, []),
-    ("SQLite", SkillCategory.DATABASE, []),
-    ("Elasticsearch", SkillCategory.DATABASE, ["es"]),
-    # Cloud & DevOps
-    ("AWS", SkillCategory.CLOUD, ["amazon web services"]),
-    ("Google Cloud", SkillCategory.CLOUD, ["gcp"]),
-    ("Azure", SkillCategory.CLOUD, []),
-    ("Docker", SkillCategory.CLOUD, []),
-    ("Kubernetes", SkillCategory.CLOUD, ["k8s"]),
-    ("CI/CD", SkillCategory.CLOUD, []),
-    ("Linux", SkillCategory.CLOUD, []),
-    ("Git", SkillCategory.CLOUD, []),
-    ("Terraform", SkillCategory.CLOUD, []),
-    # Design
-    ("Figma", SkillCategory.DESIGN, []),
-    ("Adobe XD", SkillCategory.DESIGN, []),
-    ("Photoshop", SkillCategory.DESIGN, []),
-    ("UI/UX Design", SkillCategory.DESIGN, ["ui design", "ux design"]),
-    # Domain Knowledge - referenced by the target-role, learning-resource and
-    # career-path seeds, whose links are skipped when a skill is missing here.
-    ("Microservices", SkillCategory.DOMAIN, []),
-    ("System Design", SkillCategory.DOMAIN, []),
-    ("Architecture", SkillCategory.DOMAIN, ["software architecture"]),
-    ("Machine Learning", SkillCategory.DOMAIN, []),
-    ("Statistics", SkillCategory.DOMAIN, []),
-    ("Strategy", SkillCategory.DOMAIN, []),
-    # Soft Skills
-    ("Leadership", SkillCategory.SOFT_SKILL, []),
-    ("Communication", SkillCategory.SOFT_SKILL, []),
-    ("Problem Solving", SkillCategory.SOFT_SKILL, []),
-    ("Team Collaboration", SkillCategory.SOFT_SKILL, ["teamwork"]),
-    # Tools
-    ("JIRA", SkillCategory.TOOL, []),
-    ("Postman", SkillCategory.TOOL, []),
-    ("Slack", SkillCategory.TOOL, []),
-]
+from apps.skills.data.skill_catalogue import SKILLS, SLUG_OVERRIDES
+from apps.skills.models import Skill
 
 
 class Command(BaseCommand):
-    help = "Seed initial skill taxonomy"
+    help = "Seed the skill taxonomy (idempotent)"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Report what would change without writing anything.",
+        )
+
+    @transaction.atomic
     def handle(self, *args, **options):
-        created = 0
-        for name, category, aliases in INITIAL_SKILLS:
-            defaults = {
-                "category": category,
-                "aliases": aliases,
-                "is_approved": True,
-            }
-            if name in SLUG_OVERRIDES:
-                defaults["slug"] = SLUG_OVERRIDES[name]
+        dry_run = options["dry_run"]
+        existing = {s.name.lower(): s for s in Skill.objects.all()}
 
-            obj, was_created = Skill.objects.update_or_create(
-                name=name,
-                defaults=defaults,
-            )
-            if was_created:
+        created = updated = unchanged = 0
+
+        for name, category, aliases in SKILLS:
+            current = existing.get(name.lower())
+
+            if current is None:
+                if not dry_run:
+                    defaults = {"category": category, "aliases": aliases, "is_approved": True}
+                    if name in SLUG_OVERRIDES:
+                        defaults["slug"] = SLUG_OVERRIDES[name]
+                    Skill.objects.create(name=name, **defaults)
                 created += 1
+                continue
 
+            # Keep any aliases a human added; add the ones we ship.
+            merged = sorted({*(current.aliases or []), *aliases})
+            changed = merged != sorted(current.aliases or []) or current.category != category
+
+            if changed and not dry_run:
+                current.aliases = merged
+                current.category = category
+                current.is_approved = True
+                current.save(update_fields=["aliases", "category", "is_approved"])
+
+            updated += 1 if changed else 0
+            unchanged += 0 if changed else 1
+
+        total = Skill.objects.count() + (created if dry_run else 0)
+        prefix = "Would seed" if dry_run else "Seeded"
         self.stdout.write(
-            self.style.SUCCESS(f"Seeded {created} new skills (total: {len(INITIAL_SKILLS)})")
+            self.style.SUCCESS(
+                f"{prefix}: {created} new, {updated} updated, {unchanged} unchanged. "
+                f"Catalogue has {len(SKILLS)} skills; the table now holds {total}."
+            )
         )
